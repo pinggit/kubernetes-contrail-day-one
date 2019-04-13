@@ -1,0 +1,25 @@
+Learning Objective 1: The reader will be able to explain and build advanced Kubernetes features using YAML  
+
+= Kubernetes in practice
+
+== Kubernetes features 
+=== Label, Label example 
+=== Services 
+
+(Cluster IP , node port , load balancing) 
+
+=== Ingress 
+=== Replication Controller & Replica set
+=== Deployment
+=== POD health check & Readniess Probe  
+=== Volumes, storage 
+=== Scaling (manually , auto scaling) 
+=== ConfigMap 
+=== Affinity/ anti-affinity  
+=== DNS
+
+== Building Kubernetes 
+
+=== kubeadm , minikube ,…
+=== Helm charts  
+

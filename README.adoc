@@ -1,0 +1,66 @@
+= kubernetes-contrail-day-one
+
+== TOC
+
+  |Chapter 1: container foundations
+  . |containers overview
+  . . |Understanding containers
+  . . |Understanding Docker
+  . . |Containers as part of VNs
+  . . |Linux cgroup, namespace, iptables
+  . |contrail overview
+  . . |Contrail Architecture Fundamentals
+  . . |contrail controller
+  . . |contrail VRouter
+= |Chapter 2: Kubernetes basics
+  . |Kubernetes Architecture
+  . . |What is Kubernetes
+  . . |Kubernetes master
+  . . |Kubernetes node
+  . . |Pod
+  . . |Kubernetes networking
+  . |Building Kubernetes POD
+  . . |YAML file for Kubernetes
+  . . |POD example using YAML files
+  . . |Kubectl tool
+  . . |Login to container
+  . . |Intra-POD communications
+  . . |Inter-POD communications
+  |Kubernetes in practice
+  . |Kubernetes features
+  . . |Label, Label example
+= . . |Services
+  . . |Ingress
+  . . |Replication Controller & Replica set
+  . . |Deployment
+  . . |POD health check & Readniess Probe
+  . . |Volumes, storage
+  . . |Scaling (manually , auto scaling)
+  . . |ConfigMap
+  . . |Affinity/ anti-affinity
+  . . |DNS
+  . |Building Kubernetes
+  . . |kubeadm , minikube ,…
+  . . |Helm charts
+= |Chapter 4: Kubernetes and Contrail integration
+  . |Contrail with Kubernetes implementations
+  . . |Kubernetes/Contrail Architecture
+  . . |Kubernetes and contrail installation options
+  . . |Nested installation on OpenStack
+  . . |OpenShift overview
+  . |Kubernetes integration with Contrail
+  . . |Kubernetes to contrail object mapping
+  . . |namespaces and isolation
+  . . |Services
+  . . |ingress
+  . . |Kubernetes Network Policy with Contrail Security
+  . . |IP-fabric-source NAT
+  . . |visualization
+  . |building multitenant websites example
+  . . |Building 2 websites using Kubernetes POD
+  . . |Using Contrail to offer networking and security services
+
+== progress
+
+(2019-04-13) started, build repository/toc
+

@@ -1,0 +1,35 @@
+
+= Chapter 2: Kubernetes basics 
+Learning Objective 1: The reader will be able to explain and build basics Kubernetes setup  
+
+== Kubernetes Architecture  
+
+=== What is Kubernetes 
+
+=== Kubernetes master
+
+Kube-apiserver , Kube-controller , Kuber-Scheduller and etcd
+
+kubectl and autocompletion
+
+=== Kubernetes node
+
+kubelet , kube-proxy, container-runtime - docker
+
+=== Pod 
+
+=== Kubernetes networking  
+
+== Building Kubernetes POD
+
+=== YAML file for Kubernetes 
+
+=== POD example using YAML files
+
+=== Kubectl tool 
+
+=== Login to container 
+
+=== Intra-POD communications  
+
+=== Inter-POD communications

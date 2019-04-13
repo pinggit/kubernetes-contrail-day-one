@@ -1,0 +1,26 @@
+
+= Chapter 4: Kubernetes and Contrail integration 
+
+Learning Objective 1: The reader will be able to explain different Kubernetes/contrail implementations
+Learning Objective 2: The reader will be able to build applications using Kubernetes and contrail     
+
+== Contrail with Kubernetes implementations 
+=== Kubernetes/Contrail Architecture  
+=== Kubernetes and contrail installation options   
+=== Nested installation on OpenStack  
+=== OpenShift overview 
+
+
+== Kubernetes integration with Contrail 
+=== Kubernetes to contrail object mapping
+=== namespaces and isolation
+=== Services 
+=== ingress 
+=== Kubernetes Network Policy with Contrail Security
+=== IP-fabric-source NAT
+=== visualization
+
+
+== building multitenant websites example   
+=== Building 2 websites using Kubernetes POD
+=== Using Contrail to offer networking and security services 

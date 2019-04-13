@@ -1,0 +1,24 @@
+= Chapter 1: container foundations
+
+== containers overview
+
+=== Understanding containers
+
+compare to VMs ..
+
+=== Understanding Docker
+
+=== Containers as part of VNs
+
+=== Linux cgroup, namespace, iptables
+
+
+
+== contrail overview 
+
+=== Contrail Architecture Fundamentals 
+
+=== contrail controller
+
+=== contrail VRouter
+
