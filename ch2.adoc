@@ -1,4 +1,6 @@
 = Chapter 2: Kubernetes basics 
+:toc: manual
+:toc-placement: preamble
 :source-highlighter: pygments
 :source-highlighter: coderay
 :source-highlighter: prettify
@@ -231,7 +233,6 @@ kubectl create -f myweb_rc.yaml
 
 list the created objects
 
-
 ```bash
 
 $ kubectl get rc
@@ -243,6 +244,7 @@ $ kubectl get pod
 NAME          READY     STATUS              RESTARTS   AGE
 myweb-nv4h8   1/1       ContainerCreating   1          1m       #<---
 myweb-vzvk4   1/1       Running             1          1m
+```
 
 in the frontend, kubernetes get all these things done via a group of
 abstractions, each represented in the form of an "object". with kubernetes you
