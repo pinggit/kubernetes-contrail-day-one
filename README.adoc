@@ -62,5 +62,6 @@
 
 == progress
 
-(2019-04-13) started, build repository/toc
-
+* (2019-04-13) started, build repository/toc
+* (2019-04-17) ayman uploaded 'containers'
+* (2019-04-20) ping kicked off ch2.
