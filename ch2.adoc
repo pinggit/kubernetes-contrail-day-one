@@ -1,26 +1,305 @@
-
 = Chapter 2: Kubernetes basics 
-Learning Objective 1: The reader will be able to explain and build basics Kubernetes setup  
+:source-highlighter: pygments
+:source-highlighter: coderay
+:source-highlighter: prettify
+:highlightjs-theme: googlecode
+:coderay-linenums-mode: table
+:coderay-linenums-mode: inline
 
-== Kubernetes Architecture  
+This chapter introduces kubernetes, what is it, the basic terminologies and key
+concepts of it. You will learn most of the commonly used and mentioned
+components in kubernetes architecture. This chapter also provides an example to
+launch a "minimal" kubernetes environment to demonstrate how to interact with
+kubernetes in practice and how the virtual environment orchestrated by
+kubernetes looks like.
 
-=== What is Kubernetes 
+== What is Kubernetes 
+
+this is the description from the main page of official kubernetes website
+(https://kubernetes.io/) :
+
+____
+Kubernetes (K8s) is an open-source system for automating deployment, scaling,
+and management of containerized applications. It groups containers that make up
+an application into logical units for easy management and discovery. Kubernetes
+builds upon 15 years of experience of running production workloads at Google,
+combined with best-of-breed ideas and practices from the community.
+____
+
+this brief description tells a few important facts about kubernetes:
+
+* initiated by google but open-sourced now
+* mature and stable product after many years effort
+* orchestration tool
+* dealing with containers
+
+////
+> Kubernetes is a portable, extensible open-source platform for managing
+> containerized workloads and services, that facilitates both declarative
+> configuration and automation. 
+
+> Google open-sourced the Kubernetes project in 2014. Kubernetes builds upon a
+> decade and a half of experience that Google has with running production
+> workloads at scale, combined with best-of-breed ideas and practices from the
+> community.
+////
+
+kubernetes was created by a group of engineers in google in 2014, with a design
+and development model heavily influenced by Google's internal system named
+"Borg" (still being used in google internally today). Kubernetes defines a set
+of "building objects" (e.g. "pod", "service") which collectively provides
+mechanisms that orchestrates containerized applications across a distributed
+cluster of nodes, based on system resources (CPU, memory or other custom
+metrics).  Kubernetes hides the complexity of managing a group of containers by
+providing REST APIs for the required functionalities. 
+
+In simple words, container technologies like docker provides you the capability
+of packaging and distributing containerized applications, while an
+orchestration system like kubernetes allows you to deploy and manage the
+dockers in a relatively higher level and a much easier way.
+
+[TIP]
+====
+* in many document kubernetes is frequently abbreviated as "k8s" (K - eight
+  characters - S), 
+* the "current" (as of the writing of this book) major release is v1.14.
+====
+
+== Kubernetes Architecture and components
+
+in a Kubernetes cluster there are two type of nodes, each running a very
+well-defined set of processes:
+
+* head node: called "master", or "master node", brain of kubernetes cluster,
+  all of intelligence are located here.
+* worker node: called "node", or "union" in old document, the workforce of
+  cluster.
 
 === Kubernetes master
 
-Kube-apiserver , Kube-controller , Kuber-Scheduller and etcd
+A master node provides the cluster’s control plane. Master node makes "global
+decisions" about the cluster. for example, master does scheduling and decide
+which node will spawn a container. master is also responsible for maintaining
+the desired state for the cluster. One of the most common interface between you
+and the cluster is a command-line tool "kubectl". When you are interacting with
+Kubernetes by "kubectl" command, you're essentially communicating with the
+cluster's "master".
 
-kubectl and autocompletion
+The main functions of cluster is implemented by a collection of processes
+running in the master node. Typically you only need a single master node in
+the cluster, however, the master can also be replicated for higher availability
+(HA) and redundancy.
+
+////
+and detecting and responding to cluster
+events (starting up a new pod when a replication controller’s ‘replicas’ field
+is unsatisfied).
+////
+
+The processes in a master node providing the primary features are:
+
+* *kube-apiserver*: front-end of the control plane, providing REST APIs
+* *kube-scheduler*: decide where to place the containers depending on system
+  requirement (CPU, memory, harddisk, etc) and other custom parameters (e.g.
+  affinity specification)
+* *kube-controller-manager*: the single process implementing most of the
+  "controllers", which makes sure that the state of the system is what it
+  should be. TODO
+
+  - RC(Replication Controller)
+  - RS(ReplicaSet)
+  - Deployment
+  - StatefulSet
+  - DS(DaemonSet)
+  - Job
+  - Node Controller
+  - Service Controller
+
+* *cloud-controller-manager*: TODO
+* *etcd*: data store to store the state of the system. 
+* *DNS server* for Kubernetes services. 
+* *kubelet*: TODO
+
+////
+* And sometimes, to be able to manage all of this you have a
+  process called a Kubelet. 
+* And, of course, you have a container engine, you have Docker. You could have
+* something else, but most of the time you have
+* Docker. That's what you find on the head node, the brain of Kubernetes.
+* Nothing else than four types of processes, an API server, a scheduler, a
+* controller manager, and etcd. 
+////
 
 === Kubernetes node
 
-kubelet , kube-proxy, container-runtime - docker
+nodes in a cluster are the machines that run the applications. in production
+there can be dozens or hundreds of nodes in one cluster depending on the
+designed scales. nodes are the real workforce under the hood provided by a
+cluter. The Kubernetes master controls each node and you’ll rarely "bypass" the
+master and interact with nodes directly.
 
-=== Pod 
+A "node" runs following processes:
 
-=== Kubernetes networking  
+* *Kubelet*: the Kubernetes agent process that runs on all the nodes. it
+  interacts with kube-apiserver and manage the containers in local host.
+* *kube-proxy*: process that implements "kubernetes service" (wil introduce
+  later) using linux iptable in the node
+* *container-runtime* - local container - mostly docker in today's market,
+  holding all of the "dockerized" applications.
+
+TIP: 
+the name "proxy" may sound confusing for kubernetes beginners. it's not really
+a "proxy" in current kubernetes architecture. kube-proxy is a system that
+manipulates linux IP tables in that node so that the the traffic between the
+pods and the nodes will flows correctly.
+
+=== kubernetes cluster lab environment
+
+.PLAN
+describe the setup in this book?
+
+=== kubernetes objects 
+
+==== docker vs kubernetes
+
+Now you understand the role of master and nodes in a kubernetes cluster, it is
+the time to introduce more concepts in the architecture.
+
+as mentioned earlier, technically speaking, kubernetes works in a relatively
+higher level than dockers. what does that really mean? Assuming you want to run
+multiple containers across multiple machines, you will have a lot of work to
+do if you interact with docker directly.  You need to:
+
+////
+* start the right containers at the right time
+* figure out how they can talk to each other
+* consider storage configuration
+* deal with failed containers or hardware
+* consider to add redundancies and high availability to your docker application
+////
+
+* Running containers across many different machines
+* Scaling up or down by adding or removing containers when demand changes
+* Keeping storage consistent with multiple instances of an application
+* Distributing load between the containers
+* Launching new containers on different machines if something fails
+
+Doing all of this manually with docker will be overwhelming. with kubernetes
+all of these tasks become much easiler.
+
+.PLAN
+too much talk already...maybe give a quick example before introducing
+objects?
+
+==== kubectl
+
+now let's talk about kubectl - the tool you will need to interact with all
+these abstractions/objects.
+
+autocompletion
+
+==== objects
+
+create a yaml file: myweb_rc.yaml
+
+```yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: myweb
+spec:
+  replicas: 2       #<-----
+  selector:
+    app: myweb
+  template:
+    metadata:
+      labels:
+        app: myweb
+    spec:
+      containers:
+      - name: myweb
+        image: kubeguide/tomcat-app:v1
+        ports:
+        - containerPort: 8080
+```
+
+create the objects
+
+```bash
+kubectl create -f myweb_rc.yaml
+```
+
+list the created objects
+
+
+```bash
+
+$ kubectl get rc
+NAME      DESIRED   CURRENT   READY     AGE
+mysql     1         1         0         10s         #<------
+myweb     2         2         2         10s
+
+$ kubectl get pod
+NAME          READY     STATUS              RESTARTS   AGE
+myweb-nv4h8   1/1       ContainerCreating   1          1m       #<---
+myweb-vzvk4   1/1       Running             1          1m
+
+in the frontend, kubernetes get all these things done via a group of
+abstractions, each represented in the form of an "object". with kubernetes you
+only needs to think of how to describe your task in the config file, without
+the need to worry about how it will be implemented.
+
+"under the hood", kubernetes interact with the Docker engine to coordinate the
+scheduling and execution of Docker containers on Kubelets. The Docker engine
+itself is responsible for running the actual container image (e.g. by 'docker
+build'). 
+
+Higher level concepts such as service-discovery, loadbalancing and
+network policies are handled by Kubernetes as well.
+
+TODO: use ftp/tcp/ip as example.
+
+.features and abstractions
+
+features, objects, abstractions, processes, controllers
+
+Kubernetes contains a number of abstractions that represent the state of your
+system: deployed containerized applications and workloads, their associated
+network and disk resources, and other information about what your cluster is
+doing. These abstractions are represented by objects in the Kubernetes API; see
+the Kubernetes Objects overview for more details.
+
+The basic Kubernetes objects include:
+
+* Pod
+* Service
+* Volume
+* Namespace
+
+In addition, Kubernetes contains a number of higher-level abstractions called
+Controllers. Controllers build upon the basic objects, and provide additional
+functionality and convenience features. They include:
+
+* ReplicaSet
+* Deployment
+* StatefulSet
+* DaemonSet
+* Job
+
+=== Kubernetes networking
+
+.PLAN: 
+*ip-per-pod model
+*give brief introduction only
+
+=== a "full picture" - put everything together
+
+.PLAN
+a diagram to show most of the components and concepts
+
 
 == Building Kubernetes POD
+
 
 === YAML file for Kubernetes 
 
