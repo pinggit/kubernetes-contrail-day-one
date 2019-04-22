@@ -11,13 +11,13 @@
 This chapter introduces kubernetes, what is it, the basic terminologies and key
 concepts of it. You will learn most of the commonly used and mentioned
 components in kubernetes architecture. This chapter also provides an example to
-launch a "minimal" kubernetes environment to demonstrate how to interact with
-kubernetes in practice and how the virtual environment orchestrated by
-kubernetes looks like.
+launch a "minimal", but relatively complete kubernetes environment to
+demonstrate how to interact with kubernetes in practice and how the virtual
+environment orchestrated by kubernetes looks like.
 
 == What is Kubernetes 
 
-this is the description from the main page of official kubernetes website
+This is the description from the main page of official kubernetes website
 (https://kubernetes.io/) :
 
 ____
@@ -33,7 +33,7 @@ this brief description tells a few important facts about kubernetes:
 * initiated by google but open-sourced now
 * mature and stable product after many years effort
 * orchestration tool
-* dealing with containers
+* dealing with containers in a higher level
 
 ////
 > Kubernetes is a portable, extensible open-source platform for managing
@@ -47,13 +47,12 @@ this brief description tells a few important facts about kubernetes:
 ////
 
 kubernetes was created by a group of engineers in google in 2014, with a design
-and development model heavily influenced by Google's internal system named
-"Borg" (still being used in google internally today). Kubernetes defines a set
-of "building objects" (e.g. "pod", "service") which collectively provides
-mechanisms that orchestrates containerized applications across a distributed
-cluster of nodes, based on system resources (CPU, memory or other custom
-metrics).  Kubernetes hides the complexity of managing a group of containers by
-providing REST APIs for the required functionalities. 
+and development model influenced by Google's internal system named "Borg" .
+Kubernetes defines a set of "building objects" (e.g. "pod", "service") which
+collectively provides mechanisms that orchestrates containerized applications
+across a distributed cluster of nodes, based on system resources (CPU, memory
+or other custom metrics).  Kubernetes hides the complexity of managing a group
+of containers by providing REST APIs for the required functionalities. 
 
 In simple words, container technologies like docker provides you the capability
 of packaging and distributing containerized applications, while an
@@ -62,6 +61,7 @@ dockers in a relatively higher level and a much easier way.
 
 [TIP]
 ====
+* "Borg" is still being used in google internally today
 * in many document kubernetes is frequently abbreviated as "k8s" (K - eight
   characters - S), 
 * the "current" (as of the writing of this book) major release is v1.14.
@@ -72,41 +72,40 @@ dockers in a relatively higher level and a much easier way.
 in a Kubernetes cluster there are two type of nodes, each running a very
 well-defined set of processes:
 
-* head node: called "master", or "master node", brain of kubernetes cluster,
-  all of intelligence are located here.
-* worker node: called "node", or "union" in old document, the workforce of
-  cluster.
+* head node: called "master", or "master node", your head and brian that does
+  all thinking and decisions, all of intelligence are located here.
+* worker node: called "node", or "union" in old document, your arms and feet
+  that conduct the workforce.
 
 === Kubernetes master
 
-A master node provides the cluster’s control plane. Master node makes "global
-decisions" about the cluster. for example, master does scheduling and decide
-which node will spawn a container. master is also responsible for maintaining
-the desired state for the cluster. One of the most common interface between you
-and the cluster is a command-line tool "kubectl". When you are interacting with
-Kubernetes by "kubectl" command, you're essentially communicating with the
-cluster's "master".
+A kubernetes "master node", or "master", is like one's head and brian. in the
+cluster master provides the "control plane" that makes all of the global
+decisions about the cluster. for example, when you need the cluster to spawn a
+container, the master will decide which node to dispatch the task and spawn a
+container. this procedure is called "scheduling". master is also responsible
+for maintaining the desired state for the cluster. when you give an order "for
+this web server make sure there are always 2 containers backing up each
+other!", the master will keep monitor the running status and starting up a
+container anytime when it sees the number of the web server containers in
+"running" status is less than 2. The master is also responsible for other many
+jobs. Typically you only need a single master node in the cluster, however, the
+master can also be replicated for higher availability (HA) and redundancy.
 
-The main functions of cluster is implemented by a collection of processes
-running in the master node. Typically you only need a single master node in
-the cluster, however, the master can also be replicated for higher availability
-(HA) and redundancy.
-
+the master's functions is implemented by a collection of processes running in
+node.  The processes in a master node providing the primary features are:
 ////
 and detecting and responding to cluster
-events (starting up a new pod when a replication controller’s ‘replicas’ field
-is unsatisfied).
+events ().
 ////
 
-The processes in a master node providing the primary features are:
-
 * *kube-apiserver*: front-end of the control plane, providing REST APIs
-* *kube-scheduler*: decide where to place the containers depending on system
-  requirement (CPU, memory, harddisk, etc) and other custom parameters (e.g.
-  affinity specification)
+* *kube-scheduler*: do the "scheduling": decide where to place the containers
+  depending on system requirement (CPU, memory, harddisk, etc) and other custom
+  parameters or constraints (e.g. affinity specification)
 * *kube-controller-manager*: the single process implementing most of the
-  "controllers", which makes sure that the state of the system is what it
-  should be. TODO
+  different type of "controllers", which makes sure that the state of the
+  system is what it should be. TODO
 
   - RC(Replication Controller)
   - RS(ReplicaSet)
@@ -132,22 +131,28 @@ The processes in a master node providing the primary features are:
 * controller manager, and etcd. 
 ////
 
+One of the most common interface between you and the cluster is a command-line
+tool "kubectl". just remember: When you are working with "kubectl" command
+later on, you're essentially communicating with the cluster's "master".
+
 === Kubernetes node
 
-nodes in a cluster are the machines that run the applications. in production
-there can be dozens or hundreds of nodes in one cluster depending on the
-designed scales. nodes are the real workforce under the hood provided by a
-cluter. The Kubernetes master controls each node and you’ll rarely "bypass" the
-master and interact with nodes directly.
+nodes in a cluster are the machines that run the final applications. in
+production there can be dozens or hundreds of nodes in one cluster depending on
+the designed scales. nodes are the real workforce under the hood provided by a
+cluter. All of the containers and workloads are running in nodes. The "nodes"
+are controlled by the "master" which you will interact with most of the time.
+you’ll rarely need to "bypass" the master and work with nodes directly.
 
 A "node" runs following processes:
 
 * *Kubelet*: the Kubernetes agent process that runs on all the nodes. it
-  interacts with kube-apiserver and manage the containers in local host.
-* *kube-proxy*: process that implements "kubernetes service" (wil introduce
+  interacts with master (through kube-apiserver process) and manage the
+  containers in local host.
+* *kube-proxy*: process that implements "kubernetes service" (will introduce
   later) using linux iptable in the node
-* *container-runtime* - local container - mostly docker in today's market,
-  holding all of the "dockerized" applications.
+* *container-runtime*: local container - mostly 'docker' in today's market,
+  holding all of the running "dockerized" applications.
 
 TIP: 
 the name "proxy" may sound confusing for kubernetes beginners. it's not really
@@ -158,19 +163,27 @@ pods and the nodes will flows correctly.
 === kubernetes cluster lab environment
 
 .PLAN
-describe the setup in this book?
+pick one of the two. or make a new one.
+
+image::https://user-images.githubusercontent.com/2038044/45911926-b5345180-bde7-11e8-82bd-152fffa2774a.png[]
+
+image::https://user-images.githubusercontent.com/2038044/46121001-c7473300-c1df-11e8-90c0-425b94957df1.png[]
+
+
+
 
 === kubernetes objects 
 
 ==== docker vs kubernetes
 
 Now you understand the role of master and nodes in a kubernetes cluster, it is
-the time to introduce more concepts in the architecture.
+the time to introduce more concepts in the kubernetes architecture.
 
 as mentioned earlier, technically speaking, kubernetes works in a relatively
 higher level than dockers. what does that really mean? Assuming you want to run
 multiple containers across multiple machines, you will have a lot of work to
-do if you interact with docker directly.  You need to:
+do if you interact with docker directly.  at least the following tasks should
+appear in your "worry list":
 
 ////
 * start the right containers at the right time
@@ -180,14 +193,14 @@ do if you interact with docker directly.  You need to:
 * consider to add redundancies and high availability to your docker application
 ////
 
-* Running containers across many different machines
+* Spawning containers across different machines
 * Scaling up or down by adding or removing containers when demand changes
 * Keeping storage consistent with multiple instances of an application
 * Distributing load between the containers
 * Launching new containers on different machines if something fails
 
-Doing all of this manually with docker will be overwhelming. with kubernetes
-all of these tasks become much easiler.
+you will quickly find that doing all of this manually with docker will be
+overwhelming. with kubernetes all of these tasks become much easiler.
 
 .PLAN
 too much talk already...maybe give a quick example before introducing
