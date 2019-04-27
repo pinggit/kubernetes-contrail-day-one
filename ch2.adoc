@@ -1,5 +1,5 @@
 = Chapter 2: Kubernetes basics 
-:toc: manual
+:toc:
 :toc-placement: preamble
 :source-highlighter: pygments
 :source-highlighter: coderay

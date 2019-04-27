@@ -8,10 +8,10 @@
   . . |Understanding Docker
   . . |Containers as part of VNs
   . . |Linux cgroup, namespace, iptables
-  . |contrail overview                  #<---ayman
+  . |contrail overview
   . . |Contrail Architecture Fundamentals
   . . |contrail controller
-  . . |contrail VRouter
+  . . |contrail VRouter                  #<---ayman
 = |Chapter 2: Kubernetes basics
   . |Kubernetes Architecture
   . . |What is Kubernetes
