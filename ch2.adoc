@@ -1,4 +1,5 @@
 = Chapter 2: Kubernetes basics 
+// vim:set ft=asciidoc syntax=ON tw=80:
 :toc:
 :toc-placement: preamble
 :source-highlighter: pygments
@@ -8,15 +9,23 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 
-This chapter introduces kubernetes, what is it, the basic terminologies and key
-concepts of it. You will learn most of the commonly used and mentioned
-components in kubernetes architecture. This chapter also provides an example to
-launch a "minimal", but relatively complete kubernetes environment to
-demonstrate how to interact with kubernetes in practice and how the virtual
-environment orchestrated by kubernetes looks like.
+This chapter introduces kubernetes, what it is, basic terminologies and the key
+concepts. You will learn most of the frequently referred components in
+kubernetes architecture. This chapter also provides some examples in kubernetes
+cluster environment to demonstrate the basic ideas about basic kubernetes
+objects.
 
-== What is Kubernetes 
+////
+//better to move to later chapter, still no easy way to install ...
+This chapter also provides an example to launch a "minimal", but relatively
+complete kubernetes environment to demonstrate how to interact with kubernetes
+in practice and how the virtual environment orchestrated by kubernetes looks
+like.
+////
 
+== What is kubernetes
+
+.the definition
 This is the description from the main page of official kubernetes website
 (https://kubernetes.io/) :
 
@@ -28,12 +37,12 @@ builds upon 15 years of experience of running production workloads at Google,
 combined with best-of-breed ideas and practices from the community.
 ____
 
-this brief description tells a few important facts about kubernetes:
+this tells a few important facts about kubernetes:
 
-* initiated by google but open-sourced now
-* mature and stable product after many years effort
-* orchestration tool
-* dealing with containers in a higher level
+* an open-source project initiated by google
+* a mature and stable product
+* an orchestration tool
+* a platform dealing with containers in a higher level
 
 ////
 > Kubernetes is a portable, extensible open-source platform for managing
@@ -67,213 +76,40 @@ dockers in a relatively higher level and a much easier way.
 * the "current" (as of the writing of this book) major release is v1.14.
 ====
 
-== Kubernetes Architecture and components
+.why you need it
 
-in a Kubernetes cluster there are two type of nodes, each running a very
-well-defined set of processes:
+In chapter one you've learned docker has been a prevailing and pretty mature
+container technology. So naturely you may wonder why you need kubernetes.
 
-* head node: called "master", or "master node", your head and brian that does
-  all thinking and decisions, all of intelligence are located here.
-* worker node: called "node", or "union" in old document, your arms and feet
-  that conduct the workforce.
-
-NOTE: the term "node" may sound semantically ambiguous - it could mean two
-things in the context of this book. Usually a "node" refers to a logical unit
-in a cluster - something we call a "server", which can be either physical
-server (.e.g.: HP server) or virtual machine(e.g.: kvm-qemu based). in context
-of kubernetes clusters, a "node" specifically refers to a "worker node" that
-runs containerized applications, in contrast with a "master".
-
-=== Kubernetes "master"
-
-A kubernetes "master node", or "master", is like one's head and brian. in the
-cluster master provides the "control plane" that makes all of the global
-decisions about the cluster. for example, when you need the cluster to spawn a
-container, the master will decide which node to dispatch the task and spawn a
-container. this procedure is called "scheduling". master is also responsible
-for maintaining the desired state for the cluster. when you give an order "for
-this web server make sure there are always 2 containers backing up each
-other!", the master will keep monitor the running status and starting up a
-container anytime when it sees the number of the web server containers in
-"running" status is less than 2. The master is also responsible for other many
-jobs. Typically you only need a single master node in the cluster, however, the
-master can also be replicated for higher availability (HA) and redundancy.
-
-the master's functions is implemented by a collection of processes running in
-node.  The processes in a master node providing the primary features are:
-////
-and detecting and responding to cluster
-events ().
-////
-
-* *kube-apiserver*: front-end of the control plane, providing REST APIs
-* *kube-scheduler*: do the "scheduling": decide where to place the containers
-  depending on system requirement (CPU, memory, harddisk, etc) and other custom
-  parameters or constraints (e.g. affinity specification)
-* *kube-controller-manager*: the single process implementing most of the
-  different type of "controllers", which makes sure that the state of the
-  system is what it should be. TODO
-
-  - RC(Replication Controller)
-  - RS(ReplicaSet)
-  - Deployment
-  - StatefulSet
-  - DS(DaemonSet)
-  - Job
-  - Node Controller
-  - Service Controller
-
-* *cloud-controller-manager*: TODO
-* *etcd*: data store to store the state of the system. 
-* *DNS server* for Kubernetes services. 
-* *kubelet*: TODO
-
-////
-* And sometimes, to be able to manage all of this you have a
-  process called a Kubelet. 
-* And, of course, you have a container engine, you have Docker. You could have
-* something else, but most of the time you have
-* Docker. That's what you find on the head node, the brain of Kubernetes.
-* Nothing else than four types of processes, an API server, a scheduler, a
-* controller manager, and etcd. 
-////
-
-One of the most common interface between you and the cluster is a command-line
-tool "kubectl". just remember: When you are working with "kubectl" command
-later on, you're essentially communicating with the cluster's "master".
-
-=== Kubernetes "node"
-
-nodes in a cluster are the machines that run the final applications. in
-production there can be dozens or hundreds of nodes in one cluster depending on
-the designed scales. nodes are the real workforce under the hood provided by a
-cluter. All of the containers and workloads are running in nodes. The "nodes"
-are controlled by the "master" which you will interact with most of the time.
-you’ll rarely need to "bypass" the master and work with nodes directly.
-
-A "node" runs following processes:
-
-* *Kubelet*: the Kubernetes agent process that runs on all the nodes. it
-  interacts with master (through kube-apiserver process) and manage the
-  containers in local host.
-* *kube-proxy*: process that implements "kubernetes service" (will introduce
-  later) using linux iptable in the node
-* *container-runtime*: local container - mostly 'docker' in today's market,
-  holding all of the running "dockerized" applications.
-
-TIP: the name "proxy" may sound confusing for kubernetes beginners. it's not
-really a "proxy" in current kubernetes architecture. kube-proxy is a system
-that manipulates linux IP tables in that node so that the the traffic between
-the pods and the nodes will flows correctly.
-
-=== kubernetes cluster lab environment
-
-after you get some basic idea about the master and node and the main processes
-running in each, it is the good time to look at how things works together in a
-diagram.
-
-TODO: pick one or make a new one.
-
-image::https://user-images.githubusercontent.com/2038044/45911926-b5345180-bde7-11e8-82bd-152fffa2774a.png[]
-//image::https://user-images.githubusercontent.com/2038044/46121001-c7473300-c1df-11e8-90c0-425b94957df1.png[]
-
-image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
-
-At the top is where you are. kubernetes "master" is in the middle and the
-bottom 3 boxes are the "node".  The "standard" (most commonly used) interface
-between you and the kubernetes master, or also the whole cluster, is a command
-line application named `kuberctl`. It is installed as a client application
-either in the same "master" node or in a seperate machine like your PC.
-regardless of where it is, it interacts with the master process
-"kube-apiserver" via its REST-API exposed to the user and other processes in
-the system.
-
-Now let's say you send some kubectl commands - something like `kubectl create
-x`, to spawn a new container. You can give details about how exactly you want
-your container to be spawned along with the running behaviors. the container
-specifications can be provided either as kubectl command line parameters, or
-options and values defined in a config file. You will read more on this in
-later sections.
-
-The kubectl client will first translate your task to one more REST-API call(s)
-sent to "kube-apiserver". After the REST-API is validated, "kube-apiserver"
-understands the task and will call "kube-scheduler" process to select a "worker
-node", or a "node" in kubernetes term, from all 3 available worker nodes to
-start the job. this is the scheduling procedure.
-
-Once the "target node" is determined, "kube-apiserver" will dispatch the task
-to the target node with all of the details describing the task. "kubelet"
-process in the target node receives the task and talk to the final container
-engine, for example the "docker engine" in this diagram, to spawn a container
-with all provided parameters.
-
-This job and its specification will be recorded in a centralized database
-`etcd`. its job is to preserve and provide access to all data of the cluster. 
-
-This is just a very simplified work flow to give you the basic idea. In fact
-with the power of kubernetes you rarely need to work with containers directly.
-you will work with some higher level objects which, hide most of the low level
-operation and details and present the task in a higher level and much simpler
-form. 
-
-for example, in this diagram when you give the task to spawn containers,
-instead of saying "create two containers and make sure to immediately spawn a
-new one if either one would fail", you just say "create a RC ('replica
-controller') with replica two". what will happen now is that once the 2 docker
-containers are up and running, kube-apiserver will interact with
-'kube-controller-manager' to keep monitoring the job status, and take necessary
-actions to make sure the running status is what it was defined. for example you
-will observe that if any one of two docker containers goes down, a third
-container will be spawned and the broken one will be removed automatically.
-
-the 'RC' in this example, is one of the "objects" that is provided by
-kubernetes. The kubernetes objects provide an extra layer of abstraction that
-gets the same (and usually more) work done under the hood, in a simpler and
-clean way. Furthermore, because you are working in a higher level and staying
-away from the low level details, kubernetes sharply reduces your overall
-deployment time, brain effort, and troubleshooting pains.
-
-The small "cost" of working in a level higher than docker engine is to
-understand a few extra "kubernetes objects". 
-
-you will read more about kubernetes objects in the next section.
-
-////
-Accordingly, after getting the REST-API, kube-apiserver will communicate with
-the "controller-manager" to conduct the task and dispatch to the target node. 
-////
-
-=== kubernetes objects 
-
-==== high level abstractions: docker vs kubernetes
-
-Now you understand the role of 'master' and 'node' in a kubernetes cluster, and
-in a diagram you see how a basic workflow looks. now let's start to look at
-more kubernetes "objects" in the kubernetes architecture.
-
-as mentioned earlier, technically speaking, kubernetes works in a relatively
-higher level than dockers. what does that mean exactly? One analogy is to
-compare python with c language. with python most often you only think of which
-existing module already provides the magic you need, and once you imort that
-module in your application, your focus will be how to use the feature to get
-your things done. you rarely need to worry about the low-level system API calls
-and hardware details.
+Technically speaking, kubernetes works in a relatively higher level than
+dockers. what does that mean exactly? when you compare kubernetes with docker,
+One rough analogy is to compare python with C language. C is powerful enough to
+build almost everything including the whole bunch of fundamental OS components
+and APIs. but you in practice you probably would prefer to write scripts to
+automate tasks in your work using python much more than using C. with python
+most often you only need to think of which existing module already provides the
+magic you need, import it in your application and then quickly focus on how to
+use the feature to get your things done. you rarely need to worry about the
+low-level system API calls and hardware details.
 
 //with assembly you will need to deal with register, flags, memory address, CPU
 //vendor, model and all of the hardward specific low level details.
 
-another good one will be TCP/IP Internet protocols. when you decide to rewrite
-the FTP, you will prefer using TCP socket instead of raw socket. The TCP socket
-provides a much more solid fundation that has all of the built-in reliability
-features like error detection, flow and congestion control, retransmission and
-so on. what you need to consider is only how do you deliver the data from one
-end and receive the data from the other end. with raw socket you are working on
-IP layer, so you have to consider and implement all of the reliability features
-before your FTP application can be used in production.
+another analogy is TCP/IP Internet protocols. when you develop a file transfer
+tool like `ftp`, naturely you prefer to start your work based on TCP socket
+instead of IP socket. with TCP socket you are seating on top of the TCP
+protocol, which provides a much more solid fundation that has all of the built-in
+reliability features like error detection, flow and congestion control,
+retransmission and so on. What you need to consider is how to deliver the data
+from one end and receive it from the other end. with raw socket you are working
+on IP protocol and even lower layer, so you have to consider and implement all
+of the reliability features before you can even start to work on the file
+transfer features of your tool.
 
-back to our topic, Assuming you want to run multiple containers across multiple
-machines, you will have a lot of work to do if you interact with docker
-directly. at least the following tasks should be in your "worry list":
+back to our topic of kubernetes, Assuming you want to run multiple containers
+across multiple machines, you will have a lot of work to do if you interact
+with docker directly. at least the following tasks should be in your "worry
+list":
 
 ////
 * start the right containers at the right time
@@ -293,33 +129,238 @@ you will quickly find that doing all of this manually with docker will be
 overwhelming. with the high-level abstractions and the objects representing
 them in kubernetes API, all of these tasks become much easiler. 
 
+TIP: kubernetes is not the only tool in its kind, docker has its owen
+orchestration tool named "swarm". this book will focus on kubernetes.
 
-==== kubernetes object
+== Kubernetes Architecture and components
 
-Kubernetes's objects represent the state of the system: 
+in a Kubernetes cluster there are two type of nodes, each running a very
+well-defined set of processes:
+
+* head node: called "master", or "master node", the head and brian that does
+  all thinking and decisions, all of intelligence are located here.
+* worker node: called "node", or "union" in old document, the arms and feet
+  that conduct the workforce.
+
+NOTE: the term "node" may sound semantically ambiguous - it could mean two
+things in the context of this book. Usually a "node" refers to a logical unit
+in a cluster - something we call a "server", which can be either physical
+server (.e.g.: HP server) or virtual machine(e.g.: kvm-qemu based). in context
+of kubernetes clusters, a "node" often specifically refers to a "worker node"
+that runs containerized applications, in contrast with a "master".
+
+The "nodes" are controlled by the "master" and in most of the time you will
+only need to talk to master . 
+
+One of the most common interface between you and the cluster is a command-line
+tool "kubectl". It is installed as a client application either in the same
+"master" node or in a seperate machine like in your PC. Regardless of where it
+is, it can talk to the master via the REST-API exposed by the master.
+
+later you will read example of using kubectl to create
+kubernetes objects. For now just remember: Whenever you are working with
+"kubectl" command, you're communicating with the cluster's "master".
+
+
+TIP: you rarely need to "bypass" the master and work with nodes directly.
+but you can login to node and run all docker command to check running status of
+containers. there is an example showing this later in this chapter.
+
+=== Kubernetes "master"
+
+A kubernetes "master node", or "master", is like one's head and brian. in the
+cluster master provides the "control plane" that makes all of the global
+decisions about the cluster. 
+
+for example, when you need the cluster to spawn a container, the master will
+decide which node to dispatch the task and spawn a container. this procedure is
+called "scheduling". 
+
+master is also responsible for maintaining the desired state for the cluster.
+when you give an order "for this web server make sure there are always 2
+containers backing up each other!", the master will keep monitor the running
+status and starting up a container anytime when it sees the number of the web
+server containers in "running" status becomes less than 2 due to any failures. 
+
+The master is also responsible for other many jobs. 
+
+Typically you only need a single master node in the cluster, however, the
+master can also be replicated for higher availability (HA) and redundancy.
+
+the master's functions is implemented by a collection of processes running in
+node.  The processes in a master node providing the primary features are:
+////
+and detecting and responding to cluster
+events ().
+////
+
+* *kube-apiserver*: front-end of the control plane, providing REST APIs
+* *kube-scheduler*: do the "scheduling": decide where to place the containers
+  depending on system requirement (CPU, memory, harddisk, etc) and other custom
+  parameters or constraints (e.g. affinity specification)
+* *kube-controller-manager*: the single process implementing most of the
+  different type of "controllers", which makes sure that the state of the
+  system is what it should be. some controller examples:
+
+  - Replication Controller
+  - ReplicaSet
+  - Deployment
+  - Service Controller
+
+* *etcd*: database to store the state of the system.
+
+NOTE: for the sake of simplicity a few other components are not listed (e.g.
+*cloud-controller-manager*, *DNS server*, *kubelet*). they are not trival
+negligible components, but skipping them for now does not stop you from
+understanding the kubernetes basics.
+
+////
+* And sometimes, to be able to manage all of this you have a
+  process called a Kubelet. 
+* And, of course, you have a container engine, you have Docker. You could have
+* something else, but most of the time you have
+* Docker. That's what you find on the head node, the brain of Kubernetes.
+* Nothing else than four types of processes, an API server, a scheduler, a
+* controller manager, and etcd. 
+////
+
+=== Kubernetes "node"
+
+nodes in a cluster are the machines that run the user end applications. in
+production there can be dozens or hundreds of nodes in one cluster depending on
+the designed scales. nodes are the real workforce under the hood provided by a
+cluter. usually all of the containers and workloads are running in nodes. 
+A "node" runs following processes:
+
+* *Kubelet*: the Kubernetes agent process that runs on all the nodes. it
+  interacts with master (through kube-apiserver process) and manage the
+  containers in local host.
+* *kube-proxy*: process that implements "kubernetes service" (will introduce
+  in chapter three) using linux iptable in the node
+* *container-runtime*: local container - mostly 'docker' in today's market,
+  holding all of the running "dockerized" applications.
+
+NOTE: *kubelet* is running on both master and node.
+
+TIP: the name "proxy" may sound confusing for kubernetes beginners. it's not
+really a "proxy" in current kubernetes architecture. kube-proxy is a system
+that manipulates linux IP tables in that node so that the the traffic between
+the pods and the nodes will flows correctly.
+
+=== kubernetes work flow
+
+after you get some basic idea about the master and node and the main processes
+running in each, it is time to look at how things works together in a diagram.
+
+//TODO: pick one or make a new one.
+//image::https://user-images.githubusercontent.com/2038044/45911926-b5345180-bde7-11e8-82bd-152fffa2774a.png[]
+//image::https://user-images.githubusercontent.com/2038044/46121001-c7473300-c1df-11e8-90c0-425b94957df1.png[]
+
+.kubernetes architecture
+image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
+
+At the top behind `kubectl` is where you are. via `kubectl` commands you talk
+to kubernetes "master", which manages the 2 "node" boxes on the right. it
+interacts with the master process "kube-apiserver" via its REST-API exposed to
+the user and other processes in the system.
+
+Now let's say you send some kubectl commands - something like `kubectl create
+x`, to spawn a new container. You can give details about how exactly you want
+your container to be spawned along with the running behaviors. the container
+specifications can be provided either as kubectl command line parameters, or
+options and values defined in a config file. You will read an example on this 
+shortly.
+
+. The `kubectl` client will first translate your CLI command to one more REST-API
+call(s) and send to "kube-apiserver". 
+
+. After validating these REST-API calls, "kube-apiserver" understands the task
+and calls "kube-scheduler" process to select one "node" from all 3 available
+ones to execute the job. this is the scheduling procedure.
+
+. Once "kube-scheduler" returns the "target node", "kube-apiserver" will dispatch
+the task with all of the details describing the task. 
+
+. "kubelet" process in the target node receives the task and talks to the
+container engine, for example the "docker engine" in this diagram, to spawn a
+container with all provided parameters.
+
+. This job and its specification will be recorded in a centralized database
+`etcd`. its job is to preserve and provide access to all data of the cluster. 
+
+Of course This is just a very simplified work flow, but you get the basic idea.
+In fact with the power of kubernetes you rarely need to work with containers
+directly.  you will work with some higher level objects which, hide most of the
+low level operation and details and present the task in a higher level and much
+simpler form. 
+
+for example, in this diagram when you give the task to spawn containers,
+instead of saying:
+
+> "create two containers and make sure to spawn new ones if either one would
+> fail"
+
+in practice you just say:
+
+> "create a RC object ('replica controller') with replica two". 
+
+what will happen now is that once the 2 docker containers are up and running,
+kube-apiserver will interact with `kube-controller-manager` to keep monitoring
+the job status, and take all necessary actions to make sure the running status is
+what it was defined. for example you will observe that if any one of two docker
+containers goes down, a third container will be spawned and the broken one will
+be removed automatically.
+
+the 'RC' in this example, is one of the objects that is provided by kubernetes
+`kube-controller-manager` process. The kubernetes objects provide an extra
+layer of abstraction that gets the same (and usually more) work done under the
+hood, in a simpler and clean way. Furthermore, because you are working in a
+higher level and staying away from the low level details, kubernetes sharply
+reduces your overall deployment time, brain effort, and troubleshooting pains.
+
+The small "cost" of working in a level higher than docker engine is to
+understand a few extra "kubernetes objects". 
+
+you will read more about kubernetes objects in the next section.
+
+////
+Accordingly, after getting the REST-API, kube-apiserver will communicate with
+the "controller-manager" to conduct the task and dispatch to the target node. 
+////
+
+=== kubernetes objects 
+
+Now you understand the role of 'master' and 'node' in a kubernetes cluster, and
+in a diagram you see how a basic workflow looks. now let's start to look at
+more kubernetes "objects" in the kubernetes architecture.
+
+Kubernetes's objects represent: 
+
 * deployed containerized applications and workloads
 * their associated network and disk resources
 * other information about what the cluster is doing. 
 
-there are different type of objects:
+the most oftenly used objects are:
+
 * basic Kubernetes objects
     - Pod
     - Service
     - Volume
     - Namespace
-* higher-level abstractions (Controllers): build upon the basic objects, and
-  provide additional functionality and convenience features. 
-
+* higher-level objects (Controllers): 
     - ReplicaSet
     - Deployment
     - StatefulSet
     - DaemonSet
     - Job
 
-here is a diagram showing relationships between the terms: "feature",
-"abstraction", "objects", process and controller
+TIP: "high-level" objects are build upon the basic objects. They provide
+additional functionality and convenience features. 
 
-                +---------------------------------------+
+here is a diagram showing relationships between the terms you read in this
+chapter: "feature", "abstraction", "objects", "process" and "controller".
+
+    kubernetes  +---------------------------------------+
     features    |                                       |
         |       |                                       |
         |       +---------------------------------------+
@@ -330,23 +371,23 @@ here is a diagram showing relationships between the terms: "feature",
         |       | basic objects: POD,SERVICE,VOLUME,NS  |
         |       +---------------------------------------+
         v       |                                       |
-    containers  |     docker engine                     |
-                +---------------------------------------+
+    container   |     docker engine, rtx engine, etc    |
+    features    +---------------------------------------+
 
-in the frontend, kubernetes get all these things done via a group of
-abstractions, each represented in the form of an "object". with kubernetes you
-only needs to think of how to describe your task in the config file, without
-the need to worry about how it will be implemented.
+in the frontend, kubernetes get all things done via a group of "object".  with
+kubernetes you only needs to think of how to describe your task in the config
+file of the objects, no need to worry about how it will be implemented in
+container level. "under the hood", kubernetes interact with the container
+engine to coordinate the scheduling and execution of containers on Kubelets.
+The container engine itself is responsible for running the actual container
+image (e.g. by 'docker build'). 
 
-"under the hood", kubernetes interact with the Docker engine to coordinate the
-scheduling and execution of Docker containers on Kubelets. The Docker engine
-itself is responsible for running the actual container image (e.g. by 'docker
-build'). 
+//Higher level concepts such as service-discovery, loadbalancing and
+//network policies are handled by Kubernetes as well.
 
-Higher level concepts such as service-discovery, loadbalancing and
-network policies are handled by Kubernetes as well.
-
-later you will see real examples to understand the power of kubernetes objects.
+you will read more about each objects and their magic power with examples in
+chapter 3. later in this chapter we'll look at the the most fundamental object:
+POD.
 
 ////
 The following steps explore how to build a kubernetes "RC" object: replica
@@ -420,80 +461,305 @@ myweb-shtj4   1/1       Running   0          1m        192.168.215.19    test2  
 ```
 ////
 
+== Building Kubernetes POD
+
+"POD" is the first kubernetes object you will learn.
+the kubernetes website describe a "pod" as:
+
+> A pod (as in a pod of whales or pea pod) is a group of one or more containers
+> (such as Docker containers), with shared storage/network, and a specification
+> for how to run the containers
+
+this brings 2 facts:
+
+* basically pod is nothing but a group of containers
+* all containers in a pod shares resources like storage and network 
+
+what is the benefit of using "pod" comparing with the old way of dealing with
+each individual containers? considering a simple usage case that you are
+deploying a web service with docker. you will need not only the frontend
+service, e.g. an apache server, but also some "supporting services" like a
+database server, a logging server, a monitoring server, etc. each of these
+supporting services needs to be running in its own docker. so essentially you
+will find yourself always working with a group of docks whenever "a web
+service" docker is needed. In production the same scenario applys to most of
+the other docker service as well. eventually you will ask: is there a way to
+group a bunch of docker containers in a higher-level "unit", so you only
+need to worry about the low-level inter-docker interaction details once?
+
+"pod" gives the exact higher-level abstraction you are asking for. it wraps one
+or more containers into one object. If your web service becomes too popular and
+a single pod instance can't carry the load, with the help of other objects (RC,
+deployment) you can replicate and scale up and down the same group of
+containers (now in the form of one pod object) very easily - normally in a few
+seconds. this sharply increased the deployment and maintenance efficiency.
+
+besides that, containers in the same pod will share the same resources and
+local network. Containers can easily communicate with other containers in the
+same pod as though they were on the same machine while maintaining a degree of
+isolation from others. you'll see more about these advantages later.
+
+now, let's get your feet wet. we'll look at how to use a config file to launch a
+"pod" in kubernetes cluster.
+
+=== installing kubernetes
+
+=== YAML file for Kubernetes 
+
+First thing to look at is YAML. Along with many other many ways of configuring
+kubernetes, YAML is the "standard" format being used in kubernetes config file.
+YAML is widely used in a lot of software fields so mostly likely you are
+already familiar with it. In case you are not, its not a big deal because YAML
+is a pretty easy language to learn. We'll explain each line of the YAML config
+of a pod and you will understand the YAML format as a "by-product" of your POD
+learning process.
+
+.POD configuration file in YAML format
+
+----
+$ cat pod.yaml
+apiVersion: v1          <1>
+kind: Pod               <2>
+metadata:               <3>
+  name: pod-1           <4>
+  labels:               <5>
+      name: pod-1       <6>
+spec:                   <7>
+  containers:           <8>
+  - name: frontend      <9>
+    image: pingdocker/apache-frontend <10>
+    ports:              <11>
+    - containerPort: 80 <12>
+  - name: redis         <13>
+    image: pingdocker/redis-db  <14>
+    ports:                      <15>
+    - containerPort: 6379       <16>
+----
+
+YAML uses 3 basic data types:
+
+* scalars (strings/numbers): atom data item. strings like `pod-1`, port number
+  `80`.
+* mappings (hashes/dictionaries): key-value pairs, can be nested. `apiVersion:
+  v1` is a mapping. key `apiVersion` has a value of `v1`.
+* sequences (arrays/lists): collection of ordered values, without a "key". list
+  items are indicated by a `-` sign. value of key `contrains` is a list
+  including 2 containers.
+  
+in this example you are also seeing "nested" YAML data structure:
+
+- "mapping of a mapping": `spec` is the key of a map, where you define a pod's
+  specification. in this example we only define behavior of the containers to
+  be launched in the pod. the value is another map with the key being
+  `containers`. 
+- "mapping of a list". values of the key "containers" is a list of two items:
+  frontend and redis container, each of which again, are a mapping describing
+  the individual container with a few attributes like name, image and ports to
+  be exposed.
+
+[NOTE]
+====
+.a few important rules of YAML:
+
+* case sensitive
+* elements in same level share same left indentation, the amount of indentation
+  does not matter
+* tab characters are not allowed to be used as indentation
+* blank lines does not matter
+* comment a line with "#"
+* use quote `'` to escape special meaning of any character
+====
+
+before we dive into more details of the yaml file, let's finish the pod
+creation:
+
+    $ kubectl create -f pod.yaml
+    pod/pod-1 created
+
+    root@test1:~# kubectl get pod -o wide
+    NAME        READY     STATUS              RESTARTS   AGE       IP        NODE      NOMINATED NODE
+    pod-1       0/2       ContainerCreating   0          15s       <none>    test2     <none>
+
+    root@test1:~# kubectl get pod -o wide
+    NAME        READY     STATUS    RESTARTS   AGE       IP              NODE      NOMINATED NODE
+    pod-1       2/2       Running   0          27s       192.168.215.1   test2     <none>
+
+we created our first kubernetes "object" - a pod named `pod-1`. but where are
+the containers? the above output tells the clues. it reads:
+
+a pod `pod-1` (NAME), containing 2 containers(READY /2), has been launched in
+kubernetes worker node `test2` with an IP address `192.168.215.1` assigned.
+both containers in the pod is up (READY 2/) and has been in running STATUS for
+27s without any RESTARTS.
+
+here is a brief line-by-line comments about what the yaml config says:
+
+* line 1,2,3,7: the 4 yaml mappings are the main components of a pod definition.
+  - apiVersion: there are different versions, for example, v2. here specifically
+    it is version 1.
+  - kind: remember there are different type of kubernetes object, here we
+    want kubernetes to create a 'pod' object. later you will see kind being
+    `ReplicationController` or `Service` in example of other objects.
+  - metadata: to identify the created objects. besides the name of the object
+    to be created, another important meta data is "labels". you will read more
+    about it in chapter3.
+  - spec: gives the specification about the pod behavior.
+* line 9-17: the pod specification here is just about the 2 containers. the
+  system downloads the images, launches each container with a name and expose
+  the specified ports respectively.
+
+to get more details of what is running inside of the pod:
+
+    root@test1:~# kubectl describe pod pod-1 | grep -iC1 container
+    IP:                 192.168.215.28
+    Containers:
+      apache:
+        Container ID:   docker://fc18adacd48672c056693f8af48741f0d1a58c2f698b1ba7d18168c091e4108e
+        Image:          pingdocker/apache-frontend
+    --
+      db:
+        Container ID:   docker://028f6619f0519ce74fe2703beedc236d05896565cfedf9b5b0d041571dcbbdb8
+        Image:          pingdocker/redis-db
+    --
+      Ready             True
+      ContainersReady   True
+      PodScheduled      True
+
+not surprisingly, our pod `pod-1` is composed of 2 containers declared in
+the YAML file, with an IP address assigned by kubernetes cluster and shared
+between all containers. 
+
+////
+if you login to node `test2`, you will see the docker containers running inside
+of the pod:
+
+    root@test2:~# docker ps | grep -E "ID|pod-1"
+    CONTAINER ID  IMAGE                             COMMAND                  CREATED  STATUS PORTS  NAMES
+    028f6619f051  kubeguide/redis-master            "redis-server /etc/r…"   40s ago  Up 40s        k8s_db_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
+    fc18adacd486  kubeguide/guestbook-php-frontend  "apache2-foreground"     40s ago  Up 40s        k8s_apache_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
+    5eea48f7ba8f  k8s.gcr.io/pause:3.1              "/pause"                 40s ago  Up 40s        k8s_POD_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
+
+the third container with image name "k8s.gcr.io/pause" is a special container
+that was created by the kubernetes system to "hold" the network namespace for
+the pod. for every pod Kubernetes creates a `pause` container to acquire the
+respective pod’s IP address and set up the network namespace for all other
+containers in that pod.
+
+Figure x shows a pod including a few user containers and a `pause` container.
+
+.pod, user containers and the special `pause` container
+image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-11e8-87aa-daacaf24909f.png[]
+////
+
+.pod and containers
+image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
+
+=== Kubectl tool 
+
+so far you've seen we created the object by `kubectl` command. this command,
+just like the `docker` command in docker world, is the interface in kubernetes
+world to talk to the cluster, or more precisely, the kubernetes master, via
+kubernetes API. it is a very versatile tool that provides many options to
+fulfill all kinds of tasks you would need to deal with kubernetes. 
+
+as a quick example, assuming you have enabled the auto-completion feature for
+kubectl, you can list all your current environment supported options by logging
+into the master and typing `kubectl`, followed by two `tab` keystrokes.
+
+    root@test1:~# kubectl<TAB><TAB>
+    alpha          attach         completion     create         exec
+    logs           proxy          set            wait annotate  auth
+    config         delete         explain        options        replace
+    taint          api-resources  autoscale      convert        describe       
+    patch          rollout        top            api-versions   certificate    
+    drain          get            plugin         run            uncordon apply
+    cluster-info   cp             edit           label          port-forward
+    scale          version        expose         cordon
+
+TIP: to setup auto-completion for kubectl command, follow the instruction from
+help of `completion` option: `kubectl completion -h`
+
+//don't panic! the most commonly used options - the ones you can reply on to get
+//80% of your work done, are just a few of them.
+
+you will see and learn the usage of these options in the rest part of this
+book.
+
+=== Intra-POD communications  
+
+.Login to container
+
+in kubernetes master, to login to a container:
+
+    #login to pod-1's container apache 
+    root@test1:~# kubectl exec -it pod-1 -c apache bash
+    root@pod-1:/var/www/html#
+
+    #login to pod-1's container db 
+    root@test1:~# kubectl exec -it pod-1 -c db bash
+    [ root@pod-1:/data ]$ 
+
+if you ever played with docker you will immediately realized that this is neat.
+remember the containers were launched at one of the "node", with docker you will
+have to first login to the correct remote node before using a similiar `docker
+exec` command to login to each container. kubernetes hides these details and
+allow you to do everything from one node - the master.
+
+.check processes running in container
+
+    root@pod-1:/var/www/html# ps aux
+    USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+    root         1  0.5  0.2 166260 19176 ?        Ss   17:08   0:00 apache2 -DFOREGROUND
+    www-data    13  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+    www-data    14  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+    www-data    15  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+    www-data    16  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+    www-data    17  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+    root        18  0.0  0.0  20244  3072 pts/0    Ss   17:08   0:00 bash
+    root        25  0.0  0.0  17492  1964 pts/0    R+   17:08   0:00 ps aux
+
+    root@pod-1:/var/www/html# ss -at
+    State      Recv-Q Send-Q                                                    Local Address:Port                                                        Peer Address:Port
+    LISTEN     0      128                                                                   *:6379                                                                   *:*
+    LISTEN     0      128                                                                   *:http                                                                   *:*
+    LISTEN     0      128                                                                  :::6379                                                                  :::*
+
+    [ root@pod-1:/data ]$ ps aux
+    USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+    root         1  0.0  0.0  35200  3776 ?        Ssl  17:08   0:00 redis-server *:6379
+    root        13  0.0  0.0  19352  4484 pts/0    Ss   17:09   0:00 bash
+    root        75  0.0  0.0  15576  2168 pts/0    R+   17:10   0:00 ps aux
+
+    [ root@pod-1:/data ]$ ss -at
+    State      Recv-Q Send-Q                                                    Local Address:Port                                                        Peer Address:Port
+    LISTEN     0      128                                                                   *:6379                                                                   *:*
+    LISTEN     0      128                                                                   *:http                                                                   *:*
+    LISTEN     0      128                                                                  :::6379                                                                  :::*
+
+each container is running its own process, however, they both share the same
+exact network environment so both see the port exposed by each other. Therefore,
+communication between containers in a pod can happen simply by using
+`localhost`:
+
+    root@pod-1:/var/www/html# curl localhost:6379
+    ^Z
+    [1]+  Stopped                 curl localhost:6379
+    root@pod-1:/var/www/html# bg
+    [1]+ curl localhost:6379 &
+    root@pod-1:/var/www/html# ss -at
+    State      Recv-Q Send-Q    Local Address:Port    Peer Address:Port
+    LISTEN     0      128                   *:6379               *:*
+    LISTEN     0      128                   *:http               *:*
+    ESTAB      0      0             127.0.0.1:46378      127.0.0.1:6379         #<---
+    ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<---
+    LISTEN     0      128                  :::6379              :::*
+
+
+=== Inter-POD communications
+
 === Kubernetes networking
 
 .PLAN: 
 *ip-per-pod model
 *give brief introduction only
 
-=== a "full picture" - put everything together
-
-.PLAN
-a diagram to show most of the components and concepts
-
-
-== Building Kubernetes POD
-
-first kubernetes object
-short introduction
-
-=== YAML file for Kubernetes 
-
-==== yaml basis
-
-.data structures
-* scalars (strings/numbers): atom data item
-* sequences (arrays/lists): collection of ordered values, without keys.
-* mappings (hashes/dictionaries): key-value pairs
-
-.rules:
-* case sensitive
-* elements in same level share same left indentation
-* indentation amount does not matter
-* not allow tab characters to be used for indentation
-* blank lines does not matter
-* comment by "#"
-* use quote "'" to escape special meaning of any chars
-
-==== POD example using YAML files
-
-    $ cat frontend-localredis-pod.yaml
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: redis-php
-      labels:
-          name: redis-php
-    spec:
-      containers:
-      - name: frontend
-        image: kubeguide/guestbook-php-frontend:localredis
-        ports:
-        - containerPort: 80
-      - name: redis
-        image: kubeguide/redis-master
-        ports:
-        - containerPort: 6379
-
-    $ kubectl create -f frontend-localredis-pod.yaml
-    pod/redis-php created
-
-    root@test1:~# kubectl get pod
-    NAME        READY     STATUS              RESTARTS   AGE
-    redis-php   0/2       ContainerCreating   0          13s
-
-    root@test1:~# kubectl get pod -o wide
-    NAME        READY     STATUS              RESTARTS   AGE       IP        NODE      NOMINATED NODE
-    redis-php   0/2       ContainerCreating   0          15s       <none>    test2     <none>
-
-    root@test1:~# kubectl get pod -o wide
-    NAME        READY     STATUS    RESTARTS   AGE       IP              NODE      NOMINATED NODE
-    redis-php   2/2       Running   0          27s       192.168.215.1   test2     <none>
-
-=== Kubectl tool 
-
-=== Login to container 
-
-=== Intra-POD communications  
-
-=== Inter-POD communications

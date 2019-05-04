@@ -159,17 +159,19 @@ but with contrail networking, on each compute the vrouter creates VRF per virtua
 offering long list of feature as will discuss 
  
 From the prospective of control plane the vrouter relay on XMPP to 
-*Exchange routes
-*Receive low-level configuration (routing instances and forwarding policy) 
-*Report analytics (logs, statistics, and events)
-*Install forwarding state into the forwarding plane.
+
+* Exchange routes
+* Receive low-level configuration (routing instances and forwarding policy) 
+* Report analytics (logs, statistics, and events)
+* Install forwarding state into the forwarding plane.
 
 From the prospective of data plan the vrouter would 
-*Apply forwarding policy for the first packet of each new flow then install a flow entry in the flow table of the forwarding plan.
+
+* Apply forwarding policy for the first packet of each new flow then install a flow entry in the flow table of the forwarding plan.
 * Proxy DHCP, ARP, and DNS. 
-*Encapsulating/decapsulating packets sent to or received from the overlay network.
-*Assign received packet from the overlay network to a routing instance based on the MPLS label or Virtual Network Identifier (VNI).
-*Forwarding the packer after a Destination address lookup (IP or MAC) in the Forwarding Information Base (FIB) 
+* Encapsulating/decapsulating packets sent to or received from the overlay network.
+* Assign received packet from the overlay network to a routing instance based on the MPLS label or Virtual Network Identifier (VNI).
+* Forwarding the packer after a Destination address lookup (IP or MAC) in the Forwarding Information Base (FIB) 
 
 image::https://user-images.githubusercontent.com/2038044/56898486-2794a080-6a5f-11e9-9fd1-64d5275cbce3.png[]
 
