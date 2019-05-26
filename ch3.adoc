@@ -1,6 +1,15 @@
-Learning Objective 1: The reader will be able to explain and build advanced Kubernetes features using YAML  
-
 = Kubernetes in practice
+// vim:set ft=asciidoc syntax=ON tw=80:
+:toc:
+:toc-placement: preamble
+:source-highlighter: pygments
+:source-highlighter: coderay
+:source-highlighter: prettify
+:highlightjs-theme: googlecode
+:coderay-linenums-mode: table
+:coderay-linenums-mode: inline
+
+abc
 
 == Kubernetes features 
 === Label, Label example 
@@ -16,7 +25,9 @@ let’s see how can we use label with node selector to make a POD is lunched on 
 
 [TIP]
 ====
-* You can assign multiple labels per object but avoid using too much label or too little, too much would get you confused and too little won’t give the real benefits of grouping, selecting and searching 
+* You can assign multiple labels per object but avoid using too much label or
+  too little, too much would get you confused and too little won’t give the real
+  benefits of grouping, selecting and searching 
 * Best practice is to assign labels to indicate
     - application/program ID use this POD
     - owner (who manage this POD/application)
@@ -41,10 +52,10 @@ respectively then try to lunch a POD with label zone: testing
 
     kubectl get nodes --show-labels
 
-    NAME                                         STATUS     ROLES     AGE       VERSION   LABELS
-    ip-172-25-1-216.us-west-1.compute.internal   Ready      <none>    2h        v1.9.2    stage=production
-    ip-172-25-1-56.us-west-1.compute.internal    NotReady   <none>    2h        v1.9.2    <none>
-    ip-172-25-1-83.us-west-1.compute.internal    Ready      <none>    2h        v1.9.2    stage=testing
+    NAME                                        STATUS    ROLES   AGE  VERSION  LABELS
+    ip-172-25-1-216.us-west-1.compute.internal  Ready     <none>  2h   v1.9.2   stage=production
+    ip-172-25-1-56.us-west-1.compute.internal   NotReady  <none>  2h   v1.9.2   <none>
+    ip-172-25-1-83.us-west-1.compute.internal   Ready     <none>  2h   v1.9.2   stage=testing
 
 now let’s lunch a basic Nginx POD tagged with stage=testing and confirm it
 will land on a node tagged with stage=testing
@@ -204,11 +215,339 @@ Now we can test that by just send CURL -i to sent http request using the CLI
 
 
 === Ingress 
-=== Replication Controller & Replica set
-=== Deployment
+=== RC
+
+you have learned how to launch a pod that representing your containers from its
+yaml file in chapter 2. one question will rise in your mind: what if I need 5
+exactly the same pods (each runs a apache container) to make sure the web
+service appears more robust? shall I change the name in yaml file then repeat the
+same commands to create 5 more pods? or maybe with a shell script? kubernetes
+already has the objects to address this exact demand and the right answer is RC -
+replication controller.
+
+> A ReplicationController ensures that a specified number of pod replicas are
+> running at any one time. In other words, a ReplicationController makes sure
+> that a pod or a homogeneous set of pods is always up and available.
+
+let's look at how it works with an example. first create a yaml file for a RC
+object named `myweb`.
+
+    #myweb-rc.yaml
+    apiVersion: v1
+    kind: ReplicationController
+    metadata:
+      name: myweb
+    spec:
+      replicas: 5
+      selector:
+        app: myweb
+      template:
+        metadata:
+          labels:
+            app: myweb
+        spec:
+          containers:
+          - name: myweb
+            image: kubeguide/tomcat-app:v1
+            ports:
+            - containerPort: 8080
+
+again, `kind` indicates the object type that this yaml file is to define, here
+it is a RC instead of a pod. in `metadata` it is showing the RC's `name` as
+`myweb`.  in `spec` is the detail specification of this RC object. `replicas` 5
+indicates a same pod will be cloned 4 times to make sure the total number of
+pods created by the RC is always 5. `template` gives information about
+the containers that will run in the pod, same as what you saw in a `pod` yaml
+file.
+
+now use this yaml file to create the RC object:
+
+    kubectl create -f myweb-rc.yaml
+    replicationcontroller "myweb" created
+
+    $ kubectl get rc
+    NAME            DESIRED   CURRENT   READY   AGE
+    myweb           5         5         5       3m29s
+
+eventually you will see 5 pods launched:
+
+////
+    $ kubectl get pod
+    NAME          READY     STATUS              RESTARTS   AGE
+    myweb-5ggv6   1/1       Running             0          9s
+    myweb-5ww92   1/1       Running             0          50s
+    myweb-lbj89   0/1       ContainerCreating   0          9s
+    myweb-m6nrx   0/1       ContainerCreating   0          9s
+    myweb-q5gv4   1/1       Running             0          50s
+////
+
+    $ kubectl get pod
+    NAME          READY     STATUS    RESTARTS   AGE
+    myweb-5ggv6   1/1       Running   0          21m
+    myweb-5ww92   1/1       Running   0          22m
+    myweb-lbj89   1/1       Running   0          21m
+    myweb-m6nrx   1/1       Running   0          21m
+    myweb-q5gv4   1/1       Running   0          22m
+
+with `replicas` parameter specified in RC object yaml file, the kubernetes
+replication controller, running as part of `kube-controller-manager` process in
+the `master node`, will keep monitoring the number of running pods spawned by
+the RC, and automatically launch new ones should any of them runs into failures. 
+
+you can test this out by deleting one of the pod:
+
+    $ kubectl delete pod myweb-5ggv6
+    pod "myweb-5ggv6" deleted
+    $ kubectl get pod
+    NAME          READY     STATUS        RESTARTS   AGE
+    myweb-5ggv6   0/1       Terminating   0          22m        #<---
+    myweb-5v9w6   1/1       Running       0          2s
+    myweb-5ww92   1/1       Running       0          23m
+    myweb-lbj89   1/1       Running       0          22m
+    myweb-m6nrx   1/1       Running       0          22m
+    myweb-q5gv4   1/1       Running       0          23m
+
+    $ kubectl get pod
+    NAME          READY     STATUS        RESTARTS   AGE
+    myweb-5v9w6   1/1       Running       0          5s
+    myweb-5ww92   1/1       Running       0          23m
+    myweb-lbj89   1/1       Running       0          22m
+    myweb-m6nrx   1/1       Running       0          22m
+    myweb-q5gv4   1/1       Running       0          23m
+
+there are other benefits with RC. actually since this abstraction is so popular
+and heavily used in practice that, a very similar new object has been designed
+with more powerful features introduced. The original RC object and its
+abstraction has been split into 2 new objects, named `RS` and `deployment`.
+let's stop exploring more RC features for now and move our focus to these 2
+objects.
+
+=== RS and deployment
+
+a RS object is pretty much the same thing as a RC object, with just one major
+exception - the looks of labels.
+
+    $ cat myweb-rs.yaml
+    apiVersion: extensions/v1beta1
+    kind: ReplicaSet
+    metadata:
+      name: myweb
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:                                    #<---
+          app: myweb                                    #<---
+        matchExpressions:                               #<---
+          - {key: app, operator: In, values: [myweb]}   #<---
+      template:
+        metadata:
+          labels:
+            app: myweb
+        spec:
+          containers:
+          - name: myweb
+            image: kubeguide/tomcat-app:v1
+            ports:
+            - containerPort: 8080
+            env:
+            - name: MYSQL_SERVICE_HOST
+              value: 'mysql'
+            - name: MYSQL_SERVICE_PORT
+              value: '3306'
+            - name: MYSQL_ROOT_PASSWORD
+              value: "123456"
+
+RC uses "Equality-based" selector while RS uses "set-based". functionally the
+two forms of selector do the same job - to "select" the pod with a matching
+"label".
+
+      #RS:
+      selector:
+        matchLabels:                                 
+          app: myweb                                 
+        matchExpressions:                            
+          - {key: app, operator: In, values: [myweb]}
+
+      #RC:
+      selector:
+        app: myweb
+
+    $ kubectl create -f myweb-rs.yaml
+    replicaset.extensions/myweb created
+
+now compare the `kubectl describe` on the 2 objects:
+
+    $ kubectl describe rs myweb                                        
+    ......
+    Selector:     app=myweb,app in (myweb)                             
+    ......
+      Type    Reason            Age   From                   Message   
+      ----    ------            ----  ----                   -------   
+      Normal  SuccessfulCreate  15s   replicaset-controller  Created pod: myweb-kt9zx
+
+    $ kubectl describe rc myweb
+    ......
+    Selector:     app=myweb
+    ......
+      Type    Reason            Age   From                    Message
+      ----    ------            ----  ----                    -------
+      Normal  SuccessfulCreate  19s   replication-controller  Created pod: myweb-tbbhc
+
+again, most part of the output are the same, with only exception of selector
+format. 
+
+now you may start to wonder why kubernetes has two different objects to do the
+almost same job. as mentioned earlier the features of RC has been extended
+through the 2 new objects. we've seen `RS` has done the same job of `RC` just
+with a different selector format, now we'll check out `deployment` and explore
+the features coming from it. Again let's look at the yaml file of a typical
+deployment object:
+
+    $ kubectl create -f myweb-deployment.yaml
+    deployment.extensions/myweb created
+
+    $ kubectl get all | grep myweb
+    deployment.apps/myweb            1    1        1  1    21s
+    replicaset.apps/myweb-c586fd645  1    1        1  21s
+    pod/myweb-c586fd645-b2ft8        1/1  Running  0  21s
+
+the deployment is a relatively higher level of abstraction than RC and RS.
+deployment does not create a pod directly, the `describe` command reveals this:
+
+    $ kubectl describe deployments myweb
+    Name:                   myweb
+    Namespace:              default
+    CreationTimestamp:      Sat, 25 May 2019 16:00:26 -0400
+    Labels:                 app=myweb
+    Annotations:            deployment.kubernetes.io/revision: 1
+    Selector:               app=myweb,app in (myweb)
+    Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+    StrategyType:           RollingUpdate
+    MinReadySeconds:        0
+    RollingUpdateStrategy:  1 max unavailable, 1 max surge
+    Pod Template:
+      Labels:  app=myweb
+      Containers:
+       myweb:
+        Image:      kubeguide/tomcat-app:v1
+        Port:       8080/TCP
+        Host Port:  0/TCP
+        Environment:
+          MYSQL_SERVICE_HOST:   mysql
+          MYSQL_SERVICE_PORT:   3306
+          MYSQL_ROOT_PASSWORD:  123456
+        Mounts:                 <none>
+      Volumes:                  <none>
+    Conditions:
+      Type           Status  Reason
+      ----           ------  ------
+      Available      True    MinimumReplicasAvailable
+    OldReplicaSets:  <none>
+    NewReplicaSet:   myweb-c586fd645 (1/1 replicas created)     #<---
+    Events:          <none>
+
+what happens is when you create a Deployment, a replica set is created
+underneath. The pods defined in a Deployment object are created and supervised
+by the Deployment's replicaset. RC on the other hand, works with pod directly.
+the workflows differences are shown in this diagram:
+
+                             |=> pod
+                             |
+    RC =============>========|=> pod
+                             |
+                             |=> pod
+
+                             |=> pod
+                             |
+    deployment =====> RS ====|=> pod
+                             |
+                             |=> pod
+
+You might be wondering why you need RS as one more layer sitting in between
+deployment and pod, after all with RC it seems sufficient to keep a set of pods
+running.
+
+the reason is about pod update - the "rolling update" feature that is one of the
+"more powerful feature" mentioned earlier. this is how it works:
+
+when you update the pod with new software, the `deployment` object introduces a
+new RS that will start from creating a new pod equiped with the new software
+release in it. once this new pod is up and running, the original RS will be
+"scaled down" by 1, making the total number of running pod remaining unchanged.
+new RS will continue to scale up by one and original RS scales down by one. this
+process repeats until number of pods in new RS reaches the original replica
+number defined in the deployment, and that is the time when all of the original
+RS's pods are gone. 
+
+                             |=> pod
+                 |==> RS ====|=> pod
+                 |   (v1)    |=> pod
+                 |
+                 |           |=> pod
+                 |           |
+    deployment ==|==> RS ====|=> pod
+                 |   (v2)    |
+                 |           |=> pod
+                 |
+                 |           |=> pod
+                 |==> RS ====|=> pod
+                     (v3)    |=> pod
+
+This whole process of creating a new RS, scaling up the new RS and scaling down
+the old one simultaneously, is fully automated and taken care of by the
+deployment object. in contrast, RC alone, without this additional higher layer
+abstraction, is not able to coordinate this process.
+
+deployment also has the ability to "record" the whole process, so in
+case needed, you can display the update history, pause/resume the process, or
+even "undo" the upgrade - pretty much similar as the junos `rollback` magic
+command that you use everyday to quickly revert the changes you make to your
+router. comparing with how much work it takes to prepare for the software
+upgrade during maintenance window in the old days, how handy it is with this
+feature!
+
+    $ kubectl describe deployment/nginx-deployment
+    Name:                   nginx-deployment
+    ......
+    NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
+    Events:
+      Type    Reason             Age   From                   Message
+      ----    ------             ----  ----                   -------
+      Normal  ScalingReplicaSet  28m   deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3    #<------
+      Normal  ScalingReplicaSet  24m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 1    #<------
+      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 2  #<------
+      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 2    #<------
+      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 1  #<------
+      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 3    #<------
+      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 0  #<------
+
+    $ kubectl rollout pause deployment/nginx-deployment
+    $ kubectl rollout resume deployment/nginx-deployment
+    $ kubectl rollout undo deployment/nginx-deployment
+
+    $ kubectl describe deployment/nginx-deployment
+    Name:                   nginx-deployment
+    ......
+    NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
+    NewReplicaSet:   nginx-deployment-67594d6bf6 (3/3 replicas created)
+    Events:
+      Type    Reason              Age              From                   Message
+      ----    ------              ----             ----                   -------
+      Normal  DeploymentRollback  8m               deployment-controller  Rolled back deployment "nginx-deployment" to revision 1       #<------
+      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 1        #<------
+      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 2      #<------
+      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 2        #<------
+      Normal  ScalingReplicaSet   8m (x2 over 1h)  deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3        #<------
+      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 1      #<------
+      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 0      #<------
+
+//image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
+
+=== Scaling (manually , auto scaling) 
+
 === POD health check & Readniess Probe  
 === Volumes, storage 
-=== Scaling (manually , auto scaling) 
+
 === ConfigMap 
 === Affinity/ anti-affinity  
 === DNS

@@ -5,19 +5,30 @@ Learning Objective 1: The reader will be able to explain different Kubernetes/co
 Learning Objective 2: The reader will be able to build applications using Kubernetes and contrail     
 
 == Contrail with Kubernetes implementations 
+
 === Kubernetes/Contrail Architecture  
+
 === Kubernetes and contrail installation options   
+
 === Nested installation on OpenStack  
+
 === OpenShift overview 
 
 
 == Kubernetes integration with Contrail 
+
 === Kubernetes to contrail object mapping
+
 === namespaces and isolation
+
 === Services 
+
 === ingress 
+
 === Kubernetes Network Policy with Contrail Security
+
 === IP-fabric-source NAT
+
 === visualization
 
 
