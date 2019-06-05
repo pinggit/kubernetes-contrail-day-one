@@ -1,6 +1,6 @@
 = kubernetes-contrail-day-one
 
-== TOC
+== book structure (v1/2)
 
   |Chapter 1: container foundations     #<---done
   . |containers overview
@@ -29,11 +29,11 @@
   |chapter 3: Kubernetes features
   . |Kubernetes features
   . . |Label, Label example     #<---done
-= . . |Services                 #<---ayman
-  . . |Ingress
   . . |Replication Controller & Replica set     #<---done
   . . |Deployment               #<---done
-  . . |Scaling (manually , auto scaling)        #<---ping
+= . . |Services                 
+  . . |Ingress
+  . . |Scaling (manually , auto scaling)
   . . |POD health check & Readniess Probe
   . . |Volumes, storage
   . . |ConfigMap
@@ -60,11 +60,96 @@
   . . |Building 2 websites using Kubernetes POD
   . . |Using Contrail to offer networking and security services
 
+
+== book structure (v3)
+
+4 chapters with extensive labs/examples
+
+----
+To make it a complete guide as well since most of the features in Kubernetes/Contrail couldn’t be fully understood without understanding the fundamentals 
+Chapter 1 is a small chapter to cover some basics container and contrail 
+Chapter 2 covers Kubernetes fundamentals.
+Chapter 3 covers some Kubernetes features that’s needed to integrate with Contrail .
+Chapter 4 covers Kubernetes and contrail integration with multiple scenarios to cover multi-network POD , services Isolated namespace/services, CSRX service changing,..,etc 
+ 
+
+Chapter 1: Short chapter to lay the basic foundations  (done)
+Learning Objective 1: The reader will be able to explain basics Docker, container and contrail Architecture 
+
+Topic 1: Using Docker and containers 
+1.    Understanding containers,
+2.    Container vs VMs – CSRX vs VSRX
+3.    Understanding Docker
+
+Topic 2: contrail overview 
+1.   Contrail Architecture Fundamentals 
+2.   contrail controller & VRouter 
+
+Chapter 2: Covers Kubernetes fundamentals (done)
+Learning Objective 1: The reader will be able to explain and build basics Kubernetes setup  
+
+Topic 1: Kubernetes Architecture  
+1.    What is Kubernetes 
+2.    Kubernetes master 
+3.    Kubernetes node 
+4.    Kubernetes work flow
+5.    Kubernetes Objects
+
+Topic 2: Building Kubernetes POD
+1.   YAML file for Kubernetes 
+2.   POD example using YAML files
+3.   Kubectl tool 
+4.   Intra-POD communications  
+5.   Inter-POD communications 
+
+Chapter 3: Kubernetes advanced topics   (in progress)
+Learning Objective 1: The reader will be able to explain and build advanced Kubernetes features using YAML  
+
+Topic 1: Kubernetes features 
+1.    Label
+2.    Services (Cluster IP, node port, load balancing)  
+3.    Ingress 
+4.    Replication Controller & Replica set
+5.    Deployment
+6.    Volumes, storage (to be added if we can use it to load CSRX with initial configuration) 
+7.    ConfigMap (to be added if we can use it to load CSRX with initial configuration)
+8.    DNS (to be added if we need it for ingress)
+
+
+Chapter 4: Kubernetes and Contrail integration (testing)
+Learning Objective 1: The reader will be able to explain Kubernetes - contrail object mapping
+Learning Objective 2: The reader will be able to build applications using Kubernetes and contrail     
+
+Topic 1: Contrail with Kubernetes implementations 
+1.    Kubernetes/Contrail Architecture  
+2.    Kubernetes to contrail object mapping
+3.    Nested installation on OpenStack --- contrail with OpenShift (may be a small paragraph) 
+
+
+Topic 2: Kubernetes integration with Contrail 
+1. the use of annotations to attach POD to Network 
+2. namespaces and isolation
+3. Services 
+4. Lab1 to show in action 2 namespaces, services , ..,etc ( we need to test services ) 
+
+5. ingress and load balancing (need to be tested first)
+6. lab to test ingress and load balancing OR we could integrate it with lab 1 (need to be tested first)
+
+7. services chaining in contrail 
+8. lab to show services chaining with CSRX in transparent mode ( we may need to test loading CSRX with initial config)
+
+9. Contrail Firewall security policy to secure traffic ( to be tested and add if there is more space in the book) 
+----
+
+
 == progress
 
 * (2019-07-30) targeting book publish
 * (2019-06-30) targeting 1st draft done
 
+* (2019-06-01) started to co-author with yuvaraja       #<---
+* (2019-05-31) adjusted the book content
+* (2019-05-28) tested csrx service chaining feature
 * (2019-05-25) ch3 working in progress
 * (2019-05-24) local setup built, tested multi intf pod and csrx
 * (2019-05-05) ch1, ch2 done, starting ch3

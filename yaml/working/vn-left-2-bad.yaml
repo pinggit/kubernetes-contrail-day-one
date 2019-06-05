@@ -1,0 +1,11 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  annotations:
+    opencontrail.org/cidr: ['1.1.2.0/24']
+    opencontrail.org/ip_fabric_forwarding: "false"
+    opencontrail.org/ip_fabric_snat: "false"
+  name: vn-left-2
+  namespace: default
+spec:
+  config: '{ “cniVersion”: “0.3.0”, "type": "contrail-k8s-cni" }'

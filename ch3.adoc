@@ -215,7 +215,6 @@ Now we can test that by just send CURL -i to sent http request using the CLI
     </html>
 
 
-=== Ingress 
 === RC
 
 you have learned how to launch a pod that representing your containers from its
@@ -586,7 +585,11 @@ feature to have!
 
 === Scaling (manually , auto scaling) 
 
+=== Ingress 
+
+
 === POD health check & Readniess Probe  
+
 === Volumes, storage 
 
 === ConfigMap 

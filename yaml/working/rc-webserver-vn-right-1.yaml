@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: rc-webserver-vn-right-1
+  labels:
+    app: webserver
+spec:
+  replicas: 1
+  selector:
+    app: webserver
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[
+            { "name": "vn-right-1" }
+        ]'
+    spec:
+      containers:
+      - name: webserver
+        image: savvythru/contrail-frontend-app
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
