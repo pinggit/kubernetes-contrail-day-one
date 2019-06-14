@@ -583,18 +583,215 @@ feature to have!
 
 //image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
 
-=== Scaling (manually , auto scaling) 
+=== NS
 
-=== Ingress 
+==== what is NS
 
+As in many other platforms, normally there is more than one users (or teams) working on a
+kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
+department, when 'sales' department attempts to launch a pod with the same name,
+the system will give an error:
 
-=== POD health check & Readniess Probe  
+----
+Error from server (AlreadyExists): error when creating "webserver1.yaml": pods "webserver1" already exists
+----
 
-=== Volumes, storage 
+this is a very common scenario in many today's network platforms - an object
+name has to be unique in the same "scope":
 
-=== ConfigMap 
-=== Affinity/ anti-affinity  
-=== DNS
+* IP prefix in a router
+* virtual network in openstack cluster
+* a variable name in a program
+
+and the solution is to support multiple scopes or namespaces, respectively:
+* VRF
+* project/tenant
+* function
+
+the solution in k8s is just called 'Namespaces', or 'NS' for short, which
+provide a scope for names. Names of resources need to be unique within a
+namespace, but not across namespaces. it is a nature way to divide cluster
+resources between multiple users. 
+
+to create a NS is pretty simple, you can avoid the need to give a yaml file by
+using kubectl with '-f' option, followed by '-' and hit enter:
+
+    root@test3:~# kubectl create -f -
+
+now the kubectl will wait for you to manually input the definition of NS from
+'stdin', you can now input these 4 lines to create a VN:
+
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+        name: dev
+
+when done, press ctr-d to submit the stdin buffer content into kubectl.
+
+    namespace/development created
+
+new namespace is now created
+
+    root@test3:~# kubectl get ns
+    NAME          STATUS    AGE
+    default       Active    15d
+    dev           Active    5s  #<-----
+
+you may notice there is a NS named 'default' in any k8s setup. that is, as the
+name indicates, the "default" NS that will be created when you install the
+setup, same as the "default routing table" in a router, "default tenant" in
+openstack setup - there needs to be a scope providing you an initial working
+environment so from there you can create all other objects.
+
+now 'dev' 'webserver1' in 'dev' NS won't conflict with 'webserver1' in 'sales'
+NS.
+
+----
+$ kubectl get pod --all-namespaces -o wide
+NAMESPACE  NAME  READY  STATUS   RESTARTS  AGE   IP             NODE     NOMINATED  NODE
+......
+dev        csrx  1/1    Running  4         2d4h  10.47.255.249  cent222  <none>
+......
+sales      csrx  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
+......
+----
+
+==== quota
+
+similiar to openstack 'tenant', you can now apply constraints that limits
+resource consumption per namespace. for example, you can limit the quantity of
+objects that can be created in a namespace, total amount of compute resources
+that may be consumed by resources, etc. the constraint in k8s is called 'quota'.
+here is an example:
+
+    kubectl -n ns-user-2 create quota foobar --hard pods=1
+
+we just created a quota 'foobar', and the constraint we gave is 'pods=1' - only
+one pod is allowed to be created in this NS.
+
+----
+$ kubectl get quota -n ns-user-2
+NAME     CREATED AT
+foobar   2019-06-14T04:25:37Z
+
+$ kubectl get quota -o yaml
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    creationTimestamp: 2019-06-14T04:25:37Z
+    name: foobar
+    namespace: ns-user-2
+    resourceVersion: "823606"
+    selfLink: /api/v1/namespaces/ns-user-2/resourcequotas/foobar
+    uid: 76052368-8e5c-11e9-87fb-0050569e6cfc
+  spec:
+    hard:
+      pods: "1"
+  status:
+    hard:
+      pods: "1"
+    used:
+      pods: "1"
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+----
+
+now create a rc with replica=2
+
+----
+$ cat rc-ubuntu.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+name: rc-ubuntuapp
+spec:
+ replicas: 2
+ template:
+   metadata:
+     labels:
+       run: ubuntuapp
+   spec:
+     containers:
+     - name: ubuntuapp
+       image: ubuntu-upstart
+
+$ kubectl apply -f rc-ubuntu.yaml
+replicationcontroller/rc-ubuntuapp created
+
+$ kubectl get pod
+NAME                 READY   STATUS    RESTARTS   AGE
+rc-ubuntuapp-2j84g   1/1     Running   0          10s
+----
+
+what we desired is 2 pods, but only 1 will be created:
+
+----
+$ kubectl get rc
+NAME        DESIRED   CURRENT   READY   AGE
+ubuntuapp   2         1         1       3m19s
+----
+
+and the reason is that the 2nd pod creation is "forbidden" due to quota
+exceeded:
+
+    ..."rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+
+----
+$ kubectl describe rc
+Name:         rc-ubuntuapp
+Namespace:    ns-user-2
+Selector:     run=ubuntuapp
+......
+Conditions:
+  Type             Status  Reason
+  ----             ------  ------
+  ReplicaFailure   True    FailedCreate         #<---
+Events:
+  Type     Reason            Age                 From                    Message
+  ----     ------            ----                ----                    -------
+  Normal   SuccessfulCreate  2m8s                replication-controller  Created pod: rc-ubuntuapp-2j84g
+  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-tztv4" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+  ......
+  Warning  FailedCreate      77s (x6 over 2m6s)  replication-controller  (combined from similar events): Error creating: pods "rc-ubuntuapp-rtb56" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+----
+
+new pod will can be create after the quota is removed:
+
+----
+root@test1:~# kubectl delete quota foobar
+resourcequota "foobar" deleted
+
+$ kubectl scale rc rc-ubuntuapp --replicas=3
+replicationcontroller/rc-ubuntuapp scaled
+
+$ kubectl get pod
+NAME                 READY   STATUS    RESTARTS   AGE
+rc-ubuntuapp-2j84g   1/1     Running   0          8m4s
+rc-ubuntuapp-rssl9   1/1     Running   0          16s
+rc-ubuntuapp-z6cmn   1/1     Running   0          16s
+----
+
+=== other features
+
+==== Scaling (manually , auto scaling)
+
+==== POD health check & Readniess Probe
+
+==== Volumes, storage
+
+==== ConfigMap
+
+==== Affinity/ anti-affinity
+
+==== DNS
+
+==== Ingress
+
 
 == Building Kubernetes 
 
