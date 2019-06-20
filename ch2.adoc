@@ -25,10 +25,7 @@ like.
 
 == What is kubernetes
 
-.the definition
-This is the description from the main page of official kubernetes website
-(https://kubernetes.io/) :
-
+starting with offical description (https://kubernetes.io/) :
 ____
 Kubernetes (K8s) is an open-source system for automating deployment, scaling,
 and management of containerized applications. It groups containers that make up
@@ -75,8 +72,6 @@ dockers in a relatively higher level and a much easier way.
   characters - S), 
 * the "current" (as of the writing of this book) major release is v1.14.
 ====
-
-.why you need it
 
 In chapter one you've learned docker has been a prevailing and pretty mature
 container technology. So naturely you may wonder why you need kubernetes.
@@ -502,7 +497,6 @@ isolation from others. you'll see more about these advantages later.
 now, let's get your feet wet. we'll look at how to use a config file to launch a
 "pod" in kubernetes cluster.
 
-=== installing kubernetes
 
 === YAML file for Kubernetes 
 
@@ -685,9 +679,7 @@ help of `completion` option: `kubectl completion -h`
 you will see and learn the usage of these options in the rest part of this
 book.
 
-=== Intra-POD communications  
-
-.Login to container
+===   Login to container
 
 in kubernetes master, to login to a container:
 
@@ -755,11 +747,9 @@ communication between containers in a pod can happen simply by using
     LISTEN     0      128                  :::6379              :::*
 
 
-=== Inter-POD communications
-
 === Kubernetes networking
 
-.PLAN: 
+///PLAN: 
 *ip-per-pod model
-*give brief introduction only
+*give brief introduction only/////
 
