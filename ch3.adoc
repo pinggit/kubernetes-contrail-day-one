@@ -657,8 +657,6 @@ rc-ubuntuapp-z6cmn   1/1     Running   0          16s
 
 == Service
 
-(Cluster IP , node port , load balancing) 
-
 POD get instantiated, terminated and moved from one Node to another, in doing
 so POD changes IP address so how would we keep track of that?  Even if the POD
 isn’t moving how traffic from outside reach a certain POD 
