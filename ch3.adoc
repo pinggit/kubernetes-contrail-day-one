@@ -12,10 +12,8 @@
 This chapter introduces some of the fundamental and powerful features of
 kubernetes.
 
-== Kubernetes features 
-=== Label, Label example 
 
-Label:
+== Labels
 
 Imagine you have a POD that’s need to be host on a machine with certain
 specifications ( SSD HD, physical location , processing power , ..,etc ) 
@@ -94,136 +92,87 @@ label selector
 
 ====
 
-=== service
+== Namespace
 
-(Cluster IP , node port , load balancing) 
+As in many other platforms, normally there is more than one users (or teams) working on a
+kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
+department, when 'sales' department attempts to launch a pod with the same name,
+the system will give an error:
 
-POD get instantiated, terminated and moved from one Node to another, in doing
-so POD changes IP address so how would we keep track of that?  Even if the POD
-isn’t moving how traffic from outside reach a certain POD 
+----
+Error from server (AlreadyExists): error when creating "webserver1.yaml": pods "webserver1" already exists
+----
 
-the answer for both questions is Kubernetes services.  
+this is a very common scenario in many today's network platforms - an object
+name has to be unique in the same "scope":
 
-Services is an abstraction that defines a logical set of Pods and a policy by
-which you can access them, you may think of Services as your waiter in a big
-restaurant, this waiter isn’t cooking nor preparing the food but he just
-abstract everything happing at the kitchen for you as you deal only with this
-waiter 
+* IP prefix in a router
+* virtual network in openstack cluster
+* a variable name in a program
 
-so let’s cover three different type of services Node port , ClusterIP and load
-balancer and we begin with Node port by creating this  ( I need to create a
-diagram ) 
+and the solution is to support multiple scopes or namespaces, respectively:
+* VRF
+* project/tenant
+* function
 
-==== NodePort 
+the solution in k8s is just called 'Namespaces', or 'NS' for short, which
+provide a scope for names. Names of resources need to be unique within a
+namespace, but not across namespaces. it is a nature way to divide cluster
+resources between multiple users. 
 
-NodePort service is an easy way to expose an application running on POD by
-mapping a port in the node that host this POD with a port of the application
-the POD as shown in the diagram 
- 
-image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
+to create a NS is pretty simple, you can avoid the need to give a yaml file by
+using kubectl with '-f' option, followed by '-' and hit enter:
 
-there is 2 very important parts in this services YAML file ports and selector.
+    root@test3:~# kubectl create -f -
 
-targetPort is the actual port used by the application in here its port 80 as we
-are planning to run a web server and nodeport is port on the node hosting that
-PODs 
-
-selector is the label selector which determine which set of pods targeted by
-this services, in here any POD with label app: FRONT-END will be serviced by
-this services
+now the kubectl will wait for you to manually input the definition of NS from
+'stdin', you can now input these 4 lines to create a VN:
 
     apiVersion: v1
-    kind: Service
+    kind: Namespace
     metadata:
-      name: web-app
-    spec:
-      selector:
-        app: webserver
-      type: NodePort
-      ports:
-      - targetPort: 80
-        port: 80
-        nodePort: 32001
+        name: dev
 
-[TIP]
-====
-* Kubernetes by default allocate node port from (3000-32767) range it could be
-  change using the flag --service-node-port-range
-* The default service type is ClusterIP 
-* Be aware with the change of the Node ip address as it could effect your services 
-====
+when done, press ctr-d to submit the stdin buffer content into kubectl.
 
-now let’s expose the pod we created before with services shown after putting in
-web-app.yaml file
+    namespace/development created
 
-    [root@ip-172-25-1-56 /]# kubectl create -f web-app.yaml
-    service "web-app" created
+new namespace is now created
 
-    [root@ip-172-25-1-56 /]# kubectl describe services web-app
-    Name:                     web-app
-    Namespace:                default
-    Labels:                   <none>
-    Annotations:              <none>
-    Selector:                 app=webserver
-    Type:                     NodePort
-    IP:                       10.98.21.191
-    Port:                     <unset>  80/TCP
-    TargetPort:               80/TCP
-    NodePort:                 <unset>  32001/TCP
-    Endpoints:                10.47.255.250:80
-    Session Affinity:         None
-    External Traffic Policy:  Cluster
-    Events:                   <none>
+    root@test3:~# kubectl get ns
+    NAME          STATUS    AGE
+    default       Active    15d
+    dev           Active    5s  #<-----
 
-Now we can test that by just send CURL -i to sent http request using the CLI 
+you may notice there is a NS named 'default' in any k8s setup. that is, as the
+name indicates, the "default" NS that will be created when you install the
+setup, same as the "default routing table" in a router, "default tenant" in
+openstack setup - there needs to be a scope providing you an initial working
+environment so from there you can create all other objects.
 
-    [root@computeee centos]# curl -i 10.98.21.191:80
-    HTTP/1.1 200 OK
-    Server: nginx/1.15.12
-    Date: Tue, 14 May 2019 18:33:07 GMT
-    Content-Type: text/html
-    Content-Length: 612
-    Last-Modified: Tue, 16 Apr 2019 13:08:19 GMT
-    Connection: keep-alive
-    ETag: "5cb5d3c3-264"
-    Accept-Ranges: bytes
+now 'dev' 'webserver1' in 'dev' NS won't conflict with 'webserver1' in 'sales'
+NS.
 
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Welcome to nginx!</title>
-    <style>
-        body {
-            width: 35em;
-            margin: 0 auto;
-            font-family: Tahoma, Verdana, Arial, sans-serif;
-        }
-    </style>
-    </head>
-    <body>
-    <h1>Welcome to nginx!</h1>
-    <p>If you see this page, the nginx web server is successfully installed and
-    working. Further configuration is required.</p>
+----
+$ kubectl get pod --all-namespaces -o wide
+NAMESPACE  NAME  READY  STATUS   RESTARTS  AGE   IP             NODE     NOMINATED  NODE
+......
+dev        csrx  1/1    Running  4         2d4h  10.47.255.249  cent222  <none>
+......
+sales      csrx  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
+......
+----
 
-    <p>For online documentation and support please refer to
-    <a href="http://nginx.org/">nginx.org</a>.<br/>
-    Commercial support is available at
-    <a href="http://nginx.com/">nginx.com</a>.</p>
-
-    <p><em>Thank you for using nginx.</em></p>
-    </body>
-    </html>
-
-
-=== RC
+== Scalling 
+=== Replication Controller
 
 you have learned how to launch a pod that representing your containers from its
 yaml file in chapter 2. one question will rise in your mind: what if I need 5
 exactly the same pods (each runs a apache container) to make sure the web
 service appears more robust? shall I change the name in yaml file then repeat the
 same commands to create 5 more pods? or maybe with a shell script? kubernetes
-already has the objects to address this exact demand and the right answer is RC -
-replication controller.
+already has the objects to address this exact demand and the right answer are RC -
+replication controller or ReplicaSet
 
 > A ReplicationController ensures that a specified number of pod replicas are
 > running at any one time. In other words, a ReplicationController makes sure
@@ -322,7 +271,7 @@ abstraction has been split into 2 new objects named `RS(ReplicaSet)` and
 `deployment`.  roughly, you can call them "next generation of RC". let's stop
 exploring more RC features for now and move our focus to these 2 objects.
 
-=== RS and deployment
+=== ReplicaSet 
 
 `ReplicaSet`, or `RS` object, is pretty much the same thing as a `RC` object,
 with just one major exception - the looks of `selector`.
@@ -412,6 +361,7 @@ selector format. you can also sale the RS same way as you do with RC:
     myweb-lkwvt                  1/1     Running   0          4m28s
     myweb-ww9tn                  1/1     Running   0          3m30s
 
+== Deployment
 now you may start to wonder why kubernetes has two different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
 through the 2 new objects. we've seen `RS` has done the same job of `RC` just
@@ -583,80 +533,8 @@ feature to have!
 
 //image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
 
-=== NS
 
-==== what is NS
-
-As in many other platforms, normally there is more than one users (or teams) working on a
-kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
-department, when 'sales' department attempts to launch a pod with the same name,
-the system will give an error:
-
-----
-Error from server (AlreadyExists): error when creating "webserver1.yaml": pods "webserver1" already exists
-----
-
-this is a very common scenario in many today's network platforms - an object
-name has to be unique in the same "scope":
-
-* IP prefix in a router
-* virtual network in openstack cluster
-* a variable name in a program
-
-and the solution is to support multiple scopes or namespaces, respectively:
-* VRF
-* project/tenant
-* function
-
-the solution in k8s is just called 'Namespaces', or 'NS' for short, which
-provide a scope for names. Names of resources need to be unique within a
-namespace, but not across namespaces. it is a nature way to divide cluster
-resources between multiple users. 
-
-to create a NS is pretty simple, you can avoid the need to give a yaml file by
-using kubectl with '-f' option, followed by '-' and hit enter:
-
-    root@test3:~# kubectl create -f -
-
-now the kubectl will wait for you to manually input the definition of NS from
-'stdin', you can now input these 4 lines to create a VN:
-
-    apiVersion: v1
-    kind: Namespace
-    metadata:
-        name: dev
-
-when done, press ctr-d to submit the stdin buffer content into kubectl.
-
-    namespace/development created
-
-new namespace is now created
-
-    root@test3:~# kubectl get ns
-    NAME          STATUS    AGE
-    default       Active    15d
-    dev           Active    5s  #<-----
-
-you may notice there is a NS named 'default' in any k8s setup. that is, as the
-name indicates, the "default" NS that will be created when you install the
-setup, same as the "default routing table" in a router, "default tenant" in
-openstack setup - there needs to be a scope providing you an initial working
-environment so from there you can create all other objects.
-
-now 'dev' 'webserver1' in 'dev' NS won't conflict with 'webserver1' in 'sales'
-NS.
-
-----
-$ kubectl get pod --all-namespaces -o wide
-NAMESPACE  NAME  READY  STATUS   RESTARTS  AGE   IP             NODE     NOMINATED  NODE
-......
-dev        csrx  1/1    Running  4         2d4h  10.47.255.249  cent222  <none>
-......
-sales      csrx  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
-......
-----
-
-==== quota
+== Quota
 
 similiar to openstack 'tenant', you can now apply constraints that limits
 resource consumption per namespace. for example, you can limit the quantity of
@@ -776,25 +654,135 @@ rc-ubuntuapp-rssl9   1/1     Running   0          16s
 rc-ubuntuapp-z6cmn   1/1     Running   0          16s
 ----
 
-=== other features
 
-==== Scaling (manually , auto scaling)
+== Service
 
-==== POD health check & Readniess Probe
+(Cluster IP , node port , load balancing) 
 
-==== Volumes, storage
+POD get instantiated, terminated and moved from one Node to another, in doing
+so POD changes IP address so how would we keep track of that?  Even if the POD
+isn’t moving how traffic from outside reach a certain POD 
 
-==== ConfigMap
+the answer for both questions is Kubernetes services.  
 
-==== Affinity/ anti-affinity
+Services is an abstraction that defines a logical set of Pods and a policy by
+which you can access them, you may think of Services as your waiter in a big
+restaurant, this waiter isn’t cooking nor preparing the food but he just
+abstract everything happing at the kitchen for you as you deal only with this
+waiter 
 
-==== DNS
+so let’s cover three different type of services Node port , ClusterIP and load
+balancer and we begin with Node port by creating this  ( I need to create a
+diagram ) 
 
-==== Ingress
+=== Cluster IP
+
+=== NodePort 
+
+NodePort service is an easy way to expose an application running on POD by
+mapping a port in the node that host this POD with a port of the application
+the POD as shown in the diagram 
+ 
+image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
+
+there is 2 very important parts in this services YAML file ports and selector.
+
+targetPort is the actual port used by the application in here its port 80 as we
+are planning to run a web server and nodeport is port on the node hosting that
+PODs 
+
+selector is the label selector which determine which set of pods targeted by
+this services, in here any POD with label app: FRONT-END will be serviced by
+this services
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: web-app
+    spec:
+      selector:
+        app: webserver
+      type: NodePort
+      ports:
+      - targetPort: 80
+        port: 80
+        nodePort: 32001
+
+[TIP]
+====
+* Kubernetes by default allocate node port from (3000-32767) range it could be
+  change using the flag --service-node-port-range
+* The default service type is ClusterIP 
+* Be aware with the change of the Node ip address as it could effect your services 
+====
+
+now let’s expose the pod we created before with services shown after putting in
+web-app.yaml file
+
+    [root@ip-172-25-1-56 /]# kubectl create -f web-app.yaml
+    service "web-app" created
+
+    [root@ip-172-25-1-56 /]# kubectl describe services web-app
+    Name:                     web-app
+    Namespace:                default
+    Labels:                   <none>
+    Annotations:              <none>
+    Selector:                 app=webserver
+    Type:                     NodePort
+    IP:                       10.98.21.191
+    Port:                     <unset>  80/TCP
+    TargetPort:               80/TCP
+    NodePort:                 <unset>  32001/TCP
+    Endpoints:                10.47.255.250:80
+    Session Affinity:         None
+    External Traffic Policy:  Cluster
+    Events:                   <none>
+
+Now we can test that by just send CURL -i to sent http request using the CLI 
+
+    [root@computeee centos]# curl -i 10.98.21.191:80
+    HTTP/1.1 200 OK
+    Server: nginx/1.15.12
+    Date: Tue, 14 May 2019 18:33:07 GMT
+    Content-Type: text/html
+    Content-Length: 612
+    Last-Modified: Tue, 16 Apr 2019 13:08:19 GMT
+    Connection: keep-alive
+    ETag: "5cb5d3c3-264"
+    Accept-Ranges: bytes
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Welcome to nginx!</title>
+    <style>
+        body {
+            width: 35em;
+            margin: 0 auto;
+            font-family: Tahoma, Verdana, Arial, sans-serif;
+        }
+    </style>
+    </head>
+    <body>
+    <h1>Welcome to nginx!</h1>
+    <p>If you see this page, the nginx web server is successfully installed and
+    working. Further configuration is required.</p>
+
+    <p>For online documentation and support please refer to
+    <a href="http://nginx.org/">nginx.org</a>.<br/>
+    Commercial support is available at
+    <a href="http://nginx.com/">nginx.com</a>.</p>
+
+    <p><em>Thank you for using nginx.</em></p>
+    </body>
+    </html>  
+
+=== load balancing
+
+== Ingress 
+== Annotation 
+== Network policy
 
 
-== Building Kubernetes 
 
-=== kubeadm , minikube ,…
-=== Helm charts  
 
