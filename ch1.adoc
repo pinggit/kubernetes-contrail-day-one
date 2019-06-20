@@ -8,13 +8,9 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 
-Chapter 1: container foundations
+Chapter 1: container and contrail foundations
 
-== containers overview
-
-=== Understanding containers
-
-== containers overview
+== Containers overview
 
 === Understanding containers
 
@@ -29,10 +25,10 @@ While many small organizations are thinking of containers as something too early
 
 But what is Container and how is it comparable to VM?
 
-From technical prospect container is rooted from the Cgroups concept in Linux but the name might be inspired by the Actual metal cargo shipping containers that you see on ships 
+From technical prospect container is rooted from the Cgroups and namespaces concept in Linux but the name might be inspired by the Actual metal cargo shipping containers that you see on ships 
 As both share the ideas of isolating contents , carrier independence , easy movement , …,etc 
 
-Container is a logical packaging mechanism, you can think of it as Lightweight OS-level virtualization that run an application and its dependencies without the need to replicate an entire operating system as shown in the diagram. By doing so Application would be confined in a lightweight package that could be developed/tested individually then implemented and scaled much faster than the tradition VM as Developer just need to build/configure this light peace of software. currently most of the application has been containerized and publicly available. And finally there is no need to manage/support one OS per application 
+Container is a logical packaging mechanism, you can think of it as Lightweight virtualization that run an application and its dependencies in the same operating system but in differnet context which remove the need to replicate an entire operating system as shown in the diagram. By doing so Application would be confined in a lightweight package that could be developed/tested individually then implemented and scaled much faster than the tradition VM as Developer just need to build/configure this light peace of software. currently most of the application has been containerized and publicly available. And finally there is no need to manage/support one OS per application 
 
 image::https://user-images.githubusercontent.com/2038044/56472464-b59fd400-642c-11e9-8642-b67cd0a9577e.png[]
 
@@ -42,7 +38,7 @@ Many developers would call the Container Runtime “the Hypervisor of Containers
 As in the VM technologies, the most common Hypervisors are VMware ESX/ESXi and KVM. In the Container technologies Rkt and Docker are the most known with Docker being the most widely deployed one. 
 Before we give an overview of Docker let’s see some useful numbers in comparing VM vs Container 
  
-Juniper VSRX vs CSRX 
+=== Juniper VSRX vs CSRX 
 
 Currently most of common applications such as Redis, Ngnix, Mongo , MySQL, WordPress, Jenkins , Kibana and Perl have been containerized and offered publicly in https://hub.docker.com allowing developers to build/test application quickly 
 
@@ -50,7 +46,7 @@ There are a lot of tests that compare performance and scaling for a giving appli
 
 But what about network functions NFV such as firewalls , NAT , Routing , …,etc 
 when it comes to VM based NFV, most of network vendors already implemented a Virtualized flavor of the hardware equipment that could be run on a hypervisor on standard x86 hardware
-VSRX is a Juniper SRX Series Services Gateway in a virtualized form factor built on the Junos operating system (Junos OS), and delivers networking and security features similar to 
+VSRX is a Juniper SRX Series Services Gateway in a virtualized form factor built on Junos, and delivers networking and security features similar to 
 those available for SRX
 
 when it comes to containerized based NFV, Not all vendors offer that 
@@ -60,20 +56,19 @@ In the comparison below between CSRX vs VSRX we can see the idea of CSRX being l
 In fact not as deploying applications in a containerized style means micro-services technique where we split the application into different smaller services each part (container in that case)  is doing a specific job. So there will be no need to have a NFV container that do everything in the same time.
 
 
-                vSRX	                cSRX
-    Use Cases	Integrated routing, 	L4-L7 Security, Low Footprint
+                      vSRX	                    cSRX
+    Use Cases	  Integrated routing,   	L4-L7 Security, Low Footprint
                 security, NAT, VPN, 
                 High Performance
-    Memory Requirement	4GB Minimum	In MB’s
-    NAT	                Yes	        Yes
-    IPSec VPN	        Yes	        No
-    Boot-up Time	~minutes	<1second
-    Image size	        In GB’s	        In MB’s
+    Memory
+   Requirement	      4GB Minimum               	In MB’s
+    NAT	                Yes	                   Yes
+    IPSec VPN	          Yes	                   No
+    Boot-up Time	    ~minutes               	<1second
+    Image size	        In GB’s	               In MB’s
 
 
 === Understanding Docker
-
-Docker
 
 As we have discussed, containers allow a developer to package up an application with all of the parts it needs, such as libraries and other dependencies, and ship it all out as one package
 Docker is the software to facilitate creating, deploying, and running containers 
@@ -90,21 +85,14 @@ Containers doesn’t exists in a vacuum and in production you won’t have just 
 
 1- How these containers communicate with each other on the same host or in different host as well with outside world? Basically, the networking part of containers 
 
-2- Who determine which containers get lunch over which host? and based on what? Upgrade? Number of containers per application? Basically, who orchestrate that 
+2- Who determine which containers get launch over which host? and based on what? Upgrade? Number of containers per application? Basically, who orchestrate that 
 
 
 we will try to answer these two questions in detail for the rest of the book but if you want a quick answer just think of Contrail and Kubernetes !!
 let’s start first lay the basics foundation of contrail 
 
 
-
-=== Containers as part of VNs
-
-=== Linux cgroup, namespace, iptables
-
-
-
-== contrail overview 
+== Contrail overview 
 
 Contrail Networking:
 
@@ -121,34 +109,28 @@ image::https://user-images.githubusercontent.com/2038044/56851391-9dbcca00-68dc-
 
 === Contrail Architecture Fundamentals 
 
-Contrail Networking Architecture:
-
 Contrail run in Logically centralized, physically distributed model as it has two main components, Contrail controller and Contrail vrouter 
-the Controller is the Control and management plane that Collects/presents analytics 
-and Manages/configures the vrouter
+the Controller is the Control and management plane that Manages/configures the vrouter and Collects/presents analytics
 Contrail vrouter is the Forwarding plane that Provides Layer 2/3 services , Distributed firewall capabilities and  Implements policies between virtual networks  
 
 Contrail integrates with many orchestrator such as OpenStack , VMware , Kubernetes , OpenShift and Mesos and use multiple protocols to provide SDN to these orchestrators as shown in the diagram where 
 
 XMPP : Extensible Messaging and Presence Protocol (XMPP) is an open XML technology for real-time communication defined in RFC 6120, in Contrail it offers two main functionality, distributing routing information and pushing configuration, which are similar to what IBGP do in MPLS VPNs model plus NETCONF in device management. XMPP is also used to exchange operational state, statistics, logs and events 
 
-MPLSoGRE/UDP or VXLAN: are three different kind of overlay tunnels to carry traffic over IP network. They are all IP-UDP packet but in VXLAN we use the VNI values in VXLAN header for segmentation where in MPLSoGRE and MPLSoUDP we use the MPLS label value for segmentation 
-
 BGP: is used to exchange router with physical router and in same case Contrail device manager can use Netconf to configure this Gateway
 
 EVPN: Ethernet VPN is a standards-based technology RFC 7432 that provides virtual multipoint bridged connectivity between different Layer 2 domains over an IP network.
 Contrail controller exchange EVPN routes with TOR switches (acting as L2 VXLAN GW) to offer faster recovery with active-active VXLAN forwarding 
 
-OVSDB: Open vSwitch Database is a standards-based control protocol used to configure ToR switch and to import dynamically-learned addresses with VXLAN in the data plane.
+MPLSoGRE/UDP or VXLAN: are three different kind of overlay tunnels to carry traffic over IP network. They are all IP-UDP packet but in VXLAN we use the VNI values in VXLAN header for segmentation where in MPLSoGRE and MPLSoUDP we use the MPLS label value for segmentation 
 
 To simplify the relation between contrail vrouter, contrail controller and the IP Fabric from the prospective of the Architecture prospective, let’s compare it to MPLS VPN model in any services provider  
 vrouter is like PE router and the VM/container is like CE but vrouter is just a slave of contrail controller. and when it comes to BMS the TOR would be the PE 
 
 image::https://user-images.githubusercontent.com/2038044/56851395-b1683080-68dc-11e9-84b0-f7fbfe00b1bc.png[]
 
-=== contrail controller
 
-=== contrail VRouter
+=== Contrail VRouter
 
 Contrail vrouter on the compute node/host:
 
@@ -160,10 +142,10 @@ offering long list of feature as will discuss
  
 From the prospective of control plane the vrouter relay on XMPP to 
 
-* Exchange routes
 * Receive low-level configuration (routing instances and forwarding policy) 
-* Report analytics (logs, statistics, and events)
+* Exchange routes
 * Install forwarding state into the forwarding plane.
+* Report analytics (logs, statistics, and events)
 
 From the prospective of data plan the vrouter would 
 
