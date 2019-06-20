@@ -747,9 +747,3 @@ communication between containers in a pod can happen simply by using
     LISTEN     0      128                  :::6379              :::*
 
 
-=== Kubernetes networking
-
-///PLAN: 
-*ip-per-pod model
-*give brief introduction only/////
-
