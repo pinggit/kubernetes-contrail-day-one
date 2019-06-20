@@ -1,4 +1,4 @@
-= Chapter 1: container foundations
+= Chapter 1: Container and Contrail foundations
 :toc:
 :toc-placement: preamble
 :source-highlighter: pygments
@@ -7,8 +7,6 @@
 :highlightjs-theme: googlecode
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
-
-Chapter 1: container and contrail foundations
 
 == Containers overview
 
