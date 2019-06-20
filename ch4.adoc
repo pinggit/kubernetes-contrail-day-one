@@ -48,7 +48,7 @@ but Contrail could offer on top of that
 In this chapter we will cover some of these aspects but first let’s talk about
 Kubernetes/contrail architecture and the object mapping 
 
-== Contrail – Kubernetes architecture 
+=== Contrail – Kubernetes architecture 
 
 A new components of contrail has been add called Kube-network-manager which
 would listen to API request sent from the Kubernetes API server and translate
@@ -75,32 +75,14 @@ image::https://user-images.githubusercontent.com/2038044/59479022-6fae2d80-8e29-
 
 == Contrail with Kubernetes implementations 
 
-=== Kubernetes/Contrail Architecture  
+=== Attaching POD to specific Network, Namespace Isolation in Kubernetes/Contrail 
 
-=== Kubernetes and contrail installation options   
+=== Floating IP pool in Kubernetes/Contrail environment
 
-=== Nested installation on OpenStack  
+=== services in Kubernetes/Contrail
 
-=== OpenShift overview 
+=== ingress in Kubernetes/Contrail 
 
+=== Contrail Firewall security policy to secure traffic 
 
-== Kubernetes integration with Contrail 
-
-=== Kubernetes to contrail object mapping
-
-=== namespaces and isolation
-
-=== Services 
-
-=== ingress 
-
-=== Kubernetes Network Policy with Contrail Security
-
-=== IP-fabric-source NAT
-
-=== visualization
-
-
-== building multitenant websites example   
-=== Building 2 websites using Kubernetes POD
-=== Using Contrail to offer networking and security services 
+=== Services Chaining and LB in contrail/Kubernetes using CSRX and contrail command 
