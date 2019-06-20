@@ -83,9 +83,9 @@ image::https://user-images.githubusercontent.com/2038044/56850572-7eb93a80-68d2-
 Containers doesn’t exists in a vacuum and in production you won’t have just one host with multiple container but multiples of hosts running 100s if not 1000s of containers,
  which raise two important sets of questions 
 
-1- How these containers communicate with each other on the same host or in different host as well with outside world? Basically, the networking part of containers 
+1- How these containers communicate with each other on the same host or in different host as well with outside world? Basically, the networking aspect of containers 
 
-2- Who determine which containers get launch over which host? and based on what? Upgrade? Number of containers per application? Basically, who orchestrate that 
+2- Who determine which containers get launch over which host? and based on what? Upgrade? Number of containers per application? Basically, The orchestration aspect 
 
 
 we will try to answer these two questions in detail for the rest of the book but if you want a quick answer just think of Contrail and Kubernetes !!
