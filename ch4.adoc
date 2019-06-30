@@ -1038,10 +1038,6 @@ in this example, service `service-web-lb-pool-public-1` will get an FIP from
 pool `pool-public-1`, which is created based on VN `vn-public-1` under current
 project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`.
 
-== ingress in contrail
-
-reviewing
-
 == Services in contrail
 
 === k8s service
@@ -1728,6 +1724,10 @@ This page is served by a Contrail pod
   IP address = 10.47.255.238
   Hostname = rc-webserver-r9zdt
 ----
+
+== ingress in contrail
+
+reviewing
 
 == service chaining with CSRX
 
