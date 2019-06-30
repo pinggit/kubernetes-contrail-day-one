@@ -1,5 +1,5 @@
-= Kubernetes in practice
 // vim:set ft=asciidoc syntax=ON tw=80:
+= Kubernetes in practice
 :toc:
 :toc-placement: preamble
 :source-highlighter: pygments
@@ -11,7 +11,6 @@
 
 This chapter introduces some of the fundamental and powerful features of
 kubernetes.
-
 
 == Labels
 
@@ -81,7 +80,7 @@ will land on a node tagged with stage=testing
     wordpress   1/1       Running   0          48s       10.47.255.250   ip-172-25-1-83.us-west-1.compute.internal
 
 
-[Tip]
+[TIP]
 ====
 You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
@@ -92,7 +91,9 @@ label selector
 
 ====
 
-== Namespace
+== NS
+
+=== what is NS
 
 As in many other platforms, normally there is more than one users (or teams) working on a
 kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
@@ -163,8 +164,127 @@ sales      csrx  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
 ......
 ----
 
-== Scalling 
-=== Replication Controller
+=== quota
+
+similiar to openstack 'tenant', you can now apply constraints that limits
+resource consumption per namespace. for example, you can limit the quantity of
+objects that can be created in a namespace, total amount of compute resources
+that may be consumed by resources, etc. the constraint in k8s is called 'quota'.
+here is an example:
+
+    kubectl -n ns-user-2 create quota foobar --hard pods=1
+
+we just created a quota 'foobar', and the constraint we gave is 'pods=1' - only
+one pod is allowed to be created in this NS.
+
+----
+$ kubectl get quota -n ns-user-2
+NAME     CREATED AT
+foobar   2019-06-14T04:25:37Z
+
+$ kubectl get quota -o yaml
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    creationTimestamp: 2019-06-14T04:25:37Z
+    name: foobar
+    namespace: ns-user-2
+    resourceVersion: "823606"
+    selfLink: /api/v1/namespaces/ns-user-2/resourcequotas/foobar
+    uid: 76052368-8e5c-11e9-87fb-0050569e6cfc
+  spec:
+    hard:
+      pods: "1"
+  status:
+    hard:
+      pods: "1"
+    used:
+      pods: "1"
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+----
+
+now create a rc with replica=2
+
+----
+$ cat rc-ubuntu.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+name: rc-ubuntuapp
+spec:
+ replicas: 2
+ template:
+   metadata:
+     labels:
+       run: ubuntuapp
+   spec:
+     containers:
+     - name: ubuntuapp
+       image: ubuntu-upstart
+
+$ kubectl apply -f rc-ubuntu.yaml
+replicationcontroller/rc-ubuntuapp created
+
+$ kubectl get pod
+NAME                 READY   STATUS    RESTARTS   AGE
+rc-ubuntuapp-2j84g   1/1     Running   0          10s
+----
+
+what we desired is 2 pods, but only 1 will be created:
+
+----
+$ kubectl get rc
+NAME        DESIRED   CURRENT   READY   AGE
+ubuntuapp   2         1         1       3m19s
+----
+
+and the reason is that the 2nd pod creation is "forbidden" due to quota
+exceeded:
+
+    ..."rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+
+----
+$ kubectl describe rc
+Name:         rc-ubuntuapp
+Namespace:    ns-user-2
+Selector:     run=ubuntuapp
+......
+Conditions:
+  Type             Status  Reason
+  ----             ------  ------
+  ReplicaFailure   True    FailedCreate         #<---
+Events:
+  Type     Reason            Age                 From                    Message
+  ----     ------            ----                ----                    -------
+  Normal   SuccessfulCreate  2m8s                replication-controller  Created pod: rc-ubuntuapp-2j84g
+  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-tztv4" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+  ......
+  Warning  FailedCreate      77s (x6 over 2m6s)  replication-controller  (combined from similar events): Error creating: pods "rc-ubuntuapp-rtb56" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+----
+
+new pod will can be create after the quota is removed:
+
+----
+root@test1:~# kubectl delete quota foobar
+resourcequota "foobar" deleted
+
+$ kubectl scale rc rc-ubuntuapp --replicas=3
+replicationcontroller/rc-ubuntuapp scaled
+
+$ kubectl get pod
+NAME                 READY   STATUS    RESTARTS   AGE
+rc-ubuntuapp-2j84g   1/1     Running   0          8m4s
+rc-ubuntuapp-rssl9   1/1     Running   0          16s
+rc-ubuntuapp-z6cmn   1/1     Running   0          16s
+----
+
+== Replication Controller
 
 you have learned how to launch a pod that representing your containers from its
 yaml file in chapter 2. one question will rise in your mind: what if I need 5
@@ -271,7 +391,7 @@ abstraction has been split into 2 new objects named `RS(ReplicaSet)` and
 `deployment`.  roughly, you can call them "next generation of RC". let's stop
 exploring more RC features for now and move our focus to these 2 objects.
 
-=== ReplicaSet 
+== ReplicaSet
 
 `ReplicaSet`, or `RS` object, is pretty much the same thing as a `RC` object,
 with just one major exception - the looks of `selector`.
@@ -529,130 +649,77 @@ probably use everyday when you need to quickly revert the changes you make to
 your router. Typically you do this when something is broken in your router
 deployment. comparing with how much work it takes to prepare for the software
 upgrade during maintenance window in the old days, this is going to be a killing
-feature to have!
+feature to have! later in the book we'll still use pod/RC/deployment to
+demonstrate different usage case with labs, however, it is rather unlikely that
+you will ever need to create Pods directly in production.  
 
 //image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
 
+== endpoint
 
-== Quota
+=== service with selector
 
-similiar to openstack 'tenant', you can now apply constraints that limits
-resource consumption per namespace. for example, you can limit the quantity of
-objects that can be created in a namespace, total amount of compute resources
-that may be consumed by resources, etc. the constraint in k8s is called 'quota'.
-here is an example:
+in our 'service' introduction, there is one object that is involved but we
+haven't explored much yet - the endpoint. we've learned it is through label
+selector a particular pod, or more typically, a group of pods with matching
+labels are choosen to be the backend, so that the service request traffic will
+be redirected to. The IP and port information of the "matching" pods are
+maintained in the 'endpoint' object ('EP' as abbr.). The pods may die and spawn
+anytime, the "mortal" nature of the pod will most possibly make the new pods be
+respawned with new IP address. during this dynamic process the 'endpoint' object
+will always be updated accordingly to reflect the current backend pod IPs, so
+the service traffic redirection will act properly. 
 
-    kubectl -n ns-user-2 create quota foobar --hard pods=1
+here is an example to demonstrate some quick steps to verify the service,
+corresponding endpoint and the pod with matching labels
 
-we just created a quota 'foobar', and the constraint we gave is 'pods=1' - only
-one pod is allowed to be created in this NS.
+create a service:
 
 ----
-$ kubectl get quota -n ns-user-2
-NAME     CREATED AT
-foobar   2019-06-14T04:25:37Z
-
-$ kubectl get quota -o yaml
+$ cat svc/service-web-clusterip.yaml
 apiVersion: v1
-items:
-- apiVersion: v1
-  kind: ResourceQuota
-  metadata:
-    creationTimestamp: 2019-06-14T04:25:37Z
-    name: foobar
-    namespace: ns-user-2
-    resourceVersion: "823606"
-    selfLink: /api/v1/namespaces/ns-user-2/resourcequotas/foobar
-    uid: 76052368-8e5c-11e9-87fb-0050569e6cfc
-  spec:
-    hard:
-      pods: "1"
-  status:
-    hard:
-      pods: "1"
-    used:
-      pods: "1"
-kind: List
+kind: Service
 metadata:
-  resourceVersion: ""
-  selfLink: ""
-----
-
-now create a rc with replica=2
-
-----
-$ cat rc-ubuntu.yaml
-apiVersion: v1
-kind: ReplicationController
-metadata:
-name: rc-ubuntuapp
+  name: service-web-clusterip
 spec:
- replicas: 2
- template:
-   metadata:
-     labels:
-       run: ubuntuapp
-   spec:
-     containers:
-     - name: ubuntuapp
-       image: ubuntu-upstart
-
-$ kubectl apply -f rc-ubuntu.yaml
-replicationcontroller/rc-ubuntuapp created
-
-$ kubectl get pod
-NAME                 READY   STATUS    RESTARTS   AGE
-rc-ubuntuapp-2j84g   1/1     Running   0          10s
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
 ----
 
-what we desired is 2 pods, but only 1 will be created:
+verify the endpoint:
 
 ----
-$ kubectl get rc
-NAME        DESIRED   CURRENT   READY   AGE
-ubuntuapp   2         1         1       3m19s
+$ kubectl get ep
+NAME             ENDPOINTS          AGE
+service-web-lb   10.47.255.252:80   5d17h
 ----
 
-and the reason is that the 2nd pod creation is "forbidden" due to quota
-exceeded:
-
-    ..."rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+locate pod with the label that is used by selector in service:
 
 ----
-$ kubectl describe rc
-Name:         rc-ubuntuapp
-Namespace:    ns-user-2
-Selector:     run=ubuntuapp
-......
-Conditions:
-  Type             Status  Reason
-  ----             ------  ------
-  ReplicaFailure   True    FailedCreate         #<---
-Events:
-  Type     Reason            Age                 From                    Message
-  ----     ------            ----                ----                    -------
-  Normal   SuccessfulCreate  2m8s                replication-controller  Created pod: rc-ubuntuapp-2j84g
-  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
-  Warning  FailedCreate      2m8s                replication-controller  Error creating: pods "rc-ubuntuapp-tztv4" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
-  ......
-  Warning  FailedCreate      77s (x6 over 2m6s)  replication-controller  (combined from similar events): Error creating: pods "rc-ubuntuapp-rtb56" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+$ kubectl get pod -o wide -l 'app=webserver'
+NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED  NODE           LABELS
+rc-webserver-vn-right-1-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>     app=webserver
 ----
 
-new pod will can be create after the quota is removed:
+=== service with no selector
 
-----
-root@test1:~# kubectl delete quota foobar
-resourcequota "foobar" deleted
-
-$ kubectl scale rc rc-ubuntuapp --replicas=3
-replicationcontroller/rc-ubuntuapp scaled
-
-$ kubectl get pod
-NAME                 READY   STATUS    RESTARTS   AGE
-rc-ubuntuapp-2j84g   1/1     Running   0          8m4s
-rc-ubuntuapp-rssl9   1/1     Running   0          16s
-rc-ubuntuapp-z6cmn   1/1     Running   0          16s
-----
+in the preceding example, the 'endpoint' object is generated automatically by
+the kubernetes system whenever a service is created, and at least one pod with
+matching label exists. Another usage case of endpoint, is for a service that has
+no label selector defined. in that case you can explicitly create an 'endpoint',
+and by using the same endpoint name with the service object name, you can
+connect the endpoint with the service. this can be very useful in some
+scenarios. for example, in your setup you have a backend web server running in a
+physical server, or a virtual machine, and even though not running as a
+container in a kubernetes pod, you still want to integrate it into a kubernetes
+'service'. you just create the service as usual, and then create an endpoint
+with an 'address' and 'port' pointing to the web server. that's it! the
+'service' does not care about if the backend is pod or VM, it just redirect the
+service request traffic exactly the same way as if all backend is pod.
 
 
 == Service
@@ -672,8 +739,6 @@ waiter
 so let’s cover three different type of services Node port , ClusterIP and load
 balancer and we begin with Node port by creating this  ( I need to create a
 diagram ) 
-
-=== Cluster IP
 
 === NodePort 
 
@@ -765,7 +830,6 @@ Now we can test that by just send CURL -i to sent http request using the CLI
     <h1>Welcome to nginx!</h1>
     <p>If you see this page, the nginx web server is successfully installed and
     working. Further configuration is required.</p>
-
     <p>For online documentation and support please refer to
     <a href="http://nginx.org/">nginx.org</a>.<br/>
     Commercial support is available at
@@ -775,12 +839,83 @@ Now we can test that by just send CURL -i to sent http request using the CLI
     </body>
     </html>  
 
+=== Cluster IP
+
+implementation dependent, details covered in ch4 in details
+
 === load balancing
 
-== Ingress 
+implementation dependent, details covered in ch4 in details
+
+== TODO: Ingress 
+
+general (non-contrail) ingress
+
 == Annotation 
-== Network policy
 
+We have seen before how labels in Kubernetes are used for identifying, selecting
+and organizing objects, labels are just one way to attach metadata to Kubernetes
+objects.
 
+Another way is Annotations which is a key/value maps that attach non-identifying
+metadata to objects, Annotation has a lot of use cases such as attaching
 
+- pointers for logging and analytics
+- phone number, directory entries and web site 
+- timestamps, image hashes and registry address 
+- network, namespaces 
 
+In this book we will focus on using Annotations to assign network information to
+POD and we will see later on in chapter 4 how Kubernetes annotation can instruct
+contrail to attach an interface to certain network 
+
+Before seeing Annotations in action lets first create a network with minimum
+configuration based on the De-facto Kubernetes Network custom resource
+definition.  Network Attachment Definition is used to indicate the CNI as well
+the paraments of the network where we will attached interface POD to
+
+----
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: net-a
+spec:
+  config: '{
+    "cniVersion": "0.3.0",
+    "type": "awesome-plugin"
+  }'
+----
+
+The type in the example “awesome-plugin” is the name of the CNI which and could
+be Flannel, Calico, Contrail-K8s-cni , …,etc 
+
+Creating a POD and using annotations to attach its interface to a network called
+net-a
+
+----
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: my-namespace
+  annotations:
+    k8s.v1.cni.cncf.io/networks: net-a
+----
+
+Note: According to De-facto Kubernetes Network custom resource definition 
+the annotation "k8s.v1.cni.cncf.io/networks” is used to represent “
+NetworkAttachmentDefinition” and has two format
+
+    1- Network  
+           k8s.v1.cni.cncf.io/networks: net-a
+
+    2-Namespace/network name
+           k8s.v1.cni.cncf.io/networks: ns/net-a
+
+NOTE: To maintain compatibility with existing Kubernetes deployments, All pods
+must still be attached to the cluster-wide default network. which means even if
+we attached one POD interface to a specific network, this POD would have two
+interfaces one attached to the cluster-wide default network and the other
+interface is attached to the network specified in the annotation argument (net-a
+in this case) 
+
+== TODO: Network policy

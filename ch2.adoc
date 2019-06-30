@@ -699,34 +699,36 @@ allow you to do everything from one node - the master.
 
 .check processes running in container
 
-    root@pod-1:/var/www/html# ps aux
-    USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-    root         1  0.5  0.2 166260 19176 ?        Ss   17:08   0:00 apache2 -DFOREGROUND
-    www-data    13  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-    www-data    14  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-    www-data    15  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-    www-data    16  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-    www-data    17  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-    root        18  0.0  0.0  20244  3072 pts/0    Ss   17:08   0:00 bash
-    root        25  0.0  0.0  17492  1964 pts/0    R+   17:08   0:00 ps aux
+----
+root@pod-1:/var/www/html# ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.5  0.2 166260 19176 ?        Ss   17:08   0:00 apache2 -DFOREGROUND
+www-data    13  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+www-data    14  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+www-data    15  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+www-data    16  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+www-data    17  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
+root        18  0.0  0.0  20244  3072 pts/0    Ss   17:08   0:00 bash
+root        25  0.0  0.0  17492  1964 pts/0    R+   17:08   0:00 ps aux
 
-    root@pod-1:/var/www/html# ss -at
-    State      Recv-Q Send-Q                                                    Local Address:Port                                                        Peer Address:Port
-    LISTEN     0      128                                                                   *:6379                                                                   *:*
-    LISTEN     0      128                                                                   *:http                                                                   *:*
-    LISTEN     0      128                                                                  :::6379                                                                  :::*
+root@pod-1:/var/www/html# ss -at
+State   Recv-Q  Send-Q  Local    Address:Port  Peer  Address:Port
+LISTEN  0       128     *:6379   *:*
+LISTEN  0       128     *:http   *:*
+LISTEN  0       128     :::6379  :::*
 
-    [ root@pod-1:/data ]$ ps aux
-    USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-    root         1  0.0  0.0  35200  3776 ?        Ssl  17:08   0:00 redis-server *:6379
-    root        13  0.0  0.0  19352  4484 pts/0    Ss   17:09   0:00 bash
-    root        75  0.0  0.0  15576  2168 pts/0    R+   17:10   0:00 ps aux
+[ root@pod-1:/data ]$ ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.0  35200  3776 ?        Ssl  17:08   0:00 redis-server *:6379
+root        13  0.0  0.0  19352  4484 pts/0    Ss   17:09   0:00 bash
+root        75  0.0  0.0  15576  2168 pts/0    R+   17:10   0:00 ps aux
 
-    [ root@pod-1:/data ]$ ss -at
-    State      Recv-Q Send-Q                                                    Local Address:Port                                                        Peer Address:Port
-    LISTEN     0      128                                                                   *:6379                                                                   *:*
-    LISTEN     0      128                                                                   *:http                                                                   *:*
-    LISTEN     0      128                                                                  :::6379                                                                  :::*
+[ root@pod-1:/data ]$ ss -at
+State   Recv-Q  Send-Q  Local    Address:Port  Peer  Address:Port
+LISTEN  0       128     *:6379   *:*
+LISTEN  0       128     *:http   *:*
+LISTEN  0       128     :::6379  :::*
+----
 
 each container is running its own process, however, they both share the same
 exact network environment so both see the port exposed by each other. Therefore,
