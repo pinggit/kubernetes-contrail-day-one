@@ -1,4 +1,4 @@
-= Chapter 1: foundation principles
+= Chapter 1: Foundation Principles
 :toc:
 :toc-placement: preamble
 :source-highlighter: pygments
