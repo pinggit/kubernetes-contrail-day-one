@@ -132,7 +132,7 @@ image::https://user-images.githubusercontent.com/2038044/56851395-b1683080-68dc-
 
 Contrail vrouter on the compute node/host:
 
-Any container needs a compute node to host it. This host could be a BMS in your DC, or a VM (VM either in your DC or in public cloud). In this book, we will be using compute nodes hosted in AWS
+Any container needs a compute node to host it. This host could be a BMS in your DC, or a VM (VM either in your DC or in public cloud). 
 
 for a compute node in the default docker setup, containers on the same host communicate with each other as well with other containers/services hosted on other host with Docker bridge
 but with contrail networking, on each compute the vrouter creates VRF per virtual network 
