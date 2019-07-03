@@ -1,4 +1,4 @@
-= Chapter 1: Container and Contrail foundations
+= Chapter 1: foundation principles
 :toc:
 :toc-placement: preamble
 :source-highlighter: pygments
