@@ -839,9 +839,242 @@ Now we can test that by just send CURL -i to sent http request using the CLI
     </body>
     </html>  
 
-=== Cluster IP
+=== clusterIP service
 
-implementation dependent, details covered in ch4 in details
+the `clusterIP` type of service is the most simple one. it is the default mode
+if the `ServiceType` is not given. 
+
+clusterIP service is exposed on a `clusterIP` and a service port. when client
+pods need to access the service it sends request toward this clusterIP and
+service port. service "binds" itself to certain backend pods via label mapping
+between the two objects. `endpoint` is created for each service as long as there
+is at least one matching pod available to be its backend. this model works great
+if all requests are coming from the same cluster. the nature of the clusterIP
+limits the scope of this service to be only within the same cluster. overall by
+default the clusterIP is not reachable from external. 
+
+=== test clusterIP service
+
+let's create our first service in contrail environment, with service type
+`clusterIP`. 
+
+----
+$ cat service-web-clusterip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-clusterip
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+----
+
+the yaml file looks pretty simple and self-explanatory. it defined a service
+`service-web-clusterip` with the "service port" `8888`, mapping to "container
+port" `80` in some pod. the `selector` indicates that whichever pod with a label
+`app: webserver` will be choosen to be the backend pod responding service
+request. in our example it will be pod spawned by a RC object named
+`rc-webserver`.
+
+now generate the service object by `apply` the yaml file:
+
+----
+$ kubectl apply -f service-web-clusterip.yaml
+service/service-web-clusterip created
+----
+
+following kubectl commands are commonly used to quickly verify the service,
+the associated endpoint, and backend pod objects.
+
+----
+$ kubectl get svc -o wide
+NAME                   TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)   AGE    SELECTOR
+service-web-clusterip  ClusterIP  10.101.150.135  <none>       8888/TCP  9m10s  app=webserver
+
+$ kubectl get ep -o wide
+NAME             ENDPOINTS   AGE
+service-web-lb   <none>      10m
+
+$ kubectl get pod -o wide -l 'app=webserver'
+No resources found.
+----
+
+the service is created successfully, there is no doubt about it. but there is no
+`ENDPOINTS`. the reason is there is no pod with the label matching to the
+`SELECTOR` in the service. this makes good sense - in chapter 3 you've learned
+what kubernetes `endpoint` provides is nothing but a list of backend pod with
+label matching the selector. now we just need to create the pod with a proper
+label.
+
+we can define a pod directly, but given the benefits of RC and deployment over
+pod as we've introduced earlier, use a RC is more pratical. later on you
+will understand this is the right choice.
+
+----
+$ cat rc-webserver.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: rc-webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 1           #<---
+  selector:
+    app: webserver
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver  #<---
+    spec:
+      containers:
+      - name: webserver
+        image: savvythru/contrail-frontend-app
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
+
+the RC `rc-webserver` has a label `app: webserver`, matching the SELECTOR in
+defined in our service. `replicas: 1` instruct RC controller to launch only 1
+pod at the moment.
+
+----
+$ kubectl apply -f rc-webserver.yaml
+replicationcontroller/rc-webserver created
+
+$ kubectl get ep
+NAME                    ENDPOINTS          AGE
+service-web-clusterip   10.47.255.252:80   2m58s
+
+$ kubectl get pod -o wide -l 'app=webserver'
+NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+rc-webserver-vl6zs  1/1    Running  0         24s  10.47.255.238  cent333  <none>
+----
+
+immediately the pod is choosen to be the backend, and `endpoint` reflects the
+update. here are some brief summaries about the output:
+
+* the service got a "ClusterIP" or "service IP" of `10.106.176.17` allocated
+  from the service IP pool. 
+* service port is `8888` as what is defined in yaml. 
+* by default the protocol type is `TCP` if not declared in yaml file. you can
+  use `protocol: UDP` to declare a UDP service.
+* the service has been associated with an "endpoint" of "10.47.255.252:80",
+  which indicates there **is** a backend pod running with that IP, and in that
+  pod there is a container inside of the pod running a service application (web
+  server in our case) listening on port 80.
+* the backend pod can be located with the label selector
+
+TIP: the example shown use a "equality-based" selector (`-l`) to locate the
+backend pod, you can also use a "set-based" syntax to archive the same effect:
+`kubectl get pod -o wide -l 'app in (webserver)'`
+
+=== verify the cluserIP service
+
+Now to verify if the service actually works, let's start another pod as a
+client to initiate a http request toward the service. for this test we'll login
+to the same cirros pod as you've seen in "multiple interface pod" section, and
+use `curl` command to send a http request toward the service:
+
+----
+$ kubectl exec -it cirros -- curl 10.101.150.135:8888
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
+    pod</h2><br><h3>IP address = 10.47.255.238<br>Hostname =
+    rc-webserver-vl6zs</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+----
+
+the http request toward the service reaches a backend pod running the web server
+application, which responds with a HTML page.
+
+the traffic flow is illustrated here:
+
+image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
+
+to better demonstrate which pod is providing the service, we are running a
+customized pod image that runs a simple web server. the web server is configured
+in such a way that whenever receiving a request, it will return a simple HTML
+page with pod IP and hostname embeded in it. This way the curl returns something
+more meaningful to our test. 
+
+the returned HTML looks relatively "OK" to read, but there is a way to make it
+more "eye-friendly":
+
+----
+$ kubectl exec -it cirros -- curl 10.101.150.135:8888 | w3m -T text/html | head
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.238
+                         Hostname = rc-webserver-vl6zs
+----
+
+the `w3m` tool is a "lightweight" console based web browser installed in the
+host. with `w3m` we can render a html webpage into text, which is more readable
+than the HTML page.
+
+now we are convinced our service works. requests to service has been
+redirected to the correct backend pod, with a pod IP `10.47.255.238`, pod name
+`rc-webserver-vl6zs`. 
+
+////
+what is not printed is the container port `80` which you saw in the endpoint
+list. 
+
+----
+[2019-06-29 11:11:39]root@cent333:~
+$ docker ps | grep vrouter
+e1957ec37f3e  ci-repo.englab.juniper.net:5000/contrail-nodemgr:master-latest ......
+5e9c1c3a14cf  ci-repo.englab.juniper.net:5000/contrail-vrouter-agent:master-latest ......
+
+$ docker exec -it vrouter_vrouter-agent_1 bash
+(vrouter-agent)[root@cent333 /]$ flow --match 10.47.255.237
+Flow table(size 80609280, entries 629760)
+
+Entries: Created 446 Added 446 Deleted 664 Changed 678Processed 446 Used Overflow entries 0
+(Created Flows/CPU: 109 132 100 105)(oflows 0)
+
+Action:F=Forward, D=Drop N=NAT(S=SNAT, D=DNAT, Ps=SPAT, Pd=DPAT, L=Link Local Port)
+ Other:K(nh)=Key_Nexthop, S(nh)=RPF_Nexthop
+ Flags:E=Evicted, Ec=Evict Candidate, N=New Flow, M=Modified Dm=Delete Marked
+TCP(r=reverse):S=SYN, F=FIN, R=RST, C=HalfClose, E=Established, D=Dead
+
+Listing flows matching ([10.47.255.237]:*)
+
+    Index                Source:Port/Destination:Port                      Proto(V)
+ ----------------------------------------------------------------------------------
+   309544<=>437452       10.47.255.238:80                                    6 (2->4)
+                         10.47.255.237:45505
+(Gen: 1, K(nh):24, Action:N(SPs), Flags:, TCP:SSrEEr, QOS:-1, S(nh):24,
+ Stats:1/74,  SPort 60557, TTL 0, Sinfo 11.0.0.0)
+
+   437452<=>309544       10.47.255.237:45505                                 6 (2->2)
+                         10.101.150.135:8888
+(Gen: 1, K(nh):24, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):35,
+ Stats:2/112,  SPort 51104, TTL 0, Sinfo 10.169.25.20)
+----
+////
+
+
+
 
 === load balancing
 
