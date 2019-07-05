@@ -666,72 +666,6 @@ you will ever need to create Pods directly in production.
 
 //image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
 
-== endpoint
-
-=== service with selector
-
-in our 'service' introduction, there is one object that is involved but we
-haven't explored much yet - the endpoint. we've learned it is through label
-selector a particular pod, or more typically, a group of pods with matching
-labels are choosen to be the backend, so that the service request traffic will
-be redirected to. The IP and port information of the "matching" pods are
-maintained in the 'endpoint' object ('EP' as abbr.). The pods may die and spawn
-anytime, the "mortal" nature of the pod will most possibly make the new pods be
-respawned with new IP address. during this dynamic process the 'endpoint' object
-will always be updated accordingly to reflect the current backend pod IPs, so
-the service traffic redirection will act properly. 
-
-here is an example to demonstrate some quick steps to verify the service,
-corresponding endpoint and the pod with matching labels
-
-create a service:
-
-----
-$ cat svc/service-web-clusterip.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: service-web-clusterip
-spec:
-  ports:
-  - port: 8888
-    targetPort: 80
-  selector:
-    app: webserver
-----
-
-verify the endpoint:
-
-----
-$ kubectl get ep
-NAME             ENDPOINTS          AGE
-service-web-lb   10.47.255.252:80   5d17h
-----
-
-locate pod with the label that is used by selector in service:
-
-----
-$ kubectl get pod -o wide -l 'app=webserver'
-NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED  NODE           LABELS
-rc-webserver-vn-right-1-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>     app=webserver
-----
-
-=== service with no selector
-
-in the preceding example, the 'endpoint' object is generated automatically by
-the kubernetes system whenever a service is created, and at least one pod with
-matching label exists. Another usage case of endpoint, is for a service that has
-no label selector defined. in that case you can explicitly create an 'endpoint',
-and by using the same endpoint name with the service object name, you can
-connect the endpoint with the service. this can be very useful in some
-scenarios. for example, in your setup you have a backend web server running in a
-physical server, or a virtual machine, and even though not running as a
-container in a kubernetes pod, you still want to integrate it into a kubernetes
-'service'. you just create the service as usual, and then create an endpoint
-with an 'address' and 'port' pointing to the web server. that's it! the
-'service' does not care about if the backend is pod or VM, it just redirect the
-service request traffic exactly the same way as if all backend is pod.
-
 
 == Service
 
@@ -1070,6 +1004,74 @@ how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
 a GCE loadbalancer may work in a totally different different way with a AWS
 loadbalancer. we'll have a detail demonstration about how loadbalancer service
 works in contrail kubernetes environment in chapter 4.
+
+
+== endpoint
+
+=== service with selector
+
+in our 'service' introduction, there is one object that is involved but we
+haven't explored much yet - the endpoint. we've learned it is through label
+selector a particular pod, or more typically, a group of pods with matching
+labels are choosen to be the backend, so that the service request traffic will
+be redirected to. The IP and port information of the "matching" pods are
+maintained in the 'endpoint' object ('EP' as abbr.). The pods may die and spawn
+anytime, the "mortal" nature of the pod will most possibly make the new pods be
+respawned with new IP address. during this dynamic process the 'endpoint' object
+will always be updated accordingly to reflect the current backend pod IPs, so
+the service traffic redirection will act properly. 
+
+here is an example to demonstrate some quick steps to verify the service,
+corresponding endpoint and the pod with matching labels
+
+create a service:
+
+----
+$ cat svc/service-web-clusterip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-clusterip
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+----
+
+verify the endpoint:
+
+----
+$ kubectl get ep
+NAME             ENDPOINTS          AGE
+service-web-lb   10.47.255.252:80   5d17h
+----
+
+locate pod with the label that is used by selector in service:
+
+----
+$ kubectl get pod -o wide -l 'app=webserver'
+NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED  NODE           LABELS
+rc-webserver-vn-right-1-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>     app=webserver
+----
+
+=== service with no selector
+
+in the preceding example, the 'endpoint' object is generated automatically by
+the kubernetes system whenever a service is created, and at least one pod with
+matching label exists. Another usage case of endpoint, is for a service that has
+no label selector defined. in that case you can explicitly create an 'endpoint',
+and by using the same endpoint name with the service object name, you can
+connect the endpoint with the service. this can be very useful in some
+scenarios. for example, in your setup you have a backend web server running in a
+physical server, or a virtual machine, and even though not running as a
+container in a kubernetes pod, you still want to integrate it into a kubernetes
+'service'. you just create the service as usual, and then create an endpoint
+with an 'address' and 'port' pointing to the web server. that's it! the
+'service' does not care about if the backend is pod or VM, it just redirect the
+service request traffic exactly the same way as if all backend is pod.
+
 
 == Ingress 
 
