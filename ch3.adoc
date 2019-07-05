@@ -21,7 +21,7 @@ what would you do ?
 then label is your way to go, in Kubernetes Label are Key/value pairs attached to an object  
 let’s see how can we use label with node selector to make a POD is lunched on a certain machine 
 
-[TIP]
+[NOTE]
 ====
 * You can assign multiple labels per object but avoid using too much label or
   too little, too much would get you confused and too little won’t give the real
@@ -80,7 +80,7 @@ will land on a node tagged with stage=testing
     wordpress   1/1       Running   0          48s       10.47.255.250   ip-172-25-1-83.us-west-1.compute.internal
 
 
-[TIP]
+[NOTE]
 ====
 You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
@@ -963,7 +963,7 @@ this services
         port: 80
         nodePort: 32001
 
-[TIP]
+[NOTE]
 ====
 * Kubernetes by default allocate node port from (3000-32767) range it could be
   change using the flag --service-node-port-range
@@ -1330,7 +1330,7 @@ spec:
       periodSeconds: 10
 ----
 
-TIP: its recommended to use both Readiness Probe and Liveness Probe where
+NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
 
