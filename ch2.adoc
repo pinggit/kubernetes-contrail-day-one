@@ -236,7 +236,7 @@ A "node" runs following processes:
 
 NOTE: *kubelet* is running on both master and node.
 
-WARINING: the name "proxy" may sound confusing for kubernetes beginners. it's not
+NOTE: the name "proxy" may sound confusing for kubernetes beginners. it's not
 really a "proxy" in current kubernetes architecture. kube-proxy is a system
 that manipulates linux IP tables in that node so that the the traffic between
 the pods and the nodes will flows correctly.
