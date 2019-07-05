@@ -18,7 +18,7 @@ Imagine you have a POD that’s need to be host on a machine with certain
 specifications ( SSD HD, physical location , processing power , ..,etc ) 
 OR imagine you want to search or group your PODs for easier administration 
 what would you do ?
-then label is your way to go, in Kubernetes Label are Key/value pairs attached to an object  
+then label is your way to go, in Kubernetes Label is a Key/value pairs attached to an object  
 let’s see how can we use label with node selector to make a POD is lunched on a certain machine 
 
 [NOTE]
@@ -34,8 +34,8 @@ let’s see how can we use label with node selector to make a POD is lunched on 
     - location (preferred location/zone/ Datacenter to run this POD/application) 
 ====
 
-Let’s assign label stage: testing & zone: production to these two nodes
-respectively then try to lunch a POD with label zone: testing 
+Let’s assign label (stage: testing) & (zone: production) to two nodes
+respectively then try to lunch a POD with label (zone: testing) 
  
     kubectl get nodes --show-labels
 
@@ -55,8 +55,8 @@ respectively then try to lunch a POD with label zone: testing
     cent111  NotReady  <none>  2h   v1.9.2   <none>
     cent333  Ready     <none>  2h   v1.9.2   stage=testing
 
-now let’s lunch a basic Nginx POD tagged with stage=testing and confirm it
-will land on a node tagged with stage=testing
+now let’s lunch a basic Nginx POD tagged with stage=testing in the nodeSelector
+and confirm it will land on a node tagged with stage=testing
 
     [root@cent111]# cat > web-server.yaml
     apiVersion: v1
@@ -85,9 +85,9 @@ will land on a node tagged with stage=testing
 You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
 
-Another very important use of labels is linking PODs to Replica-set ,
-Deployment , services …,etc  and that’s what we will see next with services and
-label selector 
+In kubernetes, any objects can be identified using a label. You will see how
+labels are linking are PODs to Replica-set ,Deployment , services …,etc  and
+that’s what we will see next with services and label selector 
 
 ====
 
