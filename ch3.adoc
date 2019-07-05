@@ -1443,12 +1443,11 @@ spec:
         initialDelaySeconds: 15
         periodSeconds: 20
 ----
-let launch this POD then login to it to terminate the proccess that handel the httpGet 
+let's launch this POD then login to it to terminate the proccess that handel the httpGet 
 ----
 [root@cent11 ~]# kubectl get pod
 NAME           READY   STATUS    RESTARTS   AGE
 liveness-pod   1/1     Running   0          114s
-[root@cent11 ~]# kubectl get pod
 
 
 [root@cent11 ~]# kubectl exec -it liveness-pod bash
