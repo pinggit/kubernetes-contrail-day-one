@@ -1062,51 +1062,19 @@ works in contrail kubernetes environment in chapter 4.
 
 == Ingress 
 
-You’ve now seen two ways of exposing a service to clients outside the cluster,
-but another method exists
+You’ve now seen two ways of exposing a service to clients outside the cluster:
+NodePort service and LoadBalancer service. another method is `Ingress`
 
-One important reason is that each LoadBalancer service requires its own load
-balancer with its own public IP address, whereas an Ingress only requires one,
-even when providing access to dozens of services. When a client sends an HTTP
-request to the Ingress, the host and path in the request determine which service
-the request is forwarded to.
+=== Ingress object
 
-Ingresses operate at the application layer of the network stack (HTTP) and can
-provide features such as cookie-based session affinity and the like, which
-services can’t.
-
-an Ingress controller needs to be running in the cluster. Different Kubernetes
-environments use different implementations of the controller
-
-there are basically 3 types of ingress:
-
-* Single Service Ingress
-* Simple fanout Ingress
-* Name based virtual hosting Ingress
-
-we'll look at each ingress's yaml file examples. and we'll then use nginx as ingress
-controller to demonstrate each type of ingress.
-
-=== single-service-ingress
+before we talk about it, the best way to get a feel of Ingress object is to look
+at the yaml definition:
 
 ----
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: single-service
-spec:
-  backend:
-    serviceName: nginx
-    servicePort: 80
-----
-
-=== simple-fanout-ingress
-
-----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: simple-fanout
+  name: ingress-simple-fanout
 spec:
   rules:
   - host: www.juniper.net
@@ -1114,38 +1082,140 @@ spec:
       paths:
       - path: /dev
         backend:
-          serviceName: nginx
-          servicePort: 80
+          serviceName: service-1
+          servicePort: 8888
       - path: /qa
         backend:
-          serviceName: nginx
-          servicePort: 80
+          serviceName: service-2
+          servicePort: 9999
 ----
 
-=== virtual-host-ingress
+it looks simple isn't it? the `spec` defines only one thing that is the `rules`.
+the rules says a `host`, which is juniper URL here, may have 2 `path` after the
+`host` part in the URL string: `/dev` and `/qa`, each is associated to a
+different service. that's it.
+
+if you now tell me kubernetes Ingress is nothing but to define some rules, and
+the rules are just to instruct the system to direct incoming request to
+different services based on the URLs, you are basically right, in the high
+level. 
+
+in practice there are other things you need to understand.
+
+Ingress is another core concept of Kubernetes, it allows simple, rule-based `host`
+or URL based HTTP routing which does not exist in service. however, to
+"implement" these rules, you need another component called `ingress controller`
+
+=== ingress controller
+
+ingress is tyically implemented by a third party proxy. These implementations
+are known as `ingress controllers`. An ingress controller is responsible for
+reading the Ingress rules and program the rules into the proxy which do the
+traffic dispatching.
+
+Different Kubernetes environments have different implementations of the
+controller, and each ingress controllers have their own implementations to
+program the ingress rules. bottom line is, there has to be an Ingress controller
+running in the cluster. 
+
+
+=== ingress vs service
+
+Ingress operates at the application layer of the OSI network stack, while
+service operates at layer 4 only. Ingress understand the HTTP/HTTPS protocol,
+service only does forwarding based on IP and port, which means it does not care
+about the protocol interactions
+
+each LoadBalancer service requires its own public IP address, whereas an Ingress
+only requires one. When a client sends an HTTP request to the Ingress, the host
+and path in the request determine which service the request is forwarded to.
+even when providing access to multiple URLs by multiple services, overall
+ingress only requires one public IP.
+
+=== ingress examples
+
+there are basically 3 types of ingresses:
+
+* Single Service Ingress
+* Simple fanout Ingress
+* Name based virtual hosting Ingress
+
+we'll look at each ingress's yaml file examples. 
+
+==== single service ingress
 
 ----
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: virutal-host
+  name: ingress-single-service
+spec:
+  backend:
+    serviceName: webservice
+    servicePort: 80
+----
+
+this is the simplest form of ingress. the ingress will get an external IP, but,
+since there is no `host` defined so it does not differiciate different URLs. all
+requests will goes to one same service.
+
+==== simple fanout ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-simple-fanout
 spec:
   rules:
-  - host: www.google.com
+  - host: www.juniper.net
     http:
       paths:
-      - backend:
-          serviceName: nginx
+      - path: /dev
+        backend:
+          serviceName: webservice-1
           servicePort: 80
-  - host: www.yahoo.com
-    http:
-      paths:
-      - backend:
-          serviceName: nginx
+      - path: /qa 
+        backend:
+          serviceName: webservice-2
           servicePort: 80
 ----
 
+comparing with `single service` ingress, `simple fanout` ingress is more
+practical. we've checked this out in the beginning of this section. after the
+ingress is created it will be allocated an external IP and do URL routing, based
+on the path.
 
+==== virtual host ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-virutal-host
+spec:
+  rules:
+  - host: www.juniper.net
+    http:
+      paths:
+      - backend:
+          serviceName: webservice-1
+          servicePort: 80
+  - host: www.cisco.com
+    http:
+      paths:
+      - backend:
+          serviceName: webservice-2
+          servicePort: 80
+----
+
+`name based virtual host` supports routing HTTP traffic to multiple host names
+at the same IP address. the example above may not be practical (unless one day
+we acquire cisco!) but it is good enough to showcase the idea. in it 2 `host`
+are defined, which are the "juniper" and "cisco" URL. but remember we said the
+ingress will be allocated with one public IP, so request toward that one IP,
+will be routed, based on the `host` in URL, to different backend services. we'll
+have a very detail case study in chapter 4 about this.
 
 == Annotation 
 
