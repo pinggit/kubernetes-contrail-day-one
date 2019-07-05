@@ -1442,9 +1442,9 @@ spec:
              value: Running
         initialDelaySeconds: 15
         periodSeconds: 20
-
+----
 let launch this POD then login to it to terminate the proccess that handel the httpGet 
-
+----
 [root@cent11 ~]# kubectl get pod
 NAME           READY   STATUS    RESTARTS   AGE
 liveness-pod   1/1     Running   0          114s
@@ -1472,9 +1472,9 @@ tcp6       0      0 :::22                   :::*                    LISTEN      
 [root@cent11 ~]# kubectl get pod
 NAME           READY   STATUS    RESTARTS   AGE
 liveness-pod   1/1     Running   1          5m33s
-
+----
 you can see the POD got restarted automatically and in the event it stated the reason for that restart " Killing container with id docker://liveness-pod:Container failed liveness probe.. Container will be killed and recreated."" 
-
+----
 [root@cent11 ~]# kubectl describe pod liveness-pod
 Name:               liveness-pod
 Namespace:          default
