@@ -9,7 +9,7 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 
-This chapter introduces some of the fundamental and powerful features of
+This chapter introduces some of the fundamental objects and features of
 kubernetes.
 
 == Labels
@@ -91,9 +91,9 @@ label selector
 
 ====
 
-== NS
+== kubernetes namespace
 
-=== what is NS
+=== what is kubernetes namespace
 
 As in many other platforms, normally there is more than one users (or teams) working on a
 kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
@@ -112,15 +112,17 @@ name has to be unique in the same "scope":
 * a variable name in a program
 
 and the solution is to support multiple scopes or namespaces, respectively:
+
 * VRF
 * project/tenant
-* function
+* function/class
 
 the solution in k8s is just called 'Namespaces', or 'NS' for short, which
-provide a scope for names. Names of resources need to be unique within a
+provides a scope for names. Names of resources need to be unique within a
 namespace, but not across namespaces. it is a nature way to divide cluster
 resources between multiple users. 
 
+=== create a NS
 to create a NS is pretty simple, you can avoid the need to give a yaml file by
 using kubectl with '-f' option, followed by '-' and hit enter:
 
@@ -145,11 +147,15 @@ new namespace is now created
     default       Active    15d
     dev           Active    5s  #<-----
 
+=== default NS
+
 you may notice there is a NS named 'default' in any k8s setup. that is, as the
-name indicates, the "default" NS that will be created when you install the
-setup, same as the "default routing table" in a router, "default tenant" in
-openstack setup - there needs to be a scope providing you an initial working
-environment so from there you can create all other objects.
+name indicates, a "default" NS that is instantiated when the cluster is
+provisioned. default NS is required to hold the default set of Pods, Services,
+and Deployments used by the cluster.  same as the "default routing table" in a
+router, "default tenant" in openstack setup - there needs to be a scope
+providing you an initial working environment so from there you can create all
+other objects.
 
 now 'dev' 'webserver1' in 'dev' NS won't conflict with 'webserver1' in 'sales'
 NS.
@@ -235,7 +241,7 @@ NAME                 READY   STATUS    RESTARTS   AGE
 rc-ubuntuapp-2j84g   1/1     Running   0          10s
 ----
 
-what we desired is 2 pods, but only 1 will be created:
+what we "desired" is 2 pods, but only 1 is "ready"
 
 ----
 $ kubectl get rc
@@ -243,10 +249,14 @@ NAME        DESIRED   CURRENT   READY   AGE
 ubuntuapp   2         1         1       3m19s
 ----
 
-and the reason is that the 2nd pod creation is "forbidden" due to quota
+the reason is that the 2nd pod creation is "forbidden" due to quota
 exceeded:
 
-    ..."rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+----
+..."rc-ubuntuapp-88cxk" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
+----
+
+this error message is seen from the pod details given by `kubectl describe` command
 
 ----
 $ kubectl describe rc
@@ -268,7 +278,7 @@ Events:
   Warning  FailedCreate      77s (x6 over 2m6s)  replication-controller  (combined from similar events): Error creating: pods "rc-ubuntuapp-rtb56" is forbidden: exceeded quota: foobar, requested: pods=1, used: pods=1, limited: pods=1
 ----
 
-new pod will can be create after the quota is removed:
+new pod will can be created after the quota is removed:
 
 ----
 root@test1:~# kubectl delete quota foobar
@@ -297,6 +307,8 @@ replication controller or ReplicaSet
 > A ReplicationController ensures that a specified number of pod replicas are
 > running at any one time. In other words, a ReplicationController makes sure
 > that a pod or a homogeneous set of pods is always up and available.
+
+=== create RC
 
 let's look at how it works with an example. first create a yaml file for a RC
 object named `myweb`.
@@ -334,13 +346,9 @@ now use this yaml file to create the RC object:
     kubectl create -f myweb-rc.yaml
     replicationcontroller "myweb" created
 
-    $ kubectl get rc
-    NAME            DESIRED   CURRENT   READY   AGE
-    myweb           5         5         5       3m29s
+if you are quick enough, you may capture the intermediate status when the new
+pods are being created:
 
-eventually you will see 5 pods launched:
-
-////
     $ kubectl get pod
     NAME          READY     STATUS              RESTARTS   AGE
     myweb-5ggv6   1/1       Running             0          9s
@@ -348,7 +356,12 @@ eventually you will see 5 pods launched:
     myweb-lbj89   0/1       ContainerCreating   0          9s
     myweb-m6nrx   0/1       ContainerCreating   0          9s
     myweb-q5gv4   1/1       Running             0          50s
-////
+
+eventually you will see 5 pods launched:
+
+    $ kubectl get rc
+    NAME            DESIRED   CURRENT   READY   AGE
+    myweb           5         5         5       3m29s
 
     $ kubectl get pod
     NAME          READY     STATUS    RESTARTS   AGE
@@ -358,10 +371,15 @@ eventually you will see 5 pods launched:
     myweb-m6nrx   1/1       Running   0          21m
     myweb-q5gv4   1/1       Running   0          22m
 
+=== test RC
+
 with `replicas` parameter specified in RC object yaml file, the kubernetes
-replication controller, running as part of `kube-controller-manager` process in
+`replication controller`, running as part of `kube-controller-manager` process in
 the `master node`, will keep monitoring the number of running pods spawned by
 the RC, and automatically launch new ones should any of them runs into failures. 
+the key to learn is, individual pod may die any time, but the "pool" as a whole
+is always up and running, making a robust service. you will understand this
+better when you learn kubernetes `service`.
 
 you can test this out by deleting one of the pod:
 
@@ -430,16 +448,16 @@ RC uses "Equality-based" selector while RS uses "set-based". function-wise the
 two forms of selector do the same job - to "select" the pod with a matching
 "label".
 
-      #RS:
-      selector:
-        matchLabels:                                 
-          app: myweb                                 
-        matchExpressions:                            
-          - {key: app, operator: In, values: [myweb]}
+    #RS:
+    selector:
+      matchLabels:                                 
+        app: myweb                                 
+      matchExpressions:                            
+        - {key: app, operator: In, values: [myweb]}
 
-      #RC:
-      selector:
-        app: myweb
+    #RC:
+    selector:
+      app: myweb
 
     $ kubectl create -f myweb-rs.yaml
     replicaset.extensions/myweb created
@@ -468,7 +486,7 @@ if you compare the `kubectl describe` on the 2 objects:
       Normal  SuccessfulCreate  19s   replication-controller  Created pod: myweb-tbbhc
 
 as you see, most part of the output are the same, with only exception of
-selector format. you can also sale the RS same way as you do with RC:
+selector format. you can also scale the RS same way as you do with RC:
 
     $ kubectl scale rs myweb --replicas=5
     replicaset.extensions/myweb scaled
@@ -481,14 +499,18 @@ selector format. you can also sale the RS same way as you do with RC:
     myweb-lkwvt                  1/1     Running   0          4m28s
     myweb-ww9tn                  1/1     Running   0          3m30s
 
-== Deployment
+== Deployment 
+
 now you may start to wonder why kubernetes has two different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
-through the 2 new objects. we've seen `RS` has done the same job of `RC` just
-with a different selector format, now we'll check out the other new object
-`deployment` and explore the features coming from it. simply changing `kind`
-attribute from `ReplicaSet` to `deployment` we get the yaml file of a deployment
-object:
+through the 2 new objects. we've seen the first new object `RS` , which has done
+the same job of `RC` only with a different selector format, now we'll check out
+the other new object `deployment` and explore the features coming from it.
+
+=== create a deployment
+
+simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
+yaml file of a deployment object:
 
     $ cat myweb-deployment.yaml
     apiVersion: extensions/v1beta1
@@ -500,10 +522,8 @@ object:
     $ kubectl create -f myweb-deployment.yaml
     deployment.extensions/myweb created
 
-    $ kubectl get all | grep myweb
+    $ kubectl get deployment
     deployment.apps/myweb            1    1        1  1    21s
-    replicaset.apps/myweb-c586fd645  1    1        1  21s
-    pod/myweb-c586fd645-b2ft8        1/1  Running  0  21s
 
 the deployment is a relatively higher level of abstraction than RC and RS.
 deployment does not create a pod directly, the `describe` command reveals this:
@@ -540,8 +560,17 @@ deployment does not create a pod directly, the `describe` command reveals this:
     NewReplicaSet:   myweb-c586fd645 (1/1 replicas created)     #<---
     Events:          <none>
 
+////
+    $ kubectl get all | grep myweb
+    deployment.apps/myweb            1    1        1  1    21s
+    replicaset.apps/myweb-c586fd645  1    1        1  21s
+    pod/myweb-c586fd645-b2ft8        1/1  Running  0  21s
+////
+
+=== deployment work flow
+
 what happens is when you create a Deployment, a replica set is created
-underneath. The pods defined in a Deployment object are created and supervised
+automatically. The pods defined in a Deployment object are created and supervised
 by the Deployment's replicaset. RC on the other hand, works with pod directly.
 the workflows differences are shown in this diagram:
 
@@ -561,6 +590,8 @@ You might still be wondering why you need RS as one more layer sitting in
 between deployment and pod, after all with RC's magic it seems sufficient to
 keep a set of pods running.
 
+=== rolling update
+
 the reason is about another important usage scenario in pratice: pod update.
 "rolling update" feature is one of the "more powerful feature" coming with
 deployment object. this is how it works:
@@ -568,56 +599,83 @@ deployment object. this is how it works:
 when you update the pod with new software, the `deployment` object introduces a
 new RS that will start the pod update process. the idea is NOT to "login" to the
 existing pod and do the image update in there, instead, the new RC just creates
-a new pod equiped with the new software release in it. once this new pod is up
-and running, the original RS will be "scaled down" by one, making the total
-number of running pod remaining unchanged. new RS will continue to scale up by
-one and original RS scales down the same number of pod. this process repeats
-until number of pods created by new RS reaches the original replica number
-defined in the deployment, and that is the time when all of the original RS's
-pods are terminated. this process is depicted in this diagram:
+a new pod equiped with the new software release in it. once this new (and
+"additional") pod is up and running, the original RS will be "scaled down" by
+one, making the total number of running pod remaining unchanged. new RS will
+continue to scale up by one and original RS scales down by same number.  this
+process repeats until number of pods created by new RS reaches the original
+replica number defined in the deployment, and that is the time when all of the
+original RS's pods are terminated. this process is depicted in this diagram:
 
-                             |=> pod
-                 |==> RS ====|=> pod
-                 |   (v1)    |=> pod
-                 |
-                 |           |=> pod
-                 |           |
-    deployment ==|==> RS ====|=> pod
+                  
+                 |           |=> pod-v1
+    deployment ==|==> RS ====|=> pod-v1
+                 |   (v1)    |=> pod-v1
+
+                 |           |=> pod-v1
+                 |==> RS ====|=> pod-v1
+                 |   (v1)    |
+    deployment ==|
+                 |           |=> pod-v2
+                 |==> RS ====|
                  |   (v2)    |
-                 |           |=> pod
-                 |
-                 |           |=> pod
-                 |==> RS ====|=> pod
-                     (v3)    |=> pod
 
+
+                 |           |=> pod-v1
+                 |==> RS ====|
+                 |   (v1)    |
+    deployment ==|
+                 |           |=> pod-v2
+                 |==> RS ====|=> pod-v2
+                 |   (v2)    |
+
+                 |           |
+                 |==> RS ====|
+                 |   (v1)    |
+    deployment ==|
+                 |           |=> pod-v2
+                 |==> RS ====|=> pod-v2
+                 |   (v2)    |=> pod-v2
+
+
+                 |           |=> pod-v2
+    deployment ==|==> RS ====|=> pod-v2
+                 |   (v2)    |=> pod-v2
+                  
 now coming back to the question in your mind. This whole process of creating a
 new RS, scaling up the new RS and scaling down the old one simultaneously, is
 fully automated and taken care of by the deployment object. it is `deployment`
 who is `deploying` and driving `ReplicaSet` object, which, in this sense working
-as merely a backend of it. this is why `deployment` is considered a higher layer
-object in kubernetes, also the reason why it is officially recommended to never
-use `ReplicaSet` along without `deployment`. in contrast, RC alone, without this
-additional higher layer abstraction, is not able to coordinate this process.
+as merely a backend of it. 
+
+this is why `deployment` is considered a higher layer object in kubernetes, also
+the reason why it is officially recommended to never use `ReplicaSet` along
+without `deployment`. in contrast, RC alone, without this additional higher
+layer abstraction, is not able to coordinate this process.
+
+=== record 
 
 deployment also has the ability to "record" the whole process, so in case
-needed, you can display the update history after the update job is done:
+needed, you can review the update history after the update job is done:
 
-    $ kubectl describe deployment/nginx-deployment
-    Name:                   nginx-deployment
-    ......
-    NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
-    Events:
-      Type    Reason             Age   From                   Message
-      ----    ------             ----  ----                   -------
-      Normal  ScalingReplicaSet  28m   deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3    #<------
-      Normal  ScalingReplicaSet  24m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 1    #<------
-      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 2  #<------
-      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 2    #<------
-      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 1  #<------
-      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 3    #<------
-      Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 0  #<------
+----
+$ kubectl describe deployment/nginx-deployment
+Name:                   nginx-deployment
+...(snipped)...
+NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  28m   deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3    #<------
+  Normal  ScalingReplicaSet  24m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 1    #<------
+  Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 2  #<------
+  Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 2    #<------
+  Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 1  #<------
+  Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 3    #<------
+  Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 0  #<------
+----
 
-similarly, you can also pause/resume the update process to verify the changes
+additionally, you can also pause/resume the update process to verify the changes
 before proceeding:
 
     $ kubectl rollout pause deployment/nginx-deployment
@@ -628,43 +686,43 @@ maintenance window
 
     $ kubectl rollout undo deployment/nginx-deployment
 
-    $ kubectl describe deployment/nginx-deployment
-    Name:                   nginx-deployment
-    ......
-    NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
-    NewReplicaSet:   nginx-deployment-67594d6bf6 (3/3 replicas created)
-    Events:
-      Type    Reason              Age              From                   Message
-      ----    ------              ----             ----                   -------
-      Normal  DeploymentRollback  8m               deployment-controller  Rolled back deployment "nginx-deployment" to revision 1       #<------
-      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 1        #<------
-      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 2      #<------
-      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 2        #<------
-      Normal  ScalingReplicaSet   8m (x2 over 1h)  deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3        #<------
-      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 1      #<------
-      Normal  ScalingReplicaSet   8m               deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 0      #<------
+----
+$ kubectl describe deployment/nginx-deployment
+Name:                   nginx-deployment
+...(snipped)...
+NewReplicaSet:   nginx-deployment-6fdbb596db (3/3 replicas created)
+NewReplicaSet:   nginx-deployment-67594d6bf6 (3/3 replicas created)
+Events:
+  Type    Reason              Age From                  Message
+  ----    ------              --- ----                  -------
+  Normal  DeploymentRollback  8m  deployment-controller  Rolled back deployment "nginx-deployment" to revision 1  #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 1   #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 2 #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 2   #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled up replica set nginx-deployment-67594d6bf6 to 3   #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 1 #<------
+  Normal  ScalingReplicaSet   8m  deployment-controller  Scaled down replica set nginx-deployment-6fdbb596db to 0 #<------
+----
 
 This is pretty much similar as the junos's `rollback` magic command that you
 probably use everyday when you need to quickly revert the changes you make to
 your router. Typically you do this when something is broken in your router
 deployment. comparing with how much work it takes to prepare for the software
 upgrade during maintenance window in the old days, this is going to be a killing
-feature to have! later in the book we'll still use pod/RC/deployment to
-demonstrate different usage case with labs, however, it is rather unlikely that
-you will ever need to create Pods directly in production.  
-
-//image::https://user-images.githubusercontent.com/2038044/58375577-1f2b6a80-7f24-11e9-84d7-24dc2c40db32.png[]
+feature to have! later throughout this book we may still use pod/RC to
+demonstrate different usage case with labs, however, keep in mind that RC is
+going to be deprecated, and it is rather unlikely that you will ever need to
+create Pods directly in production environment, so deployment is the
+future.   
 
 == endpoint
-
-=== service with selector
 
 in our 'service' introduction, there is one object that is involved but we
 haven't explored much yet - the endpoint. we've learned it is through label
 selector a particular pod, or more typically, a group of pods with matching
 labels are choosen to be the backend, so that the service request traffic will
-be redirected to. The IP and port information of the "matching" pods are
-maintained in the 'endpoint' object ('EP' as abbr.). The pods may die and spawn
+be redirected to them. The IP and port information of the "matching" pods are
+maintained in the 'endpoint' object ('EP' for abbr.). The pods may die and spawn
 anytime, the "mortal" nature of the pod will most possibly make the new pods be
 respawned with new IP address. during this dynamic process the 'endpoint' object
 will always be updated accordingly to reflect the current backend pod IPs, so
@@ -689,7 +747,7 @@ spec:
     app: webserver
 ----
 
-verify the endpoint:
+list the endpoint:
 
 ----
 $ kubectl get ep
@@ -701,9 +759,11 @@ locate pod with the label that is used by selector in service:
 
 ----
 $ kubectl get pod -o wide -l 'app=webserver'
-NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED  NODE           LABELS
-rc-webserver-vn-right-1-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>     app=webserver
+NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
+rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
 ----
+
+////
 
 === service with no selector
 
@@ -721,38 +781,44 @@ with an 'address' and 'port' pointing to the web server. that's it! the
 'service' does not care about if the backend is pod or VM, it just redirect the
 service request traffic exactly the same way as if all backend is pod.
 
+////
 
 == Service
 
 POD get instantiated, terminated and moved from one Node to another, in doing
-so POD changes IP address so how would we keep track of that?  Even if the POD
-isn’t moving how traffic from outside reach a certain POD 
+so POD changes IP address. so how would we keep track of that?  Even if the POD
+isn’t moving how traffic from outside reach a certain POD?
 
-the answer for both questions is Kubernetes services.  
+the answer for both questions is Kubernetes services.
 
 Services is an abstraction that defines a logical set of Pods and a policy by
 which you can access them, you may think of Services as your waiter in a big
 restaurant, this waiter isn’t cooking nor preparing the food but he just
 abstract everything happing at the kitchen for you as you deal only with this
-waiter 
+waiter. 
 
-so let’s cover three different type of services Node port , ClusterIP and load
-balancer and we begin with Node port by creating this  ( I need to create a
-diagram ) 
+so let’s cover three different type of services:
+
+* ClusterIP
+* Node port
+* load balancer 
 
 === clusterIP service
 
-the `clusterIP` type of service is the most simple one. it is the default mode
-if the `ServiceType` is not given. 
+the `clusterIP` type of service is the simplest one. it is the default mode if
+the `ServiceType` is not given. the kubernetes official website gives this
+diagram to illustrate how clusterIP service works:
+
+image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
 
 clusterIP service is exposed on a `clusterIP` and a service port. when client
-pods need to access the service it sends request toward this clusterIP and
+pods need to access the service it sends request toward this `clusterIP` and
 service port. service "binds" itself to certain backend pods via label mapping
 between the two objects. `endpoint` is created for each service as long as there
 is at least one matching pod available to be its backend. this model works great
-if all requests are coming from the same cluster. the nature of the clusterIP
-limits the scope of this service to be only within the same cluster. overall by
-default the clusterIP is not reachable from external. 
+if all requests are coming from inside of the same cluster. the nature of the
+clusterIP limits the scope of this service to be only within the cluster.
+overall by default the clusterIP is not reachable from external. 
 
 ==== create clusterIP service
 
@@ -774,11 +840,10 @@ spec:
 ----
 
 the yaml file looks pretty simple and self-explanatory. it defined a service
-`service-web-clusterip` with the "service port" `8888`, mapping to "container
-port" `80` in some pod. the `selector` indicates that whichever pod with a label
-`app: webserver` will be choosen to be the backend pod responding service
-request. in our example it will be pod spawned by a RC object named
-`rc-webserver`.
+`service-web-clusterip` with the "service port" `8888`, mapping to `targetPort`
+which means "container port" `80` in some pod. the `selector` indicates that
+whichever pod with a label `app: webserver` will be choosen to be the backend
+pod responding service request. 
 
 now generate the service object by `apply` the yaml file:
 
@@ -805,14 +870,15 @@ No resources found.
 
 the service is created successfully, there is no doubt about it. but there is no
 `ENDPOINTS`. the reason is there is no pod with the label matching to the
-`SELECTOR` in the service. this makes good sense - in chapter 3 you've learned
+`SELECTOR` in the service. this makes good sense - you've learned
 what kubernetes `endpoint` provides is nothing but a list of backend pod with
 label matching the selector. now we just need to create the pod with a proper
 label.
 
 we can define a pod directly, but given the benefits of RC and deployment over
-pod as we've introduced earlier, use a RC is more pratical. later on you
-will understand this is the right choice.
+pod as we've introduced earlier, use RC or deployment is more pratical. later on
+you will understand this is the right choice. in our example we define a RC
+object named `rc-webserver`.
 
 ----
 $ cat rc-webserver.yaml
@@ -873,15 +939,16 @@ update. here are some brief summaries about the output:
 * the backend pod can be located with the label selector
 
 TIP: the example shown use a "equality-based" selector (`-l`) to locate the
-backend pod, you can also use a "set-based" syntax to archive the same effect:
-`kubectl get pod -o wide -l 'app in (webserver)'`
+backend pod, you can also use a "set-based" syntax to archive the same effect.
+for example: `kubectl get pod -o wide -l 'app in (webserver)'`
 
 ==== verify cluserIP service
 
-Now to verify if the service actually works, let's start another pod as a
-client to initiate a http request toward the service. for this test we'll login
-to the same cirros pod as you've seen in "multiple interface pod" section, and
-use `curl` command to send a http request toward the service:
+Now to verify if the service actually works, let's start another pod as a client
+to initiate a http request toward the service. for this test we'll login to a
+`cirros` pod and use `curl` command to send a http request toward the service.
+you'll see the cirros pod being used as a client to send request throughout of
+this book.
 
 ----
 $ kubectl exec -it cirros -- curl 10.101.150.135:8888
@@ -910,8 +977,8 @@ application, which responds with a HTML page.
 to better demonstrate which pod is providing the service, we are running a
 customized pod image that runs a simple web server. the web server is configured
 in such a way that whenever receiving a request, it will return a simple HTML
-page with pod IP and hostname embeded in it. This way the curl returns something
-more meaningful to our test. 
+page with local pod IP and hostname embeded. This way the curl returns something
+more meaningful in our test. 
 
 the returned HTML looks relatively "OK" to read, but there is a way to make it
 more "eye-friendly":
@@ -1041,9 +1108,9 @@ functions of NodePort and ClusterIP Services.
 //the external load balancer routes the traffic 
 
 Kubernetes clusters running on cloud providers support the automatic provision
-of a load balancer. the only difference between the 3 services are the `type`
-value. to reuse the same NodePort service yaml file and create a loadbalancer
-service, just change the `type` to `LoadBalancer`:
+of a load balancer. the only difference between the 3 type of services are the
+`type` value. to reuse the same NodePort service yaml file and create a
+loadbalancer service, just change the `type` to `LoadBalancer`:
 
 ----
 type: LoadBalancer
@@ -1056,14 +1123,14 @@ publicly reachable, any client whoever has access to the VIP and port can access
 the service provided by kubernetes cluster.
 
 how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
-a GCE loadbalancer may work in a totally different different way with a AWS
-loadbalancer. we'll have a detail demonstration about how loadbalancer service
-works in contrail kubernetes environment in chapter 4.
+a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
+we'll have a detail demonstration about how loadbalancer service works in
+contrail kubernetes environment in chapter 4.
 
 == Ingress 
 
 You’ve now seen two ways of exposing a service to clients outside the cluster:
-NodePort service and LoadBalancer service. another method is `Ingress`
+`NodePort` service and `LoadBalancer service`. another method is `Ingress`
 
 === Ingress object
 
@@ -1090,41 +1157,44 @@ spec:
           servicePort: 9999
 ----
 
-it looks simple isn't it? the `spec` defines only one thing that is the `rules`.
-the rules says a `host`, which is juniper URL here, may have 2 `path` after the
-`host` part in the URL string: `/dev` and `/qa`, each is associated to a
-different service. that's it.
+it looks pretty simple. the `spec` defines only one item that is the `rules`.
+the rules says a `host`, which is "juniper" URL here, may have 2 possible `path`
+in the URL string, after the `host` part of it: `/dev` and `/qa`. each path is
+then associated to a different service. that's it.
 
-if you now tell me kubernetes Ingress is nothing but to define some rules, and
-the rules are just to instruct the system to direct incoming request to
-different services based on the URLs, you are basically right, in the high
-level. 
+if you now think kubernetes Ingress is nothing but to define some rules, and the
+rules are just to instruct the system to direct incoming request to different
+services, based on the URLs, you are basically right, but in the high level
+only.
 
 in practice there are other things you need to understand.
 
-Ingress is another core concept of Kubernetes, it allows simple, rule-based `host`
-or URL based HTTP routing which does not exist in service. however, to
-"implement" these rules, you need another component called `ingress controller`
+Ingress is another "core" concept of Kubernetes, it allows simple, rule-based
+HTTP routing that does not exist in service. however, in reality to "implement"
+these rules, you need at least another component called `ingress controller`
+
 
 === ingress controller
 
 ingress is tyically implemented by a third party proxy. These implementations
 are known as `ingress controllers`. An ingress controller is responsible for
-reading the Ingress rules and program the rules into the proxy which do the
-traffic dispatching.
+reading the Ingress rules and program the rules into the proxy which does the
+real work - dispatching traffic based on `host` / URL.
 
 Different Kubernetes environments have different implementations of the
 controller, and each ingress controllers have their own implementations to
 program the ingress rules. bottom line is, there has to be an Ingress controller
 running in the cluster. 
 
-
 === ingress vs service
 
-Ingress operates at the application layer of the OSI network stack, while
-service operates at layer 4 only. Ingress understand the HTTP/HTTPS protocol,
+there are similiarities between loadbalancer service and ingress. both can
+expose service to outside of the cluster. but there are some main differences.
+
+`Ingress` operates at the application layer of the OSI network model, while
+`service` operates at layer 4 only. `Ingress` understand the HTTP/HTTPS protocol,
 service only does forwarding based on IP and port, which means it does not care
-about the protocol interactions
+about the protocol details.
 
 each LoadBalancer service requires its own public IP address, whereas an Ingress
 only requires one. When a client sends an HTTP request to the Ingress, the host
@@ -1155,9 +1225,10 @@ spec:
     servicePort: 80
 ----
 
-this is the simplest form of ingress. the ingress will get an external IP, but,
-since there is no `host` defined so it does not differiciate different URLs. all
-requests will goes to one same service.
+this is the simplest form of ingress. the ingress will get an external IP so the
+service will be exposed to the public, however, since there is no `host` defined
+so it does not differentiate different URLs. all requests will goes to one same
+service.
 
 ==== simple fanout ingress
 
@@ -1211,11 +1282,11 @@ spec:
 
 `name based virtual host` supports routing HTTP traffic to multiple host names
 at the same IP address. the example above may not be practical (unless one day
-we acquire cisco!) but it is good enough to showcase the idea. in it 2 `host`
-are defined, which are the "juniper" and "cisco" URL. but remember we said the
-ingress will be allocated with one public IP, so request toward that one IP,
-will be routed, based on the `host` in URL, to different backend services. we'll
-have a very detail case study in chapter 4 about this.
+the two domains merge!) but it is good enough to showcase the idea. in the yaml
+file 2 `host` are defined, which are the "juniper" and "cisco" URL. but remember
+we said the ingress will be allocated with one public IP, so request toward that
+one IP, will be routed, based on the `host` in URL, to different backend
+services. we'll have a very detail case study in chapter 4 about this example.
 
 == Annotation 
 
@@ -1271,11 +1342,15 @@ Note: According to De-facto Kubernetes Network custom resource definition
 the annotation "k8s.v1.cni.cncf.io/networks” is used to represent “
 NetworkAttachmentDefinition” and has two format
 
-    1- Network  
-           k8s.v1.cni.cncf.io/networks: net-a
+----
+Network  
+   k8s.v1.cni.cncf.io/networks: net-a
+----
 
-    2-Namespace/network name
-           k8s.v1.cni.cncf.io/networks: ns/net-a
+----
+Namespace/network name
+   k8s.v1.cni.cncf.io/networks: ns/net-a
+----
 
 NOTE: To maintain compatibility with existing Kubernetes deployments, All pods
 must still be attached to the cluster-wide default network. which means even if
