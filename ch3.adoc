@@ -937,8 +937,7 @@ NodePort service is an easy way to expose an application running on POD by
 mapping a port in the node that host this POD with a port of the application
 the POD as shown in the diagram 
  
-image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
-
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
 there is 2 very important parts in this services YAML file ports and selector.
 
 targetPort is the actual port used by the application in here its port 80 as we
