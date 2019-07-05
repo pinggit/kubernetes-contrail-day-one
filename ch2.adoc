@@ -252,6 +252,7 @@ running in each, it is time to look at how things works together in figure 2.1
 
 .kubernetes architecture
 image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
+
 Figure 2.1 Kubernetes Architecture
 
 At the top behind `kubectl` is where you are. via `kubectl` commands you talk
@@ -368,6 +369,8 @@ chapter: "feature", "abstraction", "objects", "process" and "controller".
         v       |                                       |
     container   |     docker engine, rtx engine, etc    |
     features    +---------------------------------------+
+
+
 Figure 2.2 Kubernetes objects and features
 
 in the frontend, kubernetes get all things done via a group of "object".  with
