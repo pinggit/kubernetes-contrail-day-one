@@ -64,8 +64,7 @@ Table 1.1 showing a comparison between CSRX vs. VSRX which will you can see the 
 
 Table 1.1 CSRX vs. VSRX 
 
-NOTE              containerizing network functions comes at a cost as there are some features won’t exist in containerized based NFV (the lack of IPSEC VPN in the CSRX is one example)
-this is not a major drawback in the micro-services technique where we split the application into different smaller services each part (container in that case) is doing a specific job hence not all the functionality is needed  in a containerized firewall 
+NOTE: containerizing network functions comes at a cost as there are some features won’t exist in containerized based NFV (the lack of IPSEC VPN in the CSRX is one example).This is not a major drawback in the micro-services technique where we split the application into different smaller services each part (container in that case) is doing a specific job hence not all the functionality is needed  in a containerized firewall 
 
 === Understanding Docker
 
@@ -97,10 +96,12 @@ Let’s start first lay the basics foundation of contrail
 Contrail Networking:
 
 Contrail Networking provides dynamic end-to-end networking policy and control for any cloud, any workload, and any deployment, from a single user interface by translating abstract workflows into specific policies.
-although our focus in this book would be building a secure container network orchestrated by Kubernetes but contrail can build Virtual networks that integrate container, VM and BMS
-but what is virtual network ?
+
+Although our focus in this book would be building a secure container network orchestrated by Kubernetes but contrail can build Virtual networks that integrate container, VM and BMS
+
 Virtual Networks (VNs) are a key concept in the Contrail System. Virtual networks are logical constructs implemented on top of the physical networks. Virtual networks are used to replace VLAN-based isolation and provide multi-tenancy in a virtualized data center. Each tenant or an application can have one or more virtual networks. Each virtual network is isolated from all the other virtual networks unless explicitly allowed by security policy.
-Virtual networks can be extended to physical networks using a gateway. Finally, Virtual networks are used to implement Network Function Virtualization (NFV) and service chaining.
+Virtual networks can be extended to physical networks using a gateway.Finally, Virtual networks are used to connect Network Function Virtualization (NFV) as well service chaining.
+
 as shown in the figure 1.3, the Network operate only deal with the logical abstraction of the network then contrail do the heavy lifting which include but not limited to 
 building polices, exchanging routes, building tunnels on the physical topology. 
 
