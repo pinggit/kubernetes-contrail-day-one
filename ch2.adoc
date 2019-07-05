@@ -65,7 +65,7 @@ of packaging and distributing containerized applications, while an
 orchestration system like kubernetes allows you to deploy and manage the
 dockers in a relatively higher level and a much easier way.
 
-[TIP]
+[NOTE]
 ====
 * "Borg" is still being used in google internally today
 * in many document kubernetes is frequently abbreviated as "k8s" (K - eight
@@ -124,7 +124,7 @@ you will quickly find that doing all of this manually with docker will be
 overwhelming. with the high-level abstractions and the objects representing
 them in kubernetes API, all of these tasks become much easiler. 
 
-TIP: kubernetes is not the only tool in its kind, docker has its owen
+NOTE: kubernetes is not the only tool in its kind, docker has its owen
 orchestration tool named "swarm". this book will focus on kubernetes.
 
 == Kubernetes Architecture and components
@@ -136,13 +136,6 @@ well-defined set of processes:
   all thinking and decisions, all of intelligence are located here.
 * worker node: called "node", or "union" in old document, the arms and feet
   that conduct the workforce.
-
-NOTE: the term "node" may sound semantically ambiguous - it could mean two
-things in the context of this book. Usually a "node" refers to a logical unit
-in a cluster - something we call a "server", which can be either physical
-server (.e.g.: HP server) or virtual machine(e.g.: kvm-qemu based). in context
-of kubernetes clusters, a "node" often specifically refers to a "worker node"
-that runs containerized applications, in contrast with a "master".
 
 The "nodes" are controlled by the "master" and in most of the time you will
 only need to talk to master . 
@@ -156,8 +149,14 @@ later you will read example of using kubectl to create
 kubernetes objects. For now just remember: Whenever you are working with
 "kubectl" command, you're communicating with the cluster's "master".
 
+NOTE: the term "node" may sound semantically ambiguous - it could mean two
+things in the context of this book. Usually a "node" refers to a logical unit
+in a cluster - something we call a "server", which can be either physical
+server (.e.g.: HP server) or virtual machine(e.g.: kvm-qemu based). in context
+of kubernetes clusters, a "node" often specifically refers to a "worker node"
+that runs containerized applications, in contrast with a "master".
 
-TIP: you rarely need to "bypass" the master and work with nodes directly.
+NOTE: you rarely need to "bypass" the master and work with nodes directly.
 but you can login to node and run all docker command to check running status of
 containers. there is an example showing this later in this chapter.
 
@@ -237,7 +236,7 @@ A "node" runs following processes:
 
 NOTE: *kubelet* is running on both master and node.
 
-TIP: the name "proxy" may sound confusing for kubernetes beginners. it's not
+WARINING: the name "proxy" may sound confusing for kubernetes beginners. it's not
 really a "proxy" in current kubernetes architecture. kube-proxy is a system
 that manipulates linux IP tables in that node so that the the traffic between
 the pods and the nodes will flows correctly.
@@ -245,7 +244,7 @@ the pods and the nodes will flows correctly.
 === kubernetes work flow
 
 after you get some basic idea about the master and node and the main processes
-running in each, it is time to look at how things works together in a diagram.
+running in each, it is time to look at how things works together in figure 2.1
 
 //TODO: pick one or make a new one.
 //image::https://user-images.githubusercontent.com/2038044/45911926-b5345180-bde7-11e8-82bd-152fffa2774a.png[]
@@ -253,6 +252,7 @@ running in each, it is time to look at how things works together in a diagram.
 
 .kubernetes architecture
 image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
+Figure 2.1 Kubernetes Architecture
 
 At the top behind `kubectl` is where you are. via `kubectl` commands you talk
 to kubernetes "master", which manages the 2 "node" boxes on the right. it
@@ -349,10 +349,10 @@ the most oftenly used objects are:
     - DaemonSet
     - Job
 
-TIP: "high-level" objects are build upon the basic objects. They provide
+NOTE: "high-level" objects are build upon the basic objects. They provide
 additional functionality and convenience features. 
 
-here is a diagram showing relationships between the terms you read in this
+Figure 2.2 showing relationships between the terms you read in this
 chapter: "feature", "abstraction", "objects", "process" and "controller".
 
     kubernetes  +---------------------------------------+
@@ -368,6 +368,7 @@ chapter: "feature", "abstraction", "objects", "process" and "controller".
         v       |                                       |
     container   |     docker engine, rtx engine, etc    |
     features    +---------------------------------------+
+Figure 2.2 Kubernetes objects and features
 
 in the frontend, kubernetes get all things done via a group of "object".  with
 kubernetes you only needs to think of how to describe your task in the config
@@ -621,7 +622,7 @@ to get more details of what is running inside of the pod:
 
 not surprisingly, our pod `pod-1` is composed of 2 containers declared in
 the YAML file, with an IP address assigned by kubernetes cluster and shared
-between all containers. 
+between all containers as shown in Figure 2.3
 
 ////
 if you login to node `test2`, you will see the docker containers running inside
@@ -647,7 +648,7 @@ image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-
 
 .pod and containers
 image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
-
+Figure 2.3 two container in a POD  
 === Kubectl tool 
 
 so far you've seen we created the object by `kubectl` command. this command,
@@ -670,7 +671,7 @@ into the master and typing `kubectl`, followed by two `tab` keystrokes.
     cluster-info   cp             edit           label          port-forward
     scale          version        expose         cordon
 
-TIP: to setup auto-completion for kubectl command, follow the instruction from
+NOTE: to setup auto-completion for kubectl command, follow the instruction from
 help of `completion` option: `kubectl completion -h`
 
 //don't panic! the most commonly used options - the ones you can reply on to get
