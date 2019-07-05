@@ -91,9 +91,9 @@ that’s what we will see next with services and label selector
 
 ====
 
-== NS
+== NameSpace
 
-=== what is NS
+=== what is NameSpace
 
 As in many other platforms, normally there is more than one users (or teams) working on a
 kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
@@ -138,7 +138,7 @@ when done, press ctr-d to submit the stdin buffer content into kubectl.
 
     namespace/development created
 
-new namespace is now created
+new namespace dev is now created
 
     root@test3:~# kubectl get ns
     NAME          STATUS    AGE
