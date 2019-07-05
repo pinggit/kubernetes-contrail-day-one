@@ -292,7 +292,7 @@ exactly the same pods (each runs a apache container) to make sure the web
 service appears more robust? shall I change the name in yaml file then repeat the
 same commands to create 5 more pods? or maybe with a shell script? kubernetes
 already has the objects to address this exact demand and the right answer are RC -
-replication controller or ReplicaSet
+replication controller or RS - ReplicaSet
 
 > A ReplicationController ensures that a specified number of pod replicas are
 > running at any one time. In other words, a ReplicationController makes sure
@@ -307,7 +307,7 @@ object named `myweb`.
     metadata:
       name: myweb
     spec:
-      replicas: 5
+      replicas: 3
       selector:
         app: myweb
       template:
@@ -346,8 +346,6 @@ eventually you will see 5 pods launched:
     myweb-5ggv6   1/1       Running             0          9s
     myweb-5ww92   1/1       Running             0          50s
     myweb-lbj89   0/1       ContainerCreating   0          9s
-    myweb-m6nrx   0/1       ContainerCreating   0          9s
-    myweb-q5gv4   1/1       Running             0          50s
 ////
 
     $ kubectl get pod
@@ -355,8 +353,6 @@ eventually you will see 5 pods launched:
     myweb-5ggv6   1/1       Running   0          21m
     myweb-5ww92   1/1       Running   0          22m
     myweb-lbj89   1/1       Running   0          21m
-    myweb-m6nrx   1/1       Running   0          21m
-    myweb-q5gv4   1/1       Running   0          22m
 
 with `replicas` parameter specified in RC object yaml file, the kubernetes
 replication controller, running as part of `kube-controller-manager` process in
@@ -373,23 +369,38 @@ you can test this out by deleting one of the pod:
     myweb-5v9w6   1/1       Running       0          2s
     myweb-5ww92   1/1       Running       0          23m
     myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          22m
-    myweb-q5gv4   1/1       Running       0          23m
 
     $ kubectl get pod
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5v9w6   1/1       Running       0          5s
     myweb-5ww92   1/1       Running       0          23m
     myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          22m
-    myweb-q5gv4   1/1       Running       0          23m
+
+you can scale up/down replicas in rc.
+    $ kubectl scale rc myweb --replica=5
+    replicationcontroller/myweb scaled
+    
+    $ kubectl get pod
+    NAME          READY     STATUS              RESTARTS   AGE
+    myweb-5v9w6   1/1       Running             0          8s
+    myweb-5ww92   1/1       Running             0          23m
+    myweb-lbj89   1/1       Running             0          22m
+    myweb-m6nrx   0/1       ContainerCreating   0          2s
+    myweb-q5gv4   1/1       ContainerCreating   0          2s
+    
+    $ kubectl get pod
+    NAME          READY     STATUS        RESTARTS   AGE
+    myweb-5v9w6   1/1       Running       0          10s
+    myweb-5ww92   1/1       Running       0          23m
+    myweb-lbj89   1/1       Running       0          22m
+    myweb-m6nrx   1/1       Running       0          5s
+    myweb-q5gv4   1/1       Running       0          5s
 
 there are other benefits with RC. actually since this abstraction is so popular
-and heavily used in practice that, two very similar new objects have been
-designed with more powerful features introduced. The original RC object and its
-abstraction has been split into 2 new objects named `RS(ReplicaSet)` and
-`deployment`.  roughly, you can call them "next generation of RC". let's stop
-exploring more RC features for now and move our focus to these 2 objects.
+and heavily used in practice that, two very similar objects RS - ReplicaSet and
+Deploy - Deployment have been designed with more powerful features introduced. 
+roughly, you can call them "next generation of RC". let's stop exploring more
+RC features for now and move our focus to these 2 objects.
 
 == ReplicaSet
 
@@ -486,7 +497,7 @@ now you may start to wonder why kubernetes has two different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
 through the 2 new objects. we've seen `RS` has done the same job of `RC` just
 with a different selector format, now we'll check out the other new object
-`deployment` and explore the features coming from it. simply changing `kind`
+deploy - deployment and explore the features coming from it. simply changing `kind`
 attribute from `ReplicaSet` to `deployment` we get the yaml file of a deployment
 object:
 
