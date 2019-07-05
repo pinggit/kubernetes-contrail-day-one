@@ -39,26 +39,26 @@ respectively then try to lunch a POD with label zone: testing
  
     kubectl get nodes --show-labels
 
-    NAME                                         STATUS     ROLES     AGE       VERSION   LABELS
-    ip-172-25-1-216.us-west-1.compute.internal   Ready      <none>    2h        v1.9.2    <none>
-    ip-172-25-1-56.us-west-1.compute.internal    NotReady   <none>    2h        v1.9.2    <none>
-    ip-172-25-1-83.us-west-1.compute.internal    Ready      <none>    2h        v1.9.2    <none>
+    NAME      STATUS     ROLES     AGE       VERSION   LABELS
+    cent222   Ready      <none>    2h        v1.9.2    <none>
+    cent111   NotReady   <none>    2h        v1.9.2    <none>
+    cent333   Ready      <none>    2h        v1.9.2    <none>
 
 
-    kubectl label nodes ip-172-25-1-83.us-west-1.compute.internal stage=testing
-    kubectl label nodes ip-172-25-1-216.us-west-1.compute.internal stage=production
+    kubectl label nodes cent333 stage=testing
+    kubectl label nodes cent222 stage=production
 
     kubectl get nodes --show-labels
 
-    NAME                                        STATUS    ROLES   AGE  VERSION  LABELS
-    ip-172-25-1-216.us-west-1.compute.internal  Ready     <none>  2h   v1.9.2   stage=production
-    ip-172-25-1-56.us-west-1.compute.internal   NotReady  <none>  2h   v1.9.2   <none>
-    ip-172-25-1-83.us-west-1.compute.internal   Ready     <none>  2h   v1.9.2   stage=testing
+    NAME         STATUS    ROLES   AGE  VERSION  LABELS
+    cent222  Ready     <none>  2h   v1.9.2   stage=production
+    cent111  NotReady  <none>  2h   v1.9.2   <none>
+    cent333  Ready     <none>  2h   v1.9.2   stage=testing
 
 now let’s lunch a basic Nginx POD tagged with stage=testing and confirm it
 will land on a node tagged with stage=testing
 
-    [root@ip-172-25-1-56 /]# cat > web-server.yaml
+    [root@cent111]# cat > web-server.yaml
     apiVersion: v1
     kind: Pod
     metadata:
@@ -72,12 +72,12 @@ will land on a node tagged with stage=testing
       nodeSelector:
         stage: testing
 
-    [root@ip-172-25-1-56 /]# kubectl create -f web-server.yaml
+    [root@cent111]# kubectl create -f web-server.yaml
     pod "wordpress" created
 
-    [root@ip-172-25-1-56 /]# kubectl get pods --output=wide
+    [root@cent111]# kubectl get pods --output=wide
     NAME        READY     STATUS    RESTARTS   AGE       IP              NODE
-    wordpress   1/1       Running   0          48s       10.47.255.250   ip-172-25-1-83.us-west-1.compute.internal
+    wordpress   1/1       Running   0          48s       10.47.255.238   cent333
 
 
 [NOTE]
