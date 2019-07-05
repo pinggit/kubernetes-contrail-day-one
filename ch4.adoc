@@ -890,7 +890,7 @@ if you need the FIP to be reachable from Internet through gateway router, you'll
 need to set a route-target to make the VN prefix getting imported in the gateway
 router's VRF table. this step is necessary whenever Internet access is required.
 
-TIP: in the later lab demo of `service` or `ingress`, you always need to set the
+NOTE: in the later lab demo of `service` or `ingress`, you always need to set the
 RT to the public VN whenever they need to be accessed from Internet host, 
 
 .create a FIP pool based on the public VN
@@ -900,7 +900,7 @@ a floating IP pool:
 
 image::https://user-images.githubusercontent.com/2038044/60357727-6d5bdf80-99a2-11e9-90c1-98b037cb0c98.png[]
 
-TIP: in contrail UI, you can also set the "external" flag in VN "Advanced"
+NOTE: in contrail UI, you can also set the "external" flag in VN "Advanced"
 options so that a FIP pool named "public" will automatically be created.
 
 === FIP pool scope
@@ -909,9 +909,10 @@ there are different ways you can define an floating IP pool, and correspondingly
 the scope of the pools will also be different. here are 3 possible scopes an IP
 pool can has:
 
-* global default
-* NS default
 * object specific
+* NS default
+* global default
+
 
 .object specific
 
@@ -952,7 +953,7 @@ practical example:
 * when a service `dev-websevice` in `dev` needs a FIP from `pool-sales`, specify
   `pool-sales` in `dev-webservice` object will archive this goal.
 
-TIP: Just keep in mind the rule of thumb - the most specific scope will always
+NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
 === global level default FIP pool
@@ -1150,7 +1151,7 @@ loadbalancer with a new driver, with it service will be implemented as "equal
 cost multiple path" (ECMP) mode in level 4. this is the primary difference
 comparing with the "proxy" mode that the old neutron loadbalancer type does.
 
-TIP: the new "LB provider" type for service implementation is called "native".
+NOTE: the new "LB provider" type for service implementation is called "native".
 detail discussions of the LB and all surrounding objects are out of the scope of
 this book.
 
@@ -1240,7 +1241,7 @@ the digaram is here:
 
 image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
-TIP: To minimize the resource utilization, all "servers" are actually centos
+NOTE: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
 server.
 
@@ -1612,7 +1613,7 @@ $ kubectl exec -it rc-webserver-g27kg -- python -m SimpleHTTPServer 90
 Serving HTTP on 0.0.0.0 port 90 ...                                    
 ----
 
-TIP: by default, python SimpleHTTPServer listen on port 8080, not what we want.
+NOTE: by default, python SimpleHTTPServer listen on port 8080, not what we want.
 
 now the targetPort is on, we can start the request towards service port `9999`
 again from the cirros pod, this time it succeed, and get the returned webpage
@@ -2151,7 +2152,7 @@ Destination        Type RtRef Next hop           Type Index    NhRef Netif
                                                 Push 26     1277     2 gr-2/2/0.32771
 ----
 
-TIP: for Junos BGP path selection algorithm, check this link:
+NOTE: for Junos BGP path selection algorithm, check this link:
 https://www.juniper.net/documentation/en_US/junos/topics/topic-map/bgp-path-selection.html
 
 now try to pull the webpage from Internet host multiple times with `curl` or web
@@ -2404,7 +2405,7 @@ benefits are:
 * whenever needed, you can still delete/update each individual objects
   independently, by giving the object name
 
-TIP: imaging during ingress test you may need to create and delete all objects
+NOTE: imaging during ingress test you may need to create and delete all objects
 as a whole very often, grouping multiple objects in one yaml file is a very
 convenient and recommended method.
 
@@ -2891,7 +2892,7 @@ service request coming from Internet host goes to node `cent222`. of course, the
 overlay traffic will be carried in MPLS over GRE tunnel, same as what you've
 seen from service example.
 
-TIP: both nodes have loadbalancer and haproxy running so both will advertise the
+NOTE: both nodes have loadbalancer and haproxy running so both will advertise the
 FIP prefix `101.101.101.1` to gateway router. however, they are advertised with
 different local preference value. the "Active" node has a value of `200` and the
 "standby" node's value is `100`. that is why the "other" BGP route is dropped
@@ -3090,7 +3091,7 @@ know the packet will be sent to node `cent222` via MPLSoGRE tunnel. to
 demonstrate the forwarding flow, this time we collect the flow table in node
 `cent222`. 
 
-TIP: with a filter `--match 15.15.15.2`. only flow entries with Internet Host
+NOTE: with a filter `--match 15.15.15.2`. only flow entries with Internet Host
 IP is printed.
 
 ////
@@ -3446,7 +3447,7 @@ secure the traffic between these two networks as shown in the diagram
 .service chaining
 image::https://user-images.githubusercontent.com/2038044/60268925-85a4ff00-98bb-11e9-94c3-219d41038642.png[]
 
-[TIP]
+[NOTE]
 ====
 - left and right networks are just a common name used for simplicity and
   expected the traffic to follow from left to right but you can use your own
@@ -3543,7 +3544,7 @@ From the Contrail Controller module control node (http://10.85.188.16:8143 in
 our setup), select Configure > Networking > Networks > default-domain > k8s-default
 As shown in the diagram which focus on left network
 
-TIP: using namespace: default object in the YAML file for a network will create
+NOTE: using namespace: default object in the YAML file for a network will create
 it n in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
@@ -3865,7 +3866,7 @@ Physical interface: ge-0/0/0, Enabled, Physical link is Up
 NOTE: unlike other PODs the CSRX didn’t acquire IP with DHCP and it start with
 factory default configuration hence it need to be configured. 
 
-TIP: By default, CSRX eth0 is visible only from shell and used for management.
+NOTE: By default, CSRX eth0 is visible only from shell and used for management.
 And when attaching networks, the first attach network is mapped to eth1 which is
 GE-0/0/1 And the second attach is mapped to eth2 which is GE-0/0/0
 
@@ -4190,7 +4191,7 @@ image::https://user-images.githubusercontent.com/2038044/60268945-88075900-98bb-
  
 then for each of the three interface bound one interface of the CSRX then click create
 
-TIP: the name of the virtual machine interface isn’t shown in the drop down
+NOTE: the name of the virtual machine interface isn’t shown in the drop down
 menu instead the instance ID, you can identify that from the tap interface name
 as we showed before.  In other word all you have to know is most 6 left
 character for any interface belong to that container as all the interface in a
