@@ -1443,6 +1443,103 @@ spec:
         initialDelaySeconds: 15
         periodSeconds: 20
 
+let launch this POD then login to it to terminate the proccess that handel the httpGet 
+
+[root@cent11 ~]# kubectl get pod
+NAME           READY   STATUS    RESTARTS   AGE
+liveness-pod   1/1     Running   0          114s
+[root@cent11 ~]# kubectl get pod
+
+
+[root@cent11 ~]# kubectl exec -it liveness-pod bash
+root@liveness-pod:/# sudo netstat -tulpn
+
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      111/apache2     
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      45/sshd         
+tcp6       0      0 :::22                   :::*                    LISTEN      45/sshd         
+
+root@liveness-pod:/# service apache2 stop
+ * Stopping web server apache2                                                   * 
+
+root@liveness-pod:/# sudo netstat -tulpn
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      45/sshd         
+tcp6       0      0 :::22                   :::*                    LISTEN      45/sshd         
+
+[root@cent11 ~]# kubectl get pod
+NAME           READY   STATUS    RESTARTS   AGE
+liveness-pod   1/1     Running   1          5m33s
+
+you can see the POD got restarted automatically and in the event it stated the reason for that restart " Killing container with id docker://liveness-pod:Container failed liveness probe.. Container will be killed and recreated."" 
+
+[root@cent11 ~]# kubectl describe pod liveness-pod
+Name:               liveness-pod
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               cent22/10.85.188.17
+Start Time:         Fri, 05 Jul 2019 16:39:12 -0400
+Labels:             app=tcpsocket-test
+Annotations:        k8s.v1.cni.cncf.io/network-status:
+                      [
+                          {
+                              "ips": "10.47.255.249",
+                              "mac": "02:c2:59:4a:82:9f",
+                              "name": "cluster-wide-default"
+                          }
+                      ]
+Status:             Running
+IP:                 10.47.255.249
+Containers:
+  liveness-pod:
+    Container ID:   docker://01969f51d32f38a15baab18487b85c54cee4125f55c8c7667236722084e4df06
+    Image:          virtualhops/ato-ubuntu:latest
+    Image ID:       docker-pullable://virtualhops/ato-ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Fri, 05 Jul 2019 16:41:35 -0400
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    137
+      Started:      Fri, 05 Jul 2019 16:39:20 -0400
+      Finished:     Fri, 05 Jul 2019 16:41:34 -0400
+    Ready:          True
+    Restart Count:  1
+    Liveness:       http-get http://:80/ delay=15s timeout=1s period=20s #success=1 #failure=3
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-m75c5 (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             True 
+  ContainersReady   True 
+  PodScheduled      True 
+Volumes:
+  default-token-m75c5:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-m75c5
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type     Reason     Age                    From               Message
+  ----     ------     ----                   ----               -------
+  Normal   Scheduled  7m19s                  default-scheduler  Successfully assigned default/liveness-pod to cent22
+  Warning  Unhealthy  4m6s (x3 over 4m46s)   kubelet, cent22    Liveness probe failed: Get http://10.47.255.249:80/: dial tcp 10.47.255.249:80: connect: connection refused
+  Normal   Pulling    3m36s (x2 over 5m53s)  kubelet, cent22    pulling image "virtualhops/ato-ubuntu:latest"
+  Normal   Killing    3m36s                  kubelet, cent22    Killing container with id docker://liveness-pod:Container failed liveness probe.. Container will be killed and recreated.
+  Normal   Pulled     3m35s (x2 over 5m50s)  kubelet, cent22    Successfully pulled image "virtualhops/ato-ubuntu:latest"
+  Normal   Created    3m35s (x2 over 5m50s)  kubelet, cent22    Created container
+  Normal   Started    3m35s (x2 over 5m50s)  kubelet, cent22    Started container
+  
+  
 ----
 
 === Readiness Probe
