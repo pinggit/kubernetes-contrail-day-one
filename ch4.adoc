@@ -69,7 +69,7 @@ that to Contrail controller. on the compute node the contrail Vrouter would
 replace Kube-proxy as shown in the diagram:
 
 .contrail kubernetes architecture
-image::https://user-images.githubusercontent.com/2038044/59478971-42fa1600-8e29-11e9-9b58-8466ca0e0845.png[]
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/kubemanager.png[]
 
 === kubernetes to contrail object mapping
 
