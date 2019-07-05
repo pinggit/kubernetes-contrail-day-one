@@ -1060,9 +1060,92 @@ a GCE loadbalancer may work in a totally different different way with a AWS
 loadbalancer. we'll have a detail demonstration about how loadbalancer service
 works in contrail kubernetes environment in chapter 4.
 
-== TODO: Ingress 
+== Ingress 
 
-general (non-contrail) ingress
+You’ve now seen two ways of exposing a service to clients outside the cluster,
+but another method exists
+
+One important reason is that each LoadBalancer service requires its own load
+balancer with its own public IP address, whereas an Ingress only requires one,
+even when providing access to dozens of services. When a client sends an HTTP
+request to the Ingress, the host and path in the request determine which service
+the request is forwarded to.
+
+Ingresses operate at the application layer of the network stack (HTTP) and can
+provide features such as cookie-based session affinity and the like, which
+services can’t.
+
+an Ingress controller needs to be running in the cluster. Different Kubernetes
+environments use different implementations of the controller
+
+there are basically 3 types of ingress:
+
+* Single Service Ingress
+* Simple fanout Ingress
+* Name based virtual hosting Ingress
+
+we'll look at each ingress's yaml file examples. and we'll then use nginx as ingress
+controller to demonstrate each type of ingress.
+
+=== single-service-ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: single-service
+spec:
+  backend:
+    serviceName: nginx
+    servicePort: 80
+----
+
+=== simple-fanout-ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: simple-fanout
+spec:
+  rules:
+  - host: www.juniper.net
+    http:
+      paths:
+      - path: /dev
+        backend:
+          serviceName: nginx
+          servicePort: 80
+      - path: /qa
+        backend:
+          serviceName: nginx
+          servicePort: 80
+----
+
+=== virtual-host-ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: virutal-host
+spec:
+  rules:
+  - host: www.google.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx
+          servicePort: 80
+  - host: www.yahoo.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx
+          servicePort: 80
+----
+
+
 
 == Annotation 
 
