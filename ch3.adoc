@@ -1,7 +1,7 @@
 // vim:set ft=asciidoc syntax=ON tw=80:
 = Kubernetes in practice
-:toc:
-:toc-placement: preamble
+:toc: right
+//:toc-placement: preamble
 :source-highlighter: pygments
 :source-highlighter: coderay
 :source-highlighter: prettify
@@ -740,105 +740,6 @@ so let’s cover three different type of services Node port , ClusterIP and load
 balancer and we begin with Node port by creating this  ( I need to create a
 diagram ) 
 
-=== NodePort 
-
-NodePort service is an easy way to expose an application running on POD by
-mapping a port in the node that host this POD with a port of the application
-the POD as shown in the diagram 
- 
-image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
-
-there is 2 very important parts in this services YAML file ports and selector.
-
-targetPort is the actual port used by the application in here its port 80 as we
-are planning to run a web server and nodeport is port on the node hosting that
-PODs 
-
-selector is the label selector which determine which set of pods targeted by
-this services, in here any POD with label app: FRONT-END will be serviced by
-this services
-
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: web-app
-    spec:
-      selector:
-        app: webserver
-      type: NodePort
-      ports:
-      - targetPort: 80
-        port: 80
-        nodePort: 32001
-
-[TIP]
-====
-* Kubernetes by default allocate node port from (3000-32767) range it could be
-  change using the flag --service-node-port-range
-* The default service type is ClusterIP 
-* Be aware with the change of the Node ip address as it could effect your services 
-====
-
-now let’s expose the pod we created before with services shown after putting in
-web-app.yaml file
-
-    [root@ip-172-25-1-56 /]# kubectl create -f web-app.yaml
-    service "web-app" created
-
-    [root@ip-172-25-1-56 /]# kubectl describe services web-app
-    Name:                     web-app
-    Namespace:                default
-    Labels:                   <none>
-    Annotations:              <none>
-    Selector:                 app=webserver
-    Type:                     NodePort
-    IP:                       10.98.21.191
-    Port:                     <unset>  80/TCP
-    TargetPort:               80/TCP
-    NodePort:                 <unset>  32001/TCP
-    Endpoints:                10.47.255.250:80
-    Session Affinity:         None
-    External Traffic Policy:  Cluster
-    Events:                   <none>
-
-Now we can test that by just send CURL -i to sent http request using the CLI 
-
-    [root@computeee centos]# curl -i 10.98.21.191:80
-    HTTP/1.1 200 OK
-    Server: nginx/1.15.12
-    Date: Tue, 14 May 2019 18:33:07 GMT
-    Content-Type: text/html
-    Content-Length: 612
-    Last-Modified: Tue, 16 Apr 2019 13:08:19 GMT
-    Connection: keep-alive
-    ETag: "5cb5d3c3-264"
-    Accept-Ranges: bytes
-
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Welcome to nginx!</title>
-    <style>
-        body {
-            width: 35em;
-            margin: 0 auto;
-            font-family: Tahoma, Verdana, Arial, sans-serif;
-        }
-    </style>
-    </head>
-    <body>
-    <h1>Welcome to nginx!</h1>
-    <p>If you see this page, the nginx web server is successfully installed and
-    working. Further configuration is required.</p>
-    <p>For online documentation and support please refer to
-    <a href="http://nginx.org/">nginx.org</a>.<br/>
-    Commercial support is available at
-    <a href="http://nginx.com/">nginx.com</a>.</p>
-
-    <p><em>Thank you for using nginx.</em></p>
-    </body>
-    </html>  
-
 === clusterIP service
 
 the `clusterIP` type of service is the most simple one. it is the default mode
@@ -853,7 +754,7 @@ if all requests are coming from the same cluster. the nature of the clusterIP
 limits the scope of this service to be only within the same cluster. overall by
 default the clusterIP is not reachable from external. 
 
-=== test clusterIP service
+==== create clusterIP service
 
 let's create our first service in contrail environment, with service type
 `clusterIP`. 
@@ -975,7 +876,7 @@ TIP: the example shown use a "equality-based" selector (`-l`) to locate the
 backend pod, you can also use a "set-based" syntax to archive the same effect:
 `kubectl get pod -o wide -l 'app in (webserver)'`
 
-=== verify the cluserIP service
+==== verify cluserIP service
 
 Now to verify if the service actually works, let's start another pod as a
 client to initiate a http request toward the service. for this test we'll login
@@ -1006,10 +907,6 @@ $ kubectl exec -it cirros -- curl 10.101.150.135:8888
 the http request toward the service reaches a backend pod running the web server
 application, which responds with a HTML page.
 
-the traffic flow is illustrated here:
-
-image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
-
 to better demonstrate which pod is providing the service, we are running a
 customized pod image that runs a simple web server. the web server is configured
 in such a way that whenever receiving a request, it will return a simple HTML
@@ -1035,50 +932,133 @@ now we are convinced our service works. requests to service has been
 redirected to the correct backend pod, with a pod IP `10.47.255.238`, pod name
 `rc-webserver-vl6zs`. 
 
-////
-what is not printed is the container port `80` which you saw in the endpoint
-list. 
+=== NodePort 
+
+NodePort service is an easy way to expose an application running on POD by
+mapping a port in the node that host this POD with a port of the application
+the POD as shown in the diagram 
+ 
+image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
+
+there is 2 very important parts in this services YAML file ports and selector.
+
+targetPort is the actual port used by the application in here its port 80 as we
+are planning to run a web server and nodeport is port on the node hosting that
+PODs 
+
+selector is the label selector which determine which set of pods targeted by
+this services, in here any POD with label app: FRONT-END will be serviced by
+this services
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: web-app
+    spec:
+      selector:
+        app: webserver
+      type: NodePort
+      ports:
+      - targetPort: 80
+        port: 80
+        nodePort: 32001
+
+[TIP]
+====
+* Kubernetes by default allocate node port from (3000-32767) range it could be
+  change using the flag --service-node-port-range
+* The default service type is ClusterIP 
+* Be aware with the change of the Node ip address as it could effect your services 
+====
+
+now let’s expose the pod we created before with services shown after putting in
+web-app.yaml file
+
+    [root@ip-172-25-1-56 /]# kubectl create -f web-app.yaml
+    service "web-app" created
+
+    [root@ip-172-25-1-56 /]# kubectl describe services web-app
+    Name:                     web-app
+    Namespace:                default
+    Labels:                   <none>
+    Annotations:              <none>
+    Selector:                 app=webserver
+    Type:                     NodePort
+    IP:                       10.98.21.191
+    Port:                     <unset>  80/TCP
+    TargetPort:               80/TCP
+    NodePort:                 <unset>  32001/TCP
+    Endpoints:                10.47.255.250:80
+    Session Affinity:         None
+    External Traffic Policy:  Cluster
+    Events:                   <none>
+
+Now we can test that by just send CURL -i to sent http request using the CLI 
+
+    [root@computeee centos]# curl -i 10.98.21.191:80
+    HTTP/1.1 200 OK
+    Server: nginx/1.15.12
+    Date: Tue, 14 May 2019 18:33:07 GMT
+    Content-Type: text/html
+    Content-Length: 612
+    Last-Modified: Tue, 16 Apr 2019 13:08:19 GMT
+    Connection: keep-alive
+    ETag: "5cb5d3c3-264"
+    Accept-Ranges: bytes
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Welcome to nginx!</title>
+    <style>
+        body {
+            width: 35em;
+            margin: 0 auto;
+            font-family: Tahoma, Verdana, Arial, sans-serif;
+        }
+    </style>
+    </head>
+    <body>
+    <h1>Welcome to nginx!</h1>
+    <p>If you see this page, the nginx web server is successfully installed and
+    working. Further configuration is required.</p>
+    <p>For online documentation and support please refer to
+    <a href="http://nginx.org/">nginx.org</a>.<br/>
+    Commercial support is available at
+    <a href="http://nginx.com/">nginx.com</a>.</p>
+
+    <p><em>Thank you for using nginx.</em></p>
+    </body>
+    </html>  
+
+=== loadbalancer service
+
+essentially, a loadBalancer service goes one more step beyond what the NodePort
+service does. it exposes the Service externally using a cloud provider’s
+loadbalancer. loadbalancer by its nature automatically includes all features and
+functions of NodePort and ClusterIP Services. 
+
+//the external load balancer routes the traffic 
+
+Kubernetes clusters running on cloud providers support the automatic provision
+of a load balancer. the only difference between the 3 services are the `type`
+value. to reuse the same NodePort service yaml file and create a loadbalancer
+service, just change the `type` to `LoadBalancer`:
 
 ----
-[2019-06-29 11:11:39]root@cent333:~
-$ docker ps | grep vrouter
-e1957ec37f3e  ci-repo.englab.juniper.net:5000/contrail-nodemgr:master-latest ......
-5e9c1c3a14cf  ci-repo.englab.juniper.net:5000/contrail-vrouter-agent:master-latest ......
-
-$ docker exec -it vrouter_vrouter-agent_1 bash
-(vrouter-agent)[root@cent333 /]$ flow --match 10.47.255.237
-Flow table(size 80609280, entries 629760)
-
-Entries: Created 446 Added 446 Deleted 664 Changed 678Processed 446 Used Overflow entries 0
-(Created Flows/CPU: 109 132 100 105)(oflows 0)
-
-Action:F=Forward, D=Drop N=NAT(S=SNAT, D=DNAT, Ps=SPAT, Pd=DPAT, L=Link Local Port)
- Other:K(nh)=Key_Nexthop, S(nh)=RPF_Nexthop
- Flags:E=Evicted, Ec=Evict Candidate, N=New Flow, M=Modified Dm=Delete Marked
-TCP(r=reverse):S=SYN, F=FIN, R=RST, C=HalfClose, E=Established, D=Dead
-
-Listing flows matching ([10.47.255.237]:*)
-
-    Index                Source:Port/Destination:Port                      Proto(V)
- ----------------------------------------------------------------------------------
-   309544<=>437452       10.47.255.238:80                                    6 (2->4)
-                         10.47.255.237:45505
-(Gen: 1, K(nh):24, Action:N(SPs), Flags:, TCP:SSrEEr, QOS:-1, S(nh):24,
- Stats:1/74,  SPort 60557, TTL 0, Sinfo 11.0.0.0)
-
-   437452<=>309544       10.47.255.237:45505                                 6 (2->2)
-                         10.101.150.135:8888
-(Gen: 1, K(nh):24, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):35,
- Stats:2/112,  SPort 51104, TTL 0, Sinfo 10.169.25.20)
+type: LoadBalancer
 ----
-////
 
+the cloud will see this keyword and a load balancer will be created, with a
+public IP serving as the frontend virtual IP. traffic coming to this virtual IP
+will be redirect to the service backend pod. because the loadbalancer VIP is
+publicly reachable, any client whoever has access to the VIP and port can access
+the service provided by kubernetes cluster.
 
-
-
-=== load balancing
-
-implementation dependent, details covered in ch4 in details
+how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
+a GCE loadbalancer may work in a totally different different way with a AWS
+loadbalancer. we'll have a detail demonstration about how loadbalancer service
+works in contrail kubernetes environment in chapter 4.
 
 == TODO: Ingress 
 
@@ -1150,6 +1130,126 @@ we attached one POD interface to a specific network, this POD would have two
 interfaces one attached to the cluster-wide default network and the other
 interface is attached to the network specified in the annotation argument (net-a
 in this case) 
+
+== livenessProbe and readinessProbe
+
+=== Liveness Probe
+
+What happen if the application in the POD is running but it can’t serve its main
+purpose for whatever reason? also applications that runs for long time might
+transition to broken states. In all cases the last thing you want have is a call
+reporting a problem in an application that could be easily fixed with restarting
+the POD. liveness probes is a Kubernetes features made specially for that.
+liveness probes sent a pre-defined request to the POD on a regular basis then
+restart the POD if this request failed. The most commonly used liveness probe is
+HTTP GET request, but it could also be opening TCP socket or issuing a command 
+
+this is a TCP socket probe example where the “initialDelaySeconds” is the
+waiting time before the first try to open a TCP socket to port 80 then it will
+run the probe every 20 second as specified in “periodSeconds” If that failed the
+POD would be restarted automatically
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+  labels:
+    app: tcpsocket-test
+spec:
+  containers:
+    - name: liveness-pod
+      image: virtualhops/ato-ubuntu:latest
+      ports:
+        containerPort: 80
+      securityContext:
+          privileged: true
+          capabilities:
+           add:
+             - NET_ADMIN
+    livenessProbe:
+      tcpSocket:
+        port: 80
+      initialDelaySeconds: 15
+      periodSeconds: 20
+----
+ 
+HTTP GET request probe is similar to the TCP socket probes, but it will sent
+HTTP GET request, and you have the option to specify the path which in here just
+the main website. also you can send the probe with customized header 
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+  labels:
+    app: tcpsocket-test
+spec:
+  containers:
+    - name: liveness-pod
+      image: virtualhops/ato-ubuntu:latest
+      ports:
+        containerPort: 80
+      securityContext:
+          privileged: true
+          capabilities:
+           add:
+             - NET_ADMIN
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 80
+        httpHeaders:
+        - name: some-header
+          value: Running
+      initialDelaySeconds: 15
+      periodSeconds: 20
+----
+
+=== Readiness Probe
+
+Liveness probe make sure that your POD is in good health, but for some
+application Liveness alone isn’t enough. some application need to load large
+files before it start. you might think if we set a higher “initialDelaySeconds”
+value then problem solve. but this not an efficient way. Readiness probe is
+solution in here specially with Kubernetes services, as the POD will not receive
+a traffic until it report ready. Readiness Probe is configured the same way as
+liveness prob 
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+  labels:
+    app: tcpsocket-test
+spec:
+  containers:
+    - name: liveness-pod
+      image: virtualhops/ato-ubuntu:latest
+      ports:
+        containerPort: 80
+      securityContext:
+          privileged: true
+          capabilities:
+           add:
+             - NET_ADMIN
+    livenessProbe:
+      tcpSocket:
+        port: 80
+      initialDelaySeconds: 15
+      periodSeconds: 20
+    readinessProbe:
+      tcpSocket:
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 10
+----
+
+TIP: its recommended to use both Readiness Probe and Liveness Probe where
+Liveness probe restart the POD if it failed and Readiness Probe make sure the
+POD is ready before it gets the traffic 
 
 == Network policy
 
