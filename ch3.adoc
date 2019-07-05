@@ -1005,8 +1005,7 @@ NodePort service is an easy way to expose an application running on POD by
 mapping a port in the node that host this POD with a port of the application
 the POD as shown in the diagram 
  
-image::https://user-images.githubusercontent.com/2038044/57959367-7badda80-78d1-11e9-835f-ccce71ffe38a.png[]
-
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
 there is 2 very important parts in this services YAML file ports and selector.
 
 targetPort is the actual port used by the application in here its port 80 as we
@@ -1038,41 +1037,50 @@ this services
 * Be aware with the change of the Node ip address as it could effect your services 
 ====
 
-now let’s expose the pod we created before with services shown after putting in
-web-app.yaml file
+now let’s expose a nginx pod with the services shown above
 
-    [root@ip-172-25-1-56 /]# kubectl create -f web-app.yaml
+[root@cent11]# cat nginx.yaml 
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: nginx-pod
+      labels:
+        app: webserver
+    spec:
+      containers:
+        - name: nginx-c
+          image: nginx
+
+    [root@cent11]# kubectl create -f web-app.yaml
     service "web-app" created
 
-    [root@ip-172-25-1-56 /]# kubectl describe services web-app
+    [root@cent11]# kubectl describe service web-app
     Name:                     web-app
     Namespace:                default
     Labels:                   <none>
     Annotations:              <none>
     Selector:                 app=webserver
     Type:                     NodePort
-    IP:                       10.98.21.191
+    IP:                       10.98.108.168
     Port:                     <unset>  80/TCP
     TargetPort:               80/TCP
     NodePort:                 <unset>  32001/TCP
-    Endpoints:                10.47.255.250:80
+    Endpoints:                10.47.255.252:80
     Session Affinity:         None
     External Traffic Policy:  Cluster
     Events:                   <none>
 
-Now we can test that by just send CURL -i to sent http request using the CLI 
+Now we can test that by send CURL -i which is a http request using the CLI toward the node IP address that host this POD
 
-    [root@computeee centos]# curl -i 10.98.21.191:80
-    HTTP/1.1 200 OK
-    Server: nginx/1.15.12
-    Date: Tue, 14 May 2019 18:33:07 GMT
-    Content-Type: text/html
-    Content-Length: 612
-    Last-Modified: Tue, 16 Apr 2019 13:08:19 GMT
-    Connection: keep-alive
-    ETag: "5cb5d3c3-264"
-    Accept-Ranges: bytes
+    [root@cent11 ~]# kubectl get pod -o wide
+    
+    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE     NOMINATED NODE
+    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent22   <none>
 
+    [root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
+  InternalIP:  10.85.188.17
+
+    [root@cent11 ]#curl 10.85.188.17:32001
     <!DOCTYPE html>
     <html>
     <head>
@@ -1089,6 +1097,7 @@ Now we can test that by just send CURL -i to sent http request using the CLI
     <h1>Welcome to nginx!</h1>
     <p>If you see this page, the nginx web server is successfully installed and
     working. Further configuration is required.</p>
+    
     <p>For online documentation and support please refer to
     <a href="http://nginx.org/">nginx.org</a>.<br/>
     Commercial support is available at
@@ -1096,7 +1105,7 @@ Now we can test that by just send CURL -i to sent http request using the CLI
 
     <p><em>Thank you for using nginx.</em></p>
     </body>
-    </html>  
+    </html>
 
 === loadbalancer service
 

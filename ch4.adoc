@@ -88,8 +88,8 @@ on that will come later on for now kindly make yourself familiar with this list
 of object mapping 
 
 .contrail kubernetes object mapping
-image::https://user-images.githubusercontent.com/2038044/59479022-6fae2d80-8e29-11e9-9124-6e7074447a42.png[]
 
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/chapter%204%20contrail%20-%20k8s%20mapping.png[]
 ////
 
 === contrail-kube-manager

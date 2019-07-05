@@ -105,9 +105,7 @@ Virtual networks can be extended to physical networks using a gateway.Finally, V
 as shown in the figure 1.3, the Network operate only deal with the logical abstraction of the network then contrail do the heavy lifting which include but not limited to 
 building polices, exchanging routes, building tunnels on the physical topology. 
 
-
-image::https://user-images.githubusercontent.com/2038044/56851379-782fc080-68dc-11e9-80f0-5a0117ac1226.png[]
-image::https://user-images.githubusercontent.com/2038044/56851391-9dbcca00-68dc-11e9-8e12-835911a46e5c.png[]
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/chapter1-vn.png[]
 Figure 1.3  Virtual networks 
 
 === Contrail Architecture Fundamentals 
@@ -130,8 +128,9 @@ MPLSoGRE/UDP or VXLAN: are three different kind of overlay tunnels to carry traf
 To simplify the relation between contrail vrouter, contrail controller and the IP Fabric from the prospective of the Architecture prospective, let’s compare it to MPLS VPN model in any services provider  
 vrouter is like PE router and the VM/container is like CE but vrouter is just a slave of contrail controller. and when it comes to BMS the TOR would be the PE 
 
-image::https://user-images.githubusercontent.com/2038044/56851395-b1683080-68dc-11e9-84b0-f7fbfe00b1bc.png[]
 
+image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/chapter%201%20contrail%20arch.png[]
+Figure 1.5 Contrail architecture
 NOTE:	we will be using the words “compute node” and “host” interchangeably in this book.  Both would mean the entity will host the containers
 any container needs a compute node to host it. This host could be a BMS in your DC, or a VM (VM either in your DC or in public cloud).
 
@@ -160,5 +159,5 @@ From the prospective of data plan the vrouter would
 
 
 image::https://user-images.githubusercontent.com/2038044/56898486-2794a080-6a5f-11e9-9fd1-64d5275cbce3.png[]
-Figure 1.4 Docker and contrail vRouter
+Figure 1.5 Docker and contrail vRouter
 
