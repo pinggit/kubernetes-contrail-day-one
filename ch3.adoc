@@ -386,6 +386,7 @@ you can test this out by deleting one of the pod:
 
     $ kubectl delete pod myweb-5ggv6
     pod "myweb-5ggv6" deleted
+
     $ kubectl get pod
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5ggv6   0/1       Terminating   0          22m        #<---
@@ -400,6 +401,7 @@ you can test this out by deleting one of the pod:
     myweb-lbj89   1/1       Running       0          22m
 
 you can scale up/down replicas in rc.
+
     $ kubectl scale rc myweb --replica=5
     replicationcontroller/myweb scaled
     
@@ -420,10 +422,10 @@ you can scale up/down replicas in rc.
     myweb-q5gv4   1/1       Running       0          5s
 
 there are other benefits with RC. actually since this abstraction is so popular
-and heavily used in practice that, two very similar objects RS - ReplicaSet and
-Deploy - Deployment have been designed with more powerful features introduced. 
-roughly, you can call them "next generation of RC". let's stop exploring more
-RC features for now and move our focus to these 2 objects.
+and heavily used in practice that, two very similar objects `RS` - `ReplicaSet`
+and `Deploy` - `Deployment` have been designed with more powerful features
+introduced.  roughly, you can call them "next generation of RC". let's stop
+exploring more RC features for now and move our focus to these 2 objects.
 
 == ReplicaSet
 
@@ -539,7 +541,8 @@ yaml file of a deployment object:
     deployment.extensions/myweb created
 
     $ kubectl get deployment
-    deployment.apps/myweb            1    1        1  1    21s
+    NAME                   DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+    deployment.apps/myweb  1        1        1           1          21s
 
 the deployment is a relatively higher level of abstraction than RC and RS.
 deployment does not create a pod directly, the `describe` command reveals this:
