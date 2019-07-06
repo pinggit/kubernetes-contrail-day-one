@@ -1090,7 +1090,7 @@ this services
       ports:
       - targetPort: 80
         port: 80
-        nodePort: 32001 #<--(optional)
+        nodePort: 32001 #<--- (optional)
 
 [NOTE]
 ====
@@ -1673,41 +1673,15 @@ reporting a problem in an application that could be easily fixed with restarting
 the POD. liveness probes is a Kubernetes features made specially for that.
 liveness probes sent a pre-defined request to the POD on a regular basis then
 restart the POD if this request failed. The most commonly used liveness probe is
-HTTP GET request, but it could also be opening TCP socket or issuing a command 
+HTTP GET request, but it could also be opening TCP socket or issuing a command
 
-this is a TCP socket probe example where the “initialDelaySeconds” is the
-waiting time before the first try to open a TCP socket to port 80 then it will
+
+this is a HTTP GET request probe example where the “initialDelaySeconds” is the
+waiting time before the first try to HTTP GET request to port 80 then it will
 run the probe every 20 second as specified in “periodSeconds” If that failed the
-POD would be restarted automatically
-
-----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: liveness-pod
-  labels:
-    app: tcpsocket-test
-spec:
-  containers:
-    - name: liveness-pod
-      image: virtualhops/ato-ubuntu:latest
-      ports:
-        - containerPort: 80
-      securityContext:
-          privileged: true
-          capabilities:
-           add:
-             - NET_ADMIN
-      livenessProbe:
-        tcpSocket:
-          port: 80
-       initialDelaySeconds: 15
-       periodSeconds: 20
-----
- 
-HTTP GET request probe is similar to the TCP socket probes, but it will sent
-HTTP GET request, and you have the option to specify the path which in here just
-the main website. also you can send the probe with customized header 
+POD would be restarted automatically. you have the option to specify the path
+which in here just the main website. also you can send the probe with customized
+header 
 
 ----
 apiVersion: v1
@@ -1738,7 +1712,7 @@ spec:
         periodSeconds: 20
 ----
 
-let's launch this POD then login to it to terminate the proccess that handel the
+let's launch this POD then login to it to terminate the proccess that handle the
 httpGet 
 
 ----
@@ -1841,6 +1815,61 @@ Events:
   Normal   Started    3m35s (x2 over 5m50s)  kubelet, cent22    Started container
 ----
 
+This is a TCP socket probe example. TCP socket probe is similar to the HTTP GET
+request probes, but it will open TCP socket.
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+  labels:
+    app: tcpsocket-test
+spec:
+  containers:
+    - name: liveness-pod
+      image: virtualhops/ato-ubuntu:latest
+      ports:
+        - containerPort: 80
+      securityContext:
+          privileged: true
+          capabilities:
+           add:
+             - NET_ADMIN
+      livenessProbe:
+        tcpSocket:
+          port: 80
+       initialDelaySeconds: 15
+       periodSeconds: 20
+----
+
+command is like HTTP GET and TCP socket probes. But the probe will execute the
+command in the container.
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-pod
+  labels:
+    app: command-test
+spec:
+  containers:
+    - name: liveness-pod
+      image: k8s.gcr.io/busybox
+      args:
+      - /bin/sh
+      - -c
+      - touch /tmp/healthy; while true; do sleep 600;done; 
+      livenessProbe:
+        exec:
+          command:
+          - cat
+          - /tmp/healthy
+        initialDelaySeconds: 5
+        periodSeconds: 5
+----
+
 === Readiness Probe
 
 Liveness probe make sure that your POD is in good health, but for some
@@ -1888,6 +1917,23 @@ spec:
 NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
+
+Probes have a number of fields that you can use to more precisely control the behavior of liveness and readiness checks.
+1. initialDelaySeconds: Number of seconds after the container has started before liveness or readiness probes are initiated.
+2. periodSeconds: How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
+3. timeoutSeconds: Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1.
+4. successThreshold: Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to
+   1. Must be 1 for liveness. Minimum value is 1.
+5. failureThreshold: When a Pod starts and the probe fails, Kubernetes will try failureThreshold times before giving up.
+   Giving up in case of liveness probe means restarting the Pod. In case of readiness probe the Pod will be marked Unready. 
+   Defaults to 3. Minimum value is 1.
+
+HTTP probes have additional fields that can be set on httpGet.
+1. host: Host name to connect to, defaults to the pod IP. You probably want to set “Host” in httpHeaders instead.
+2. scheme: Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+3. path: Path to access on the HTTP server.
+4. httpHeaders: Custom headers to set in the request. HTTP allows repeated headers.
+5. port: Name or number of the port to access on the container. Number must be in the range 1 to 65535.
 
 
 == Annotation 
