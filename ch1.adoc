@@ -114,7 +114,7 @@ Contrail run in Logically centralized, physically distributed model as it has tw
 the Controller is the Control and management plane that Manages/configures the vrouter and Collects/presents analytics
 Contrail vrouter is the Forwarding plane that Provides Layer 2/3 services , Distributed firewall capabilities and  Implements policies between virtual networks  
 
-Contrail integrates with many orchestrator such as OpenStack , VMware , Kubernetes , OpenShift and Mesos and use multiple protocols to provide SDN to these orchestrators as shown in the diagram where 
+Contrail integrates with many orchestrator such as OpenStack , VMware , Kubernetes , OpenShift and Mesos and use multiple protocols to provide SDN to these orchestrators as shown in figure 1.4 where 
 
 XMPP : Extensible Messaging and Presence Protocol (XMPP) is an open XML technology for real-time communication defined in RFC 6120, in Contrail it offers two main functionality, distributing routing information and pushing configuration, which are similar to what IBGP do in MPLS VPNs model plus NETCONF in device management. XMPP is also used to exchange operational state, statistics, logs and events 
 
@@ -130,7 +130,8 @@ vrouter is like PE router and the VM/container is like CE but vrouter is just a 
 
 
 image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/chapter%201%20contrail%20arch.png[]
-Figure 1.5 Contrail architecture
+Figure 1.4 Contrail architecture
+
 NOTE:	we will be using the words “compute node” and “host” interchangeably in this book.  Both would mean the entity will host the containers
 any container needs a compute node to host it. This host could be a BMS in your DC, or a VM (VM either in your DC or in public cloud).
 

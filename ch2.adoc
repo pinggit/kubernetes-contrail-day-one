@@ -278,7 +278,7 @@ ones to execute the job. this is the scheduling procedure.
 the task with all of the details describing the task. 
 
 . "kubelet" process in the target node receives the task and talks to the
-container engine, for example the "docker engine" in this diagram, to spawn a
+container engine, for example the "docker engine" in figure 2.1, to spawn a
 container with all provided parameters.
 
 . This job and its specification will be recorded in a centralized database
@@ -290,7 +290,7 @@ directly.  you will work with some higher level objects which, hide most of the
 low level operation and details and present the task in a higher level and much
 simpler form. 
 
-for example, in this diagram when you give the task to spawn containers,
+for example, in figure 2.1 when you give the task to spawn containers,
 instead of saying:
 
 > "create two containers and make sure to spawn new ones if either one would
@@ -327,7 +327,7 @@ the "controller-manager" to conduct the task and dispatch to the target node.
 === kubernetes objects 
 
 Now you understand the role of 'master' and 'node' in a kubernetes cluster, and
-in a diagram you see how a basic workflow looks. now let's start to look at
+in figure 2.1 you see how a basic workflow looks. now let's start to look at
 more kubernetes "objects" in the kubernetes architecture.
 
 Kubernetes's objects represent: 
