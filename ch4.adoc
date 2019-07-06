@@ -4073,7 +4073,7 @@ the that host the POD , in our case “Cent22.local”
 
 image::https://user-images.githubusercontent.com/2038044/60268931-863d9580-98bb-11e9-9682-d330878fa386.png[]
 
-as shown in the diagram from the interface tab which is equivalent to running “
+as shown in the figure from the interface tab which is equivalent to running “
 vif -l” command on the vrouter_vrouter-agent-1 container and even showing more
 information notice the mapping between the instance ID and tap interface naming
 where the first 6 character of the instance ID are always reflected in the tap
