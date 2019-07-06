@@ -67,7 +67,7 @@ Kubernetes/contrail architecture and the object mapping
 A new components of contrail has been add called `contrail-Kube-manager` which
 would listen to API request sent from the Kubernetes API server and translate
 that to Contrail controller. on the compute node the contrail Vrouter would
-replace Kube-proxy as shown in the diagram:
+replace Kube-proxy as shown in the figure:
 
 .contrail kubernetes architecture
 
@@ -857,7 +857,7 @@ VM. similarly it will do the translation on reverse direction. Eventually both
 VM and Internet host can talk to each other, and both can initiate the
 communication.
 
-the diagram below illustrates the basic work flow of FIP:
+the figure below illustrates the basic work flow of FIP:
 
 .Floating IP
 //image::https://user-images.githubusercontent.com/2038044/60388331-be8cd180-9a7d-11e9-8ff7-c202ed9f7349.png[]
@@ -1162,7 +1162,7 @@ virtual-ip (`VIP`) as the frontend IP towards clients.
 .contrail neutron loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60641740-1f5c3700-9dfb-11e9-962f-ed67836d8115.png[]
 
-some highlights of this diagram:
+some highlights of this figure:
 
 * the LB is created with VIP `20.1.1.1`. for each layber 4 port that the LB is
   listening, a `LB listener` is created
@@ -1210,14 +1210,14 @@ about ingress will be discussed in later section.
 
 ==== contrail sevice loadbalancer
 
-let's use another diagram to illustrate service loadbalancer and the related
+let's use another figure to illustrate service loadbalancer and the related
 objects.
 
 .service loadbalancer
 //image::https://user-images.githubusercontent.com/2038044/60640833-0f425880-9df7-11e9-91e1-9b0830394aaa.png[]
 image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
 
-highlights in this diagram:
+highlights in this figure:
 
 * Each service is represented by a `loadbalancer` object. 
 * for each sevice port a `listener` object is created for the same service `loadbalancer`
@@ -1565,7 +1565,7 @@ targetPort in pod.
 ==== multiple port service
 
 we've understood the how the service layber 4 ECMP works and explored the LB
-objects in lab. remember in the diagram showing the LB and all relevant objects,
+objects in lab. remember in the figure showing the LB and all relevant objects,
 we showed that one LB may having 2 or more LB listeners. each listener has an
 individual backend pool which has one or multiple member(s). 
 
@@ -1951,7 +1951,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 * `gr-2/2/0.32771` represents the (MPLS over) GRE tunnel between node `cent222`
 and the gateway router.
 
-this diagram below illustrates the service workflow:
+this figure below illustrates the service workflow:
 
 .service workflow
 image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
@@ -3070,7 +3070,7 @@ problems in contrail kubernetes environment. the tools are:
 * shell script
 
 after this section you will get a clear picture about the "whole story". we'll
-then conclude the ingress section by a diagram showing the end to end flow.
+then conclude the ingress section by a figure showing the end to end flow.
 
 ==== Internet Host -> gateway router
 
@@ -3477,7 +3477,7 @@ the response follows the reverse path of the request:
 
 ==== the whole story
 
-this diagram visualizes the basic service request path:
+this figure visualizes the basic service request path:
 
 image::https://user-images.githubusercontent.com/2038044/60410376-09017180-9b96-11e9-927e-4cf1d98f2cef.png[]
 
@@ -3491,7 +3491,7 @@ and takes a long time to setup Dynamic service chaining is where network
 functions deployed as VM or Container and could be chained automatically in a
 logical way.  in the next example we use contrail for services chaining between
 two PODs in two different networking using CSRX container L4-L7 firewall to
-secure the traffic between these two networks as shown in the diagram 
+secure the traffic between these two networks as shown in the figure 
 
 .service chaining
 image::https://user-images.githubusercontent.com/2038044/60268925-85a4ff00-98bb-11e9-94c3-219d41038642.png[]
@@ -3591,7 +3591,7 @@ It’s a good practice to confirm these two networks are seen now in contrail
 before proceeding. 
 From the Contrail Controller module control node (http://10.85.188.16:8143 in
 our setup), select Configure > Networking > Networks > default-domain > k8s-default
-As shown in the diagram which focus on left network
+As shown in the figure which focus on left network
 
 NOTE: using namespace: default object in the YAML file for a network will create
 it n in domain “default-domain” and project “K8s-default”
@@ -3720,32 +3720,8 @@ Containers:
     Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
     Image:          csrx
     Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
-    Port:           22/TCP
-    Host Port:      0/TCP
-    State:          Running
-      Started:      Thu, 13 Jun 2019 03:40:46 -0400
-    Ready:          True
-    Restart Count:  0
-    Environment:    <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from default-token-m75c5 (ro)
-Conditions:
-  Type              Status
-  Initialized       True 
-  Ready             True 
-  ContainersReady   True 
-  PodScheduled      True 
-Volumes:
-  default-token-m75c5:
-    Type:        Secret (a volume populated by a Secret)
-    SecretName:  default-token-m75c5
-    Optional:    false
-QoS Class:       BestEffort
-Node-Selectors:  <none>
-Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
-                 node.kubernetes.io/unreachable:NoExecute for 300s
-Events:          <none>
 
+...<snipped>...
 
 Name:               left-ubuntu-sc
 Namespace:          default
@@ -3775,32 +3751,8 @@ Containers:
     Container ID:   docker://2f9a22568d844c68a1c4a45de4a81478958233052e08d4473742827482b244cd
     Image:          virtualhops/ato-ubuntu:latest
     Image ID:       docker-pullable://virtualhops/ato-ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
-    Port:           <none>
-    Host Port:      <none>
-    State:          Running
-      Started:      Thu, 13 Jun 2019 03:40:27 -0400
-    Ready:          True
-    Restart Count:  0
-    Environment:    <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from default-token-m75c5 (ro)
-Conditions:
-  Type              Status
-  Initialized       True 
-  Ready             True 
-  ContainersReady   True 
-  PodScheduled      True 
-Volumes:
-  default-token-m75c5:
-    Type:        Secret (a volume populated by a Secret)
-    SecretName:  default-token-m75c5
-    Optional:    false
-QoS Class:       BestEffort
-Node-Selectors:  <none>
-Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
-                 node.kubernetes.io/unreachable:NoExecute for 300s
-Events:          <none>
-
+   
+...<snipped>...
 
 Name:               right-ubuntu-sc
 Namespace:          default
@@ -3830,31 +3782,8 @@ Containers:
     Container ID:   docker://4e0b6fa085905be984517a11c3774517d01f481fa43aadd76a633ef15c58cbfe
     Image:          virtualhops/ato-ubuntu:latest
     Image ID:       docker-pullable://virtualhops/ato-ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
-    Port:           <none>
-    Host Port:      <none>
-    State:          Running
-      Started:      Thu, 13 Jun 2019 04:09:25 -0400
-    Ready:          True
-    Restart Count:  0
-    Environment:    <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from default-token-m75c5 (ro)
-Conditions:
-  Type              Status
-  Initialized       True 
-  Ready             True 
-  ContainersReady   True 
-  PodScheduled      True 
-Volumes:
-  default-token-m75c5:
-    Type:        Secret (a volume populated by a Secret)
-    SecretName:  default-token-m75c5
-    Optional:    false
-QoS Class:       BestEffort
-Node-Selectors:  <none>
-Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
-                 node.kubernetes.io/unreachable:NoExecute for 300s
-Events:          <none>
+  
+ ...<snipped>...
 ----
 
 NOTE: each container has one interface belong to “cluster-wide-default” network
@@ -4008,26 +3937,7 @@ Flags: P=Policy, X=Cross Connect, S=Service Chain, Mr=Receive Mirror
        Uuf=Unknown Unicast Flood, Vof=VLAN insert/strip offload, Df=Drop New Flows, L=MAC Learning Enabled
        Proxy=MAC Requests Proxied Always, Er=Etree Root, Mn=Mirror without Vlan Tag, Ig=Igmp Trap Enabled
 
-vif0/0      OS: ens160 (Speed 10000, Duplex 1)
-            Type:Physical HWaddr:00:50:56:9e:bb:98 IPaddr:0.0.0.0
-            Vrf:0 Mcast Vrf:65535 Flags:TcL3L2VpEr QOS:-1 Ref:7
-            RX packets:896021  bytes:291885987 errors:0
-            TX packets:885150  bytes:851902554 errors:0
-            Drops:20
-
-vif0/1      OS: vhost0
-            Type:Host HWaddr:00:50:56:9e:bb:98 IPaddr:10.85.188.17
-            Vrf:0 Mcast Vrf:65535 Flags:PL3DEr QOS:-1 Ref:8
-            RX packets:883626  bytes:851837334 errors:0
-            TX packets:912984  bytes:292597411 errors:0
-            Drops:17
-
-vif0/2      OS: pkt0
-            Type:Agent HWaddr:00:00:5e:00:01:00 IPaddr:0.0.0.0
-            Vrf:65535 Mcast Vrf:65535 Flags:L3Er QOS:-1 Ref:3
-            RX packets:151865  bytes:13060426 errors:0
-            TX packets:465234  bytes:52562395 errors:0
-            Drops:0
+...<snipped>...
 
 vif0/3      OS: tapeth0-89a4e2
             Type:Virtual HWaddr:00:00:5e:00:01:00 IPaddr:10.47.255.252
@@ -4078,19 +3988,8 @@ vif0/9      OS: tapeth2-844f1c
             TX packets:31321  bytes:1635153 errors:0
             Drops:10421
 
-vif0/4350   OS: pkt3
-            Type:Stats HWaddr:00:00:00:00:00:00 IPaddr:0.0.0.0
-            Vrf:65535 Mcast Vrf:65535 Flags:L3L2 QOS:0 Ref:1
-            RX packets:0  bytes:0 errors:0
-            TX packets:0  bytes:0 errors:0
-            Drops:0
+...<snipped>...
 
-vif0/4351   OS: pkt1
-            Type:Stats HWaddr:00:00:00:00:00:00 IPaddr:0.0.0.0
-            Vrf:65535 Mcast Vrf:65535 Flags:L3L2 QOS:0 Ref:1
-            RX packets:8  bytes:552 errors:0
-            TX packets:8  bytes:552 errors:0
-            Drops:0
 ----
 
 Note that Vif0/3 and Vif0/4 are bounded with the right POD and both linked to
@@ -4099,7 +3998,7 @@ Vif0/5 and vif0/6 while vif0/7, vif 0/8 and vif0/9 are bound with CSRX1.| from
 that you can also see the number of packets/bytes hits that interface as well
 the VRF which is this interface belong in here VRF 3 is for the
 default-cluster-network while VRF 6 for the left network and VRF 5 for the right
-network in this diagram you can see the interface mapping from the all
+network in this figure you can see the interface mapping from the all
 prospective (container, Linux , vr-agent) 
 
 image::https://user-images.githubusercontent.com/2038044/60268930-863d9580-98bb-11e9-9dc3-b0c5598ff528.png[]
