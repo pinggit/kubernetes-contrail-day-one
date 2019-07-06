@@ -1092,6 +1092,20 @@ a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
 we'll have a detail demonstration about how loadbalancer service works in
 contrail kubernetes environment in chapter 4.
 
+=== externalIP
+
+Exposing service outside of the cluster can also be achieved via 'externalIP'
+In the Service spec, externalIPs can be specified along with any of the
+ServiceTypes. externalIPs are not managed by Kubernetes and are the responsibility
+of the cluster administrator. 
+
+=== kube-proxy
+
+By default kubernetes uses kube-proxy for services. kube-proxy can be deployed in
+user-space proxy-mode, iptables proxy-mode and ipvs. when the traffic hits the node,
+it would be forwarded to one of the back end pod via a depolyed kube-proxy forwarding
+plane. Also cni providers can have there own implementaions for services.
+
 
 == endpoint
 
