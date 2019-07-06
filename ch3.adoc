@@ -106,17 +106,11 @@ Error from server (AlreadyExists): error when creating "webserver1.yaml": pods "
 ----
 
 this is a very common scenario in many today's network platforms - an object
-name has to be unique in the same "scope":
+name has to be unique in the same "scope", and the solution is to support
+multiple scopes or namespaces, respectively:
 
-* IP prefix in a router
-* virtual network in openstack cluster
-* a variable name in a program
-
-and the solution is to support multiple scopes or namespaces, respectively:
-
-* VRF
-* project/tenant
-* function/class
+* IP prefix in a router - VRF provides multiple scopes for prefix
+* VN in openstack cluster - project/tenant provides multiple scopes for VN
 
 the solution in k8s is just called 'Namespaces', or 'NS' for short, which
 provides a scope for names. Names of resources need to be unique within a

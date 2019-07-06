@@ -508,8 +508,8 @@ image::https://user-images.githubusercontent.com/2038044/60283772-f78b4180-98d7-
 .CC
 contrail command (CC) is the new user interface (UI) coming with the
 contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
-most of lab studies. in the future CC will be the only UI and the "legacy" one
-will be deprecated. 
+most of lab studies. just keep in mind that in the future CC will be the only UI
+and the "legacy" one will be deprecated. 
 
 .CC "main-menu":
 in CC, the functions and settings are groups in a a "main menu". it is also the
@@ -679,6 +679,7 @@ contrail/openstack project, a prefix `k8s-` will be added to the k8s ns project
 name. so if you create a kubernetes NS `ns-user-1`, what you will see in
 contrail GUI will be: `k8s-ns-user-1`:
 
+.contrail command: projects
 image::https://user-images.githubusercontent.com/2038044/60316467-8fb91300-9938-11e9-9de6-429b56429868.png[]
 
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
@@ -887,10 +888,11 @@ sections you will learn more details about how kubernetes `service` and
 
 === creating FIP pool
 
-creating a FIP pool is a 2 step process:
+creating a FIP pool is a 3 steps process:
 
-* create a public VN, set `RT` (route-target) for the VN so it can be advertised
-  and imported into the gateway router's VRF.
+* create a public VN, 
+* set `RT` (route-target) for the VN so it can be advertised and imported into
+  the gateway router's VRF.
 * create a FIP pool based on the public VN
 
 again this is nothing new but the same steps as with other contrail environment
@@ -1150,8 +1152,8 @@ supported:
 
 in contrail all services is implemented by contrail's `loadbalancer` (`LB`).
 before we dive into the details of a service loadbalancer, it will be good to
-review the legacy neutron based loadbalancer concept in contrail.  we'll
-sometimes also refer `loadbalancer` as `LB`.
+review the legacy neutron based loadbalancer concept in contrail. for brevity
+we'll sometimes also refer `loadbalancer` as `LB`.
 
 contrail LB is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
@@ -1177,6 +1179,8 @@ some highlights of this diagram:
   backend VM and deliver the response to the original TCP connection towards the
   client.
 
+.what is "proxy"
+
 the implementation uses open sourced haproxy to do the "proxy" job, which is
 typically an application layer forwarding. a proxy sitting between machine A and
 B, works at the application layer so it is "aware of" the application layer
@@ -1199,14 +1203,9 @@ cost multiple path" (ECMP) loadbalancer working in layer 4. this is the primary
 difference comparing with the "proxy" mode that the old neutron loadbalancer
 type does.
 
-NOTE: the loadbalancer object comes with a "LB provider" type property. for
-service implementation a new "LB provider" type called "native" is implemented.
-detail discussions of the LB and all surrounding objects are out of the scope of
-this book.
-
 NOTE: ingress, on the other hand, is conceptually even closer with the old
-loadbalancer in the sense that both are layer 4 to layer 7 "proxy" based. more
-about ingress will be discussed in later section.
+neutron loadbalancer in the sense that both are layer 4 to layer 7 "proxy"
+based. more about ingress will be discussed in later section.
 
 ==== contrail sevice loadbalancer
 
@@ -1220,24 +1219,40 @@ image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-
 highlights in this diagram:
 
 * Each service is represented by a `loadbalancer` object. 
+* the loadbalancer object comes with a `loadbalancer_provider` property. for
+  service implementation a new `loadbalancer_provider` type called `native` is
+  implemented.  
 * for each sevice port a `listener` object is created for the same service `loadbalancer`
 * for each `listener` there will be a `pool` object
 * the `pool` contains `members`, depending on number of backend pod one pool may
   has multiple `members`
-* each backend pod will be added as a member for the pool. 
-* `contrail-kube-manager` listen for any changes based on kubernetes `service`
-  and `pod` label mapping to update the member list.
-* `loadbalancer` will have a `instance-ip`, which is a `service IP`. it is also
-  a LB's "virtual IP"(`VIP`) 
-* The `instance-ip`/`service-ip`/`VIP` will be linked to each backend pod's interface
-* the linkage from service-ip to a backend pod interface creates an ECMP
+* each member object in the pool will map to one of pod backend
+* `contrail-kube-manager` listens `kube-apiserver` for any changes, based on
+  kubernetes `service` and `pod` label mapping it will knows the most current
+  backend pods, and update them as members in the pool .
+* `loadbalancer` will have a "virtual IP" `VIP`, which is same as the `service
+  IP` 
+* The `service-ip`/`VIP` will be linked to each backend pod's interface
+* the linkage from service-ip to multiple backend pods interface creates an ECMP
   next-hop in contrail, traffic will be loadbalanced from the source pod towards
-  one of the backend pod directly.
+  one of the backend pod directly. later we'll show the ECMP prefix in the pod's
+  VRF table
 
-    <show vrf routing table from client>
+the most important thing to understand in this diagram, as we've mentioned, is
+that in contrast to the legancy neutron loadbalancer, and also the ingress
+loadbalancer which we'll discussed later, there is no application layer "proxy"
+in this process. contrail service implementation is based on layer 4 ECMP based
+loadbalancing. 
 
-the important fact as we've mentioned, service is layer 4 based loadbalancing on
-ECMP. there is no application layer "proxy" in this process.
+////
+detail discussions of the LB and all surrounding objects are out
+of the scope of this book.
+////
+
+NOTE: technically, the LB has `VIP` only, but it also has a reference toward VMI
+object which again has a reference to the `instance-ip`. the `instance-ip` is
+the same IP as `service-ip`. to avoid confusions we won't cover these level of
+implementation details in this book.
 
 ////
 # k8s-5.md
@@ -1276,6 +1291,173 @@ default the clusterIP is not reachable from external.
 
 ////
 
+==== the service loadbalancer objects
+
+we've talked a lot about it the contrail "loadbalancer object" and you may
+wonder what it looks like. now we'll dig a little big deeper to look at the
+loadbalancers and the supporting objects: listener, pool, members.
+
+in contrail setup you can pull the object data either from contrail UI, CLI
+(`curl`) or third party UI tools based on restapi. in production depending on
+which one is available and handy you can select your favorite. with curl you
+just need a FQDN of the URL pointing to the object, e.g.: to find the
+loadbalancer object URL for the service `service-web-clusterip` from all
+loadbalancers list:
+
+----
+$ curl http://10.85.188.19:8082/loadbalancers | python -mjson.tool | grep -C4 web
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   984  100   984    0     0   163k      0 --:--:-- --:--:-- --:--:--  192k
+        {
+            "fq_name": [
+                "default-domain",
+                "k8s-ns-user-1",
+                "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
+            ],
+            "href": "http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc",
+            "uuid": "99fe8ce7-9e75-11e9-b485-0050569e6cfc"
+        },
+----
+
+with the loadbalancer URL, you can pull the specific LB object details:
+
+----
+curl http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc | python -mjson.tool
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  2439  100  2439    0     0   517k      0 --:--:-- --:--:-- --:--:--  595k
+{
+    "loadbalancer": {
+        "annotations": {
+            "key_value_pair": [
+                {
+                    "key": "namespace",
+                    "value": "ns-user-1"
+                },
+                {
+                    "key": "cluster",
+                    "value": "k8s"
+                },
+                {
+                    "key": "kind",
+                    "value": "Service"
+                },
+                {
+                    "key": "project",
+                    "value": "k8s-ns-user-1"
+                },
+                {
+                    "key": "name",
+                    "value": "service-web-clusterip"
+                },
+                {
+                    "key": "owner",
+                    "value": "k8s"
+                }
+            ]
+        },
+        "display_name": "ns-user-1__service-web-clusterip",
+        "fq_name": [
+            "default-domain",
+            "k8s-ns-user-1",
+            "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
+        ],
+        "href": "http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc",
+        "id_perms": {
+            ...<snipped>...
+        },
+        "loadbalancer_listener_back_refs": [    #<---
+            {
+                "attr": null,
+                "href": "http://10.85.188.19:8082/loadbalancer-listener/3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67",
+                "to": [
+                    "default-domain",
+                    "k8s-ns-user-1",
+                    "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc-TCP-8888-3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67"
+                ],
+                "uuid": "3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67"
+            }
+        ],
+        "loadbalancer_properties": {
+            "admin_state": true,
+            "operating_status": "ONLINE",
+            "provisioning_status": "ACTIVE",
+            "status": null,
+            "vip_address": "10.105.139.153",    #<---
+            "vip_subnet_id": null
+        },
+        "loadbalancer_provider": "native",      #<---
+        "name": "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc",
+        "parent_href": "http://10.85.188.19:8082/project/86bf8810-ad4d-45d1-aa6b-15c74d5f7809",
+        "parent_type": "project",
+        "parent_uuid": "86bf8810-ad4d-45d1-aa6b-15c74d5f7809",
+        "perms2": {
+            ...<snipped>...
+        },
+        "service_appliance_set_refs": [
+            ...<snipped>...
+        ],
+        "uuid": "99fe8ce7-9e75-11e9-b485-0050569e6cfc",
+        "virtual_machine_interface_refs": [
+            {
+                "attr": null,
+                "href": "http://10.85.188.19:8082/virtual-machine-interface/8d64176c-9fc7-491a-a44d-430e187d6b52",
+                "to": [
+                    "default-domain",
+                    "k8s-ns-user-1",
+                    "k8s__Service__service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
+                ],
+                "uuid": "8d64176c-9fc7-491a-a44d-430e187d6b52"
+            }
+        ]
+    }
+}
+----
+
+the output is very extensive and includes a whole buntch of details that is not
+of our interests at this moment. but it does tell something interesting:
+
+* LB use service IP as its VIP
+* LB is connected to a listener by a reference
+* `loadbalancer_provider` is `native`, this is a new extension to implement
+  layer 4 ECMP for kubernetes service, different than the neutron LB
+  implemented by haproxy
+
+in the rest part of the exploration to LB and its related objects, we'll use the
+legacy contrail UI, the same is also supported in the new contrail command UI
+
+for each service there is a LB object, in the below capture it shows 2 LB objects
+indicating 2 services were created
+
+.loadbalancer objects
+image::https://user-images.githubusercontent.com/2038044/60685179-a0edac80-9e6f-11e9-98c1-e2db001df543.png[]
+
+expand the first LB and click on `advanced json view` icon on the right, you
+will see the same output as what you've seen in `curl` capture
+
+.loadbalancer
+image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
+
+
+click on the LB name and select "listener", then expand it and click on
+`advanced json view` icon on the right, you will get the listener details. the
+listener is listening on service port 8888, and it is referenced by a `pool`.
+
+.listener:
+image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
+
+just repeat the exploring process we will get down to the pool and two
+`members`. the member is with a port of `80`, which maps to the container
+targetPort in pod.
+
+.pool:
+image::https://user-images.githubusercontent.com/2038044/60685626-15c1e600-9e72-11e9-8539-a24ea28b0bf3.png[]
+
+.members:
+image::https://user-images.githubusercontent.com/2038044/60685682-6fc2ab80-9e72-11e9-804d-5eccd8e055df.png[]
+
 === service testbed
 
 our testbed composes of:
@@ -1290,9 +1472,10 @@ the digaram is here:
 
 image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
+
 NOTE: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
-server.
+server. this is also the same testbed for ingress.
 
 === service: clusterIP
 
@@ -1384,183 +1567,17 @@ vif0/8      OS: tapeth0-304431
             Drops:455
 ----
 
-to highlight the important facts from this capture:
+some important information to highlight from this capture:
 
 * NHID 87 is an "ECMP composite nexthop"
 * the ECMP nexthop contains 2 "sub" nexthops: nexthop 51 and nexthop 37, each representing a
   seperate path towards the backend pods
-* nexthop 51 represents a MPLSoUDP tunnel, from current node `cent222`, without
-  source IP beging local fabric IP `10.169.25.20`, to the other node `cent333`
+* nexthop 51 represents a MPLSoUDP tunnel, from current node `cent222`, with
+  source IP being local fabric IP `10.169.25.20`, to the other node `cent333`
   whose fabric IP is `10.169.25.21`. if you recall where our two backend pods
   are located, this is the path to the "remote" node.
 * nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
   local backend pod's interface. the `vif --get 8` proves this.
-
-==== the service loadbalancer objects
-
-we've talked a lot about it the contrail "loadbalancer object" and you may
-wonder what it looks like. now we'll dig a little big deeper to look at the
-loadbalancers and the supporting objects: listener, pool, members.
-
-in contrail setup you can pull the object data either from contrail UI, CLI
-(`curl`) or third party UI tools based on restapi. in production depending on
-which one is available and handy you can select your favorite. with curl you
-just need a FQDN of the URL pointing to the object, e.g.: to find the
-loadbalancer object URL for the service `service-web-clusterip` from all
-loadbalancers list:
-
-----
-$ curl http://10.85.188.19:8082/loadbalancers | python -mjson.tool | grep -C4 web
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   984  100   984    0     0   163k      0 --:--:-- --:--:-- --:--:--  192k
-        {
-            "fq_name": [
-                "default-domain",
-                "k8s-ns-user-1",
-                "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
-            ],
-            "href": "http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc",
-            "uuid": "99fe8ce7-9e75-11e9-b485-0050569e6cfc"
-        },
-----
-
-with that URL, you can pull the specific LB object details:
-
-----
-curl http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc | python -mjson.tool
-
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  2439  100  2439    0     0   517k      0 --:--:-- --:--:-- --:--:--  595k
-{
-    "loadbalancer": {
-        "annotations": {
-            "key_value_pair": [
-                {
-                    "key": "namespace",
-                    "value": "ns-user-1"
-                },
-                {
-                    "key": "cluster",
-                    "value": "k8s"
-                },
-                {
-                    "key": "kind",
-                    "value": "Service"
-                },
-                {
-                    "key": "project",
-                    "value": "k8s-ns-user-1"
-                },
-                {
-                    "key": "name",
-                    "value": "service-web-clusterip"
-                },
-                {
-                    "key": "owner",
-                    "value": "k8s"
-                }
-            ]
-        },
-        "display_name": "ns-user-1__service-web-clusterip",
-        "fq_name": [
-            "default-domain",
-            "k8s-ns-user-1",
-            "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
-        ],
-        "href": "http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc",
-        "id_perms": {
-            ......
-        },
-        "loadbalancer_listener_back_refs": [    #<---
-            {
-                "attr": null,
-                "href": "http://10.85.188.19:8082/loadbalancer-listener/3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67",
-                "to": [
-                    "default-domain",
-                    "k8s-ns-user-1",
-                    "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc-TCP-8888-3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67"
-                ],
-                "uuid": "3702fa49-f1ca-4bbb-87d4-22e1a0dc7e67"
-            }
-        ],
-        "loadbalancer_properties": {
-            "admin_state": true,
-            "operating_status": "ONLINE",
-            "provisioning_status": "ACTIVE",
-            "status": null,
-            "vip_address": "10.105.139.153",
-            "vip_subnet_id": null
-        },
-        "loadbalancer_provider": "native",      #<---
-        "name": "service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc",
-        "parent_href": "http://10.85.188.19:8082/project/86bf8810-ad4d-45d1-aa6b-15c74d5f7809",
-        "parent_type": "project",
-        "parent_uuid": "86bf8810-ad4d-45d1-aa6b-15c74d5f7809",
-        "perms2": {
-            ......
-        },
-        "service_appliance_set_refs": [
-            ......
-        ],
-        "uuid": "99fe8ce7-9e75-11e9-b485-0050569e6cfc",
-        "virtual_machine_interface_refs": [
-            {
-                "attr": null,
-                "href": "http://10.85.188.19:8082/virtual-machine-interface/8d64176c-9fc7-491a-a44d-430e187d6b52",
-                "to": [
-                    "default-domain",
-                    "k8s-ns-user-1",
-                    "k8s__Service__service-web-clusterip__99fe8ce7-9e75-11e9-b485-0050569e6cfc"
-                ],
-                "uuid": "8d64176c-9fc7-491a-a44d-430e187d6b52"
-            }
-        ]
-    }
-}
-----
-
-the output is very extensive and includes a whole buntch of details that is not
-of our interests at this moment. but it does tell something interesting:
-
-* LB use service IP as its VIP
-* LB is connected to a listener by a reference
-* "loadbalancer_provider" is "native", this is a new extension to implement
-  layber 4 ECMP for kubernetes service, different than the neutron LB
-  implemented by haproxy
-
-in the rest part of the LB objects exploration, we'll use the legacy contrail
-UI, the same method is also supported in contrail command which is the new UI.
-
-.loadbalancer objects
-image::https://user-images.githubusercontent.com/2038044/60685179-a0edac80-9e6f-11e9-98c1-e2db001df543.png[]
-
-for each service there is a LB object, in this capture it shows 2 LB objects
-indicating 2 services were created
-
-.loadbalancer
-image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
-
-expand the first LB and click on `advanced json view` icon on the right, you
-will see the same output as what you've seen in `curl` capture
-
-.listener:
-image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
-
-click on the LB name, then select "listener", then expand it and click on
-`advanced json view` icon on the right, you will get the listener details. the
-listener is listening on service port 8888, and it is referenced by a `pool`.
-
-.pool:
-image::https://user-images.githubusercontent.com/2038044/60685626-15c1e600-9e72-11e9-8539-a24ea28b0bf3.png[]
-
-.members:
-image::https://user-images.githubusercontent.com/2038044/60685682-6fc2ab80-9e72-11e9-804d-5eccd8e055df.png[]
-
-just repeat the exploring process we will get down to the pool and two
-`members`. the member is with a port of `80`, which maps to the container
-targetPort in pod.
 
 ==== multiple port service
 
