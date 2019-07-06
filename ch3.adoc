@@ -1669,7 +1669,6 @@ Spec:
   Policy Types: Ingress, Egress
 ----
 
-
 == livenessProbe and readinessProbe
 
 === Liveness Probe
@@ -1700,17 +1699,17 @@ spec:
     - name: liveness-pod
       image: virtualhops/ato-ubuntu:latest
       ports:
-        containerPort: 80
+        - containerPort: 80
       securityContext:
           privileged: true
           capabilities:
            add:
              - NET_ADMIN
-    livenessProbe:
-      tcpSocket:
-        port: 80
-      initialDelaySeconds: 15
-      periodSeconds: 20
+      livenessProbe:
+        tcpSocket:
+          port: 80
+       initialDelaySeconds: 15
+       periodSeconds: 20
 ----
  
 HTTP GET request probe is similar to the TCP socket probes, but it will sent
@@ -1863,35 +1862,40 @@ liveness prob
 apiVersion: v1
 kind: Pod
 metadata:
-  name: liveness-pod
+  name: liveness-readiness
   labels:
     app: tcpsocket-test
 spec:
   containers:
-    - name: liveness-pod
+    - name: liveness-readiness-pod
       image: virtualhops/ato-ubuntu:latest
       ports:
-        containerPort: 80
+       - containerPort: 80
       securityContext:
           privileged: true
           capabilities:
            add:
              - NET_ADMIN
-    livenessProbe:
-      tcpSocket:
-        port: 80
-      initialDelaySeconds: 15
-      periodSeconds: 20
-    readinessProbe:
-      tcpSocket:
-        port: 80
-      initialDelaySeconds: 5
-      periodSeconds: 10
+      livenessProbe:
+        httpGet:
+           path: /
+           port: 80
+           httpHeaders:
+           - name: some-header
+             value: Running
+        initialDelaySeconds: 15
+        periodSeconds: 20
+      readinessProbe:
+        tcpSocket:
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 10
 ----
 
 NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
+
 
 == Annotation 
 
