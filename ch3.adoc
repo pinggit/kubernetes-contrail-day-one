@@ -8,6 +8,7 @@
 :highlightjs-theme: googlecode
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
+:numbered:
 
 This chapter introduces some of the fundamental objects and features of
 kubernetes.
@@ -1084,7 +1085,7 @@ we'll have a detail demonstration about how loadbalancer service works in
 contrail kubernetes environment in chapter 4.
 
 
-== endpoint(yuva moved to after service)
+== endpoint
 
 in our 'service' introduction, there is one object that is involved but we
 haven't explored much yet - the endpoint. we've learned it is through label
@@ -1593,7 +1594,10 @@ spec:
         initialDelaySeconds: 15
         periodSeconds: 20
 ----
-let's launch this POD then login to it to terminate the proccess that handel the httpGet 
+
+let's launch this POD then login to it to terminate the proccess that handel the
+httpGet 
+
 ----
 [root@cent11 ~]# kubectl get pod
 NAME           READY   STATUS    RESTARTS   AGE
@@ -1622,7 +1626,12 @@ tcp6       0      0 :::22                   :::*                    LISTEN      
 NAME           READY   STATUS    RESTARTS   AGE
 liveness-pod   1/1     Running   1          5m33s
 ----
-you can see the POD got restarted automatically and in the event it stated the reason for that restart " Killing container with id docker://liveness-pod:Container failed liveness probe.. Container will be killed and recreated."" 
+
+you can see the POD got restarted automatically and in the event it stated the
+reason for that restart :
+
+    Killing container with id docker://liveness-pod:Container failed liveness probe.. Container will be killed and recreated. 
+
 ----
 [root@cent11 ~]# kubectl describe pod liveness-pod
 Name:               liveness-pod
@@ -1687,8 +1696,6 @@ Events:
   Normal   Pulled     3m35s (x2 over 5m50s)  kubelet, cent22    Successfully pulled image "virtualhops/ato-ubuntu:latest"
   Normal   Created    3m35s (x2 over 5m50s)  kubelet, cent22    Created container
   Normal   Started    3m35s (x2 over 5m50s)  kubelet, cent22    Started container
-  
-  
 ----
 
 === Readiness Probe
@@ -1789,11 +1796,15 @@ Note: According to De-facto Kubernetes Network custom resource definition
 the annotation "k8s.v1.cni.cncf.io/networks” is used to represent “
 NetworkAttachmentDefinition” and has two format
 
-    1- Network  
-           k8s.v1.cni.cncf.io/networks: net-a
+----
+Network  
+   k8s.v1.cni.cncf.io/networks: net-a
+----
 
-    2-Namespace/network name
-           k8s.v1.cni.cncf.io/networks: ns/net-a
+----
+Namespace/network name
+   k8s.v1.cni.cncf.io/networks: ns/net-a
+----
 
 NOTE: To maintain compatibility with existing Kubernetes deployments, All pods
 must still be attached to the cluster-wide default network. which means even if
@@ -1801,7 +1812,4 @@ we attached one POD interface to a specific network, this POD would have two
 interfaces one attached to the cluster-wide default network and the other
 interface is attached to the network specified in the annotation argument (net-a
 in this case) 
-
-
-
 
