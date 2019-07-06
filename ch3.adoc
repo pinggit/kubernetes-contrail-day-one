@@ -868,7 +868,7 @@ so let’s understand different type of services:
 * NodePort
 * LoadBalancer
 
-=== clusterIP service
+=== ClusterIP
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
 the `ServiceType` is not given. the kubernetes official website gives this
@@ -1060,7 +1060,7 @@ kind: Service
 metadata:
   name: service-web-clusterip
 spec:
-  clusterIP: 10.101.150.150
+  clusterIP: 10.101.150.150 #<---
   ports:
   - port: 8888
     targetPort: 80
@@ -1096,7 +1096,7 @@ this services
       ports:
       - targetPort: 80
         port: 80
-        nodePort: 32001 <--(optional)
+        nodePort: 32001 #<--(optional)
 
 [NOTE]
 ====
@@ -1223,7 +1223,6 @@ plane. Also cni providers can have there own implementaions for services.
 
 == Endpoints
 
-=== Service with SELECTOT
 in our 'service' introduction, there is one object that is involved but we
 haven't explored is 'EP - endpoint'. we've learned it is through label selector
 that a particular pod or group of pods with matching labels are choosen to be
@@ -1280,7 +1279,7 @@ $ kubectl get pod -o wide -l 'app=webserver'
 NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
 rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
 rc-webserver-45skv  1/1    Running  0         5s     10.47.255.251  cent222  <none>         app=webserver
-rc-webserver-m2cp5  1/1    Running  0         5s     10.47.255.250  cent333  <none>         app=webserver
+rc-webserver-m2cp5  1/1    Running  0         5s     10.47.255.250  cent111  <none>         app=webserver
 ----
 
 ----
