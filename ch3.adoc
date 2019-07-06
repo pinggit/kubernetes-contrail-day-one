@@ -1030,8 +1030,8 @@ Now we can test that by send CURL -i which is a http request using the CLI towar
 
     [root@cent11 ~]# kubectl get pod -o wide
     
-    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE     NOMINATED NODE
-    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent22   <none>
+    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent222   <none>
 
     [root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
   InternalIP:  10.85.188.17
@@ -1110,15 +1110,14 @@ plane. Also cni providers can have there own implementaions for services.
 == endpoint
 
 in our 'service' introduction, there is one object that is involved but we
-haven't explored much yet - the endpoint. we've learned it is through label
-selector a particular pod, or more typically, a group of pods with matching
-labels are choosen to be the backend, so that the service request traffic will
-be redirected to them. The IP and port information of the "matching" pods are
-maintained in the 'endpoint' object ('EP' for abbr.). The pods may die and spawn
-anytime, the "mortal" nature of the pod will most possibly make the new pods be
-respawned with new IP address. during this dynamic process the 'endpoint' object
-will always be updated accordingly to reflect the current backend pod IPs, so
-the service traffic redirection will act properly. 
+haven't explored is 'EP - endpoint'. we've learned it is through label selector
+that a particular pod or group of pods with matching labels are choosen to be
+the backend, so that the service request traffic will be redirected to them.
+The IP and port information of the "matching" pods are maintained in the 'endpoint'
+object.  The pods may die and spawn anytime, the "mortal" nature of the pod will
+most possibly make the new pods be respawned with new IP address. during this dynamic
+process the 'endpoints' will always be updated accordingly to reflect the current
+backend pod IPs, so the service traffic redirection will act properly. 
 
 here is an example to demonstrate some quick steps to verify the service,
 corresponding endpoint and the pod with matching labels
@@ -1155,6 +1154,26 @@ NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOM
 rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
 ----
 
+scale the backend pods
+
+----
+$ kubectl scale rc webserver --replicas=3
+----
+
+----
+$ kubectl get pod -o wide -l 'app=webserver'
+NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
+rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
+rc-webserver-45skv  1/1    Running  0         5s     10.47.255.251  cent222  <none>         app=webserver
+rc-webserver-m2cp5  1/1    Running  0         5s     10.47.255.250  cent333  <none>         app=webserver
+----
+
+----
+$ kubectl get ep
+NAME             ENDPOINTS                                            AGE
+service-web-lb   10.47.255.250:80,10.47.255.251:80,10.47.255.252:80   5d17h
+----
+
 ////
 
 === service with no selector
@@ -1162,16 +1181,16 @@ rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <no
 in the preceding example, the 'endpoint' object is generated automatically by
 the kubernetes system whenever a service is created, and at least one pod with
 matching label exists. Another usage case of endpoint, is for a service that has
-no label selector defined. in that case you can explicitly create an 'endpoint',
-and by using the same endpoint name with the service object name, you can
-connect the endpoint with the service. this can be very useful in some
+no label selector defined. in that case you can manually map the service to the
+network address and port where it’s running, by adding an endpoint object manually
+and you can connect the endpoint with the service. this can be very useful in some
 scenarios. for example, in your setup you have a backend web server running in a
-physical server, or a virtual machine, and even though not running as a
-container in a kubernetes pod, you still want to integrate it into a kubernetes
-'service'. you just create the service as usual, and then create an endpoint
-with an 'address' and 'port' pointing to the web server. that's it! the
-'service' does not care about if the backend is pod or VM, it just redirect the
-service request traffic exactly the same way as if all backend is pod.
+physical server, or a virtual machine, and even though not running as a container
+in a kubernetes pod, you still want to integrate it into a kubernetes 'service'.
+you just create the service as usual, and then create an endpoint with an
+'address' and 'port' pointing to the web server. that's it! the 'service' does
+not care about if the backend is pod or VM, it just redirect the service request
+traffic exactly the same way as if all backend is pod.
 
 ////
 
