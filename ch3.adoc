@@ -1521,7 +1521,6 @@ Spec:
   Policy Types: Ingress, Egress
 ----
 
-
 == livenessProbe and readinessProbe
 
 === Liveness Probe
@@ -1748,6 +1747,7 @@ spec:
 NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
+
 
 == Annotation 
 
