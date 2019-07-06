@@ -523,7 +523,7 @@ now you may start to wonder why kubernetes has two different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
 through the 2 new objects. we've seen the first new object `RS` , which has done
 the same job of `RC` only with a different selector format, now we'll check out
-the other new object `deployment` and explore the features coming from it.
+the other new object `DEPLOY - deployment` and explore the features coming from it.
 
 === create a deployment
 
@@ -736,40 +736,42 @@ future.
 
 == Service
 
-POD get instantiated, terminated and moved from one Node to another, in doing
-so POD changes IP address. so how would we keep track of that?  Even if the POD
-isn’t moving how traffic from outside reach a certain POD?
+POD gets instantiated, terminated and moved from one Node to another, in doing
+so POD changes IP address so how would we keep track of that to get uninteruppted
+functonalites from pod?  Even if the POD isn’t moving, how traffic reach group of PODs
+via single entity?
 
-the answer for both questions is Kubernetes services.
+the answer for both questions is Kubernetes 'SVC - services'.  
 
 Services is an abstraction that defines a logical set of Pods and a policy by
 which you can access them, you may think of Services as your waiter in a big
 restaurant, this waiter isn’t cooking nor preparing the food but he just
 abstract everything happing at the kitchen for you as you deal only with this
-waiter. 
+waiter.
 
-so let’s cover three different type of services:
+Simply Service is a layer 4 loadbalancer exposes pods functionalities via specific
+ip and port. The service and pods are linked via labels like RS. 
+
+so let’s understand different type of services:
 
 * ClusterIP
-* Node port
-* load balancer 
+* NodePort
+* LoadBalancer
 
 === clusterIP service
 
-the `clusterIP` type of service is the simplest one. it is the default mode if
+the `ClusterIP` type of service is the simplest one. it is the default mode if
 the `ServiceType` is not given. the kubernetes official website gives this
 diagram to illustrate how clusterIP service works:
 
 image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
 
-clusterIP service is exposed on a `clusterIP` and a service port. when client
+ClusterIP service is exposed on a `clusterIP` and a service port. when client
 pods need to access the service it sends request toward this `clusterIP` and
-service port. service "binds" itself to certain backend pods via label mapping
-between the two objects. `endpoint` is created for each service as long as there
-is at least one matching pod available to be its backend. this model works great
-if all requests are coming from inside of the same cluster. the nature of the
-clusterIP limits the scope of this service to be only within the cluster.
-overall by default the clusterIP is not reachable from external. 
+service port. This model works great if all requests are coming from inside
+of the same cluster. The nature of the ClusterIP limits the scope of this service
+to be only within the cluster. overall by default the ClusterIP is not reachable
+from external. 
 
 ==== create clusterIP service
 
@@ -803,27 +805,21 @@ $ kubectl apply -f service-web-clusterip.yaml
 service/service-web-clusterip created
 ----
 
-following kubectl commands are commonly used to quickly verify the service,
-the associated endpoint, and backend pod objects.
+following kubectl commands are commonly used to quickly verify the service 
+and backend pod objects.
 
 ----
 $ kubectl get svc -o wide
 NAME                   TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)   AGE    SELECTOR
 service-web-clusterip  ClusterIP  10.101.150.135  <none>       8888/TCP  9m10s  app=webserver
 
-$ kubectl get ep -o wide
-NAME             ENDPOINTS   AGE
-service-web-lb   <none>      10m
-
 $ kubectl get pod -o wide -l 'app=webserver'
 No resources found.
 ----
 
 the service is created successfully, there is no doubt about it. but there is no
-`ENDPOINTS`. the reason is there is no pod with the label matching to the
-`SELECTOR` in the service. this makes good sense - you've learned
-what kubernetes `endpoint` provides is nothing but a list of backend pod with
-label matching the selector. now we just need to create the pod with a proper
+pods for the service. the reason is there is no pod with the label matching to the
+`selector` in the service. now we just need to create the pod with a proper
 label.
 
 we can define a pod directly, but given the benefits of RC and deployment over
@@ -866,27 +862,19 @@ pod at the moment.
 $ kubectl apply -f rc-webserver.yaml
 replicationcontroller/rc-webserver created
 
-$ kubectl get ep
-NAME                    ENDPOINTS          AGE
-service-web-clusterip   10.47.255.252:80   2m58s
-
 $ kubectl get pod -o wide -l 'app=webserver'
 NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
 rc-webserver-vl6zs  1/1    Running  0         24s  10.47.255.238  cent333  <none>
 ----
 
-immediately the pod is choosen to be the backend, and `endpoint` reflects the
-update. here are some brief summaries about the output:
+immediately the pod is choosen to be the backend. 
+here are some brief summaries about the output:
 
 * the service got a "ClusterIP" or "service IP" of `10.106.176.17` allocated
   from the service IP pool. 
 * service port is `8888` as what is defined in yaml. 
 * by default the protocol type is `TCP` if not declared in yaml file. you can
   use `protocol: UDP` to declare a UDP service.
-* the service has been associated with an "endpoint" of "10.47.255.252:80",
-  which indicates there **is** a backend pod running with that IP, and in that
-  pod there is a container inside of the pod running a service application (web
-  server in our case) listening on port 80.
 * the backend pod can be located with the label selector
 
 TIP: the example shown use a "equality-based" selector (`-l`) to locate the
@@ -948,20 +936,39 @@ than the HTML page.
 
 now we are convinced our service works. requests to service has been
 redirected to the correct backend pod, with a pod IP `10.47.255.238`, pod name
-`rc-webserver-vl6zs`. 
+`rc-webserver-vl6zs`.
+
+if you want to have a specific 'clusterIP', you can mention it in the spec.
+Ip address should be in service ip pool.
+
+Sample yaml with specific 'clusterIP'
+----
+$ cat service-web-clusterip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-clusterip
+spec:
+  clusterIP: 10.101.150.150
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+----
+
 
 === NodePort 
 
-NodePort service is an easy way to expose an application running on POD by
-mapping a port in the node that host this POD with a port of the application
-the POD as shown in the diagram 
+NodePort service exposes a service on each node's ip at a static port. It maps
+a static port on each node with a port of the application the POD as shown in 
+the diagram 
  
 image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
 there is 2 very important parts in this services YAML file ports and selector.
 
 targetPort is the actual port used by the application in here its port 80 as we
-are planning to run a web server and nodeport is port on the node hosting that
-PODs 
+are planning to run a web server and nodeport is port on each node. 
 
 selector is the label selector which determine which set of pods targeted by
 this services, in here any POD with label app: FRONT-END will be serviced by
@@ -978,12 +985,13 @@ this services
       ports:
       - targetPort: 80
         port: 80
-        nodePort: 32001
+        nodePort: 32001 <--(optional)
 
 [NOTE]
 ====
-* Kubernetes by default allocate node port from (3000-32767) range it could be
-  change using the flag --service-node-port-range
+* Kubernetes by default allocate node port from (30000-32767) range if it is not
+  mentioned in the spec and the specified port should be in the configured range.
+  it could be changed using the flag --service-node-port-range.
 * The default service type is ClusterIP 
 * Be aware with the change of the Node ip address as it could effect your services 
 ====
@@ -1021,12 +1029,12 @@ now let’s expose a nginx pod with the services shown above
     External Traffic Policy:  Cluster
     Events:                   <none>
 
-Now we can test that by send CURL -i which is a http request using the CLI toward the node IP address that host this POD
+Now we can test that by send CURL -i which is a http request using the CLI toward the (any)node IP address
 
     [root@cent11 ~]# kubectl get pod -o wide
     
-    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE     NOMINATED NODE
-    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent22   <none>
+    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent222   <none>
 
     [root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
   InternalIP:  10.85.188.17
@@ -1087,19 +1095,32 @@ a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
 we'll have a detail demonstration about how loadbalancer service works in
 contrail kubernetes environment in chapter 4.
 
+=== externalIP
+
+Exposing service outside of the cluster can also be achieved via 'externalIP'
+In the Service spec, externalIPs can be specified along with any of the
+ServiceTypes. externalIPs are not managed by Kubernetes and are the responsibility
+of the cluster administrator. 
+
+=== kube-proxy
+
+By default kubernetes uses kube-proxy for services. kube-proxy can be deployed in
+user-space proxy-mode, iptables proxy-mode and ipvs. when the traffic hits the node,
+it would be forwarded to one of the back end pod via a depolyed kube-proxy forwarding
+plane. Also cni providers can have there own implementaions for services.
+
 
 == endpoint
 
 in our 'service' introduction, there is one object that is involved but we
-haven't explored much yet - the endpoint. we've learned it is through label
-selector a particular pod, or more typically, a group of pods with matching
-labels are choosen to be the backend, so that the service request traffic will
-be redirected to them. The IP and port information of the "matching" pods are
-maintained in the 'endpoint' object ('EP' for abbr.). The pods may die and spawn
-anytime, the "mortal" nature of the pod will most possibly make the new pods be
-respawned with new IP address. during this dynamic process the 'endpoint' object
-will always be updated accordingly to reflect the current backend pod IPs, so
-the service traffic redirection will act properly. 
+haven't explored is 'EP - endpoint'. we've learned it is through label selector
+that a particular pod or group of pods with matching labels are choosen to be
+the backend, so that the service request traffic will be redirected to them.
+The IP and port information of the "matching" pods are maintained in the 'endpoint'
+object.  The pods may die and spawn anytime, the "mortal" nature of the pod will
+most possibly make the new pods be respawned with new IP address. during this dynamic
+process the 'endpoints' will always be updated accordingly to reflect the current
+backend pod IPs, so the service traffic redirection will act properly. 
 
 here is an example to demonstrate some quick steps to verify the service,
 corresponding endpoint and the pod with matching labels
@@ -1136,6 +1157,26 @@ NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOM
 rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
 ----
 
+scale the backend pods
+
+----
+$ kubectl scale rc webserver --replicas=3
+----
+
+----
+$ kubectl get pod -o wide -l 'app=webserver'
+NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
+rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
+rc-webserver-45skv  1/1    Running  0         5s     10.47.255.251  cent222  <none>         app=webserver
+rc-webserver-m2cp5  1/1    Running  0         5s     10.47.255.250  cent333  <none>         app=webserver
+----
+
+----
+$ kubectl get ep
+NAME             ENDPOINTS                                            AGE
+service-web-lb   10.47.255.250:80,10.47.255.251:80,10.47.255.252:80   5d17h
+----
+
 ////
 
 === service with no selector
@@ -1143,16 +1184,16 @@ rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <no
 in the preceding example, the 'endpoint' object is generated automatically by
 the kubernetes system whenever a service is created, and at least one pod with
 matching label exists. Another usage case of endpoint, is for a service that has
-no label selector defined. in that case you can explicitly create an 'endpoint',
-and by using the same endpoint name with the service object name, you can
-connect the endpoint with the service. this can be very useful in some
+no label selector defined. in that case you can manually map the service to the
+network address and port where it’s running, by adding an endpoint object manually
+and you can connect the endpoint with the service. this can be very useful in some
 scenarios. for example, in your setup you have a backend web server running in a
-physical server, or a virtual machine, and even though not running as a
-container in a kubernetes pod, you still want to integrate it into a kubernetes
-'service'. you just create the service as usual, and then create an endpoint
-with an 'address' and 'port' pointing to the web server. that's it! the
-'service' does not care about if the backend is pod or VM, it just redirect the
-service request traffic exactly the same way as if all backend is pod.
+physical server, or a virtual machine, and even though not running as a container
+in a kubernetes pod, you still want to integrate it into a kubernetes 'service'.
+you just create the service as usual, and then create an endpoint with an
+'address' and 'port' pointing to the web server. that's it! the 'service' does
+not care about if the backend is pod or VM, it just redirect the service request
+traffic exactly the same way as if all backend is pod.
 
 ////
 
