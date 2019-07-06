@@ -521,7 +521,7 @@ now you may start to wonder why kubernetes has two different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
 through the 2 new objects. we've seen the first new object `RS` , which has done
 the same job of `RC` only with a different selector format, now we'll check out
-the other new object `deployment` and explore the features coming from it.
+the other new object `DEPLOY - deployment` and explore the features coming from it.
 
 === create a deployment
 
@@ -738,7 +738,7 @@ so POD changes IP address so how would we keep track of that to get uninteruppte
 functonalites from pod?  Even if the POD isn’t moving, how traffic reach group of PODs
 via single entity?
 
-the answer for both questions is Kubernetes services.  
+the answer for both questions is Kubernetes 'SVC - services'.  
 
 Services is an abstraction that defines a logical set of Pods and a policy by
 which you can access them, you may think of Services as your waiter in a big
