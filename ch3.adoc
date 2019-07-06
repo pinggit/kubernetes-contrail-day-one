@@ -613,7 +613,114 @@ keep a set of pods running.
 
 the reason is about another important usage scenario in pratice: pod update.
 "rolling update" feature is one of the "more powerful feature" coming with
-deployment object. this is how it works:
+deployment object. in this section we'll demonstrate the feature with a test
+case, then we'll explain how it works.
+
+==== test rolling update
+
+suppose we have a nginx-deployment, with `replica=3` an pod image `1.7.9`.
+later we want to upgrade the image from version `1.7.9` to new image version
+`1.9.1`. with `kuberctl` we can use `set image` option and specify the new
+version number to trigger the update:
+
+    $ kubectl set image deployment/nginx-deployment nginx=nginx:1.9.1
+    deployment.extensions/nginx-deployment image updated
+
+now chck the deployment information again:
+
+    $ kubectl describe deployment/nginx-deployment
+    Name:                   nginx-deployment
+    Namespace:              default
+    CreationTimestamp:      Tue, 11 Sep 2018 20:49:45 -0400
+    Labels:                 app=nginx
+    Annotations:            deployment.kubernetes.io/revision=2
+    Selector:               app=nginx
+    Replicas:               3 desired | 1 updated | 4 total | 3 available | 1 unavailable
+    StrategyType:           RollingUpdate
+    MinReadySeconds:        0
+    RollingUpdateStrategy:  25% max unavailable, 25% max surge
+    Pod Template:
+      Labels:  app=nginx
+      Containers:
+       nginx:
+        Image:        nginx:1.9.1       #<------
+        Port:         80/TCP
+        Host Port:    0/TCP
+        Environment:  <none>
+        Mounts:       <none>
+      Volumes:        <none>
+    Conditions:
+      Type           Status  Reason
+      ----           ------  ------
+      Available      True    MinimumReplicasAvailable
+      Progressing    True    ReplicaSetUpdated
+    OldReplicaSets:  nginx-deployment-67594d6bf6 (3/3 replicas created)
+    NewReplicaSet:   nginx-deployment-6fdbb596db (1/1 replicas created)
+    Events:
+      Type    Reason             Age   From                   Message
+      ----    ------             ----  ----                   -------
+      Normal  ScalingReplicaSet  4m    deployment-controller  Scaled up replica
+      set nginx-deployment-67594d6bf6 to 3  #<---
+      Normal  ScalingReplicaSet  7s    deployment-controller  Scaled up replica
+      set nginx-deployment-6fdbb596db to 1  #<---
+
+two changes we can observe here:
+
+* image version in deployment is updated
+* a new RS `nginx-deployment-6fdbb596db` is created, with a `replica` set to 1
+
+and with the new RS with `replica` being 1, a new pod ("the fourth one") is now generated
+
+    $ kubectl get pods
+    NAME                                READY     STATUS              RESTARTS   AGE
+    frontend-6cfdb4d686-2fvvm           1/1       Running             3          3d
+    mysql-z8k42                         1/1       Running             2          3d
+    myweb-csbvj                         1/1       Running             3          3d
+    myweb-s9tx8                         1/1       Running             3          3d
+    nginx                               1/1       Running             0          9h
+    nginx-deployment-67594d6bf6-88wqk   1/1       Running             0          4m
+    nginx-deployment-67594d6bf6-m4fbj   1/1       Running             0          4m
+    nginx-deployment-67594d6bf6-td2xn   1/1       Running             0          4m
+    nginx-deployment-6fdbb596db-4b8z7   0/1       ContainerCreating   0          17s        #<------
+    redis-php                           2/2       Running             4          2d
+    volume-pod                          2/2       Running             4          2d
+
+the new pod is with new image:
+
+    $ kubectl describe pod/nginx-deployment-6fdbb596db-4b8z7 | grep Image:
+    ...(snipped)...
+        Image:          nginx:1.9.1     #<---
+    ...(snipped)...
+
+while the old pod is still with old image
+
+    $ kubectl describe pod/nginx-deployment-67594d6bf6-td2xn | grep Image:
+    ...(snipped)...
+        Image:          nginx:1.7.9     #<------
+    ...(snipped)...
+
+wait and keep checking the pods status, eventually all old pods are terminated
+and 3 new pods are running - the pod name confirms they are new ones:
+
+    $ kubectl get pods
+    NAME                                READY     STATUS    RESTARTS   AGE
+    nginx-deployment-6fdbb596db-4b8z7   1/1       Running   0          1m
+    nginx-deployment-6fdbb596db-bsw25   1/1       Running   0          18s
+    nginx-deployment-6fdbb596db-n9tpg   1/1       Running   0          21s
+
+so the "update" is done and all pods are now running with new version of the
+image. 
+
+==== how it works
+
+after you see our update process, you may argue that: hold on... this is now
+"update", this should be called "replacement" - kubernetes use 3 new pods
+running with new image to replace the old pods! precisely speaking, yes that is
+true. but that is how it works kubernetes's "philosophy" - pod is cheap and
+replacement is easier. imaging how much work it will be when you have to "login"
+each pod, uninstall old images, cleaning up the environment and only to install
+a new image. let's look at more details about this process and understand why it
+is called a "rolling" update.
 
 when you update the pod with new software, the `deployment` object introduces a
 new RS that will start the pod update process. the idea is NOT to "login" to the
@@ -661,18 +768,19 @@ original RS's pods are terminated. this process is depicted in this diagram:
     deployment ==|==> RS ====|=> pod-v2
                  |   (v2)    |=> pod-v2
                   
-now coming back to the question in your mind. This whole process of creating a
-new RS, scaling up the new RS and scaling down the old one simultaneously, is
-fully automated and taken care of by the deployment object. it is `deployment`
-who is `deploying` and driving `ReplicaSet` object, which, in this sense working
-as merely a backend of it. 
+now coming back to the question that why deployment is invented given that RC is
+already designed and works fine. This whole process of creating a new RS,
+scaling up the new RS and scaling down the old one simultaneously, is fully
+automated and taken care of by the deployment object. it is `deployment` who is
+`deploying` and driving `ReplicaSet` object, which, in this sense working as
+merely a backend of it. 
 
 this is why `deployment` is considered a higher layer object in kubernetes, also
 the reason why it is officially recommended to never use `ReplicaSet` along
 without `deployment`. in contrast, RC alone, without this additional higher
 layer abstraction, is not able to coordinate this process.
 
-=== record 
+==== record
 
 deployment also has the ability to "record" the whole process, so in case
 needed, you can review the update history after the update job is done:
@@ -693,6 +801,8 @@ Events:
   Normal  ScalingReplicaSet  23m   deployment-controller  Scaled up replica set nginx-deployment-6fdbb596db to 3    #<------
   Normal  ScalingReplicaSet  23m   deployment-controller  Scaled down replica set nginx-deployment-67594d6bf6 to 0  #<------
 ----
+
+==== pause/resume/undo
 
 additionally, you can also pause/resume the update process to verify the changes
 before proceeding:
@@ -942,6 +1052,7 @@ if you want to have a specific 'clusterIP', you can mention it in the spec.
 Ip address should be in service ip pool.
 
 Sample yaml with specific 'clusterIP'
+
 ----
 $ cat service-web-clusterip.yaml
 apiVersion: v1
@@ -1110,8 +1221,9 @@ it would be forwarded to one of the back end pod via a depolyed kube-proxy forwa
 plane. Also cni providers can have there own implementaions for services.
 
 
-== endpoint
+== Endpoints
 
+=== Service with SELECTOT
 in our 'service' introduction, there is one object that is involved but we
 haven't explored is 'EP - endpoint'. we've learned it is through label selector
 that a particular pod or group of pods with matching labels are choosen to be
@@ -1177,25 +1289,20 @@ NAME             ENDPOINTS                                            AGE
 service-web-lb   10.47.255.250:80,10.47.255.251:80,10.47.255.252:80   5d17h
 ----
 
-////
+=== Service without SELECTOR
 
-=== service with no selector
-
-in the preceding example, the 'endpoint' object is generated automatically by
+in the preceding example, the `Endpoints` object is generated automatically by
 the kubernetes system whenever a service is created, and at least one pod with
-matching label exists. Another usage case of endpoint, is for a service that has
+matching label exists. Another use case of endpoint, is for a service that has
 no label selector defined. in that case you can manually map the service to the
-network address and port where it’s running, by adding an endpoint object manually
-and you can connect the endpoint with the service. this can be very useful in some
-scenarios. for example, in your setup you have a backend web server running in a
-physical server, or a virtual machine, and even though not running as a container
-in a kubernetes pod, you still want to integrate it into a kubernetes 'service'.
-you just create the service as usual, and then create an endpoint with an
-'address' and 'port' pointing to the web server. that's it! the 'service' does
-not care about if the backend is pod or VM, it just redirect the service request
-traffic exactly the same way as if all backend is pod.
-
-////
+network address and port where it's running, by adding an endpoint object
+manually and you can connect the endpoint with the service. this can be very
+useful in some scenarios. for example, in your setup you have a backend web
+server running in a physical server, you still want to integrate it into a
+kubernetes `Service`.  you just create the service as usual, and then create an
+endpoint with an "address" and "port" pointing to the web server. that's it! the
+`Service` does not care about the backend type, it just redirect the service
+request traffic exactly the same way as if all backend is pod.
 
 == Ingress 
 
