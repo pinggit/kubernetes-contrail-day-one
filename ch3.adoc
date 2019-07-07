@@ -1299,7 +1299,7 @@ request traffic exactly the same way as if all backend is pod.
 
 == Ingress 
 
-You’ve now seen two ways of exposing a service to clients outside the cluster:
+You’ve now seen ways of exposing a service to clients outside the cluster:
 `NodePort` service and `LoadBalancer service`. another method is `Ingress`
 
 === Ingress object
@@ -1339,22 +1339,36 @@ only.
 
 in practice there are other things you need to understand.
 
-Ingress is another "core" concept of Kubernetes, it allows simple, rule-based
-HTTP routing that does not exist in service. however, in reality to "implement"
-these rules, you need at least another component called `ingress controller`
-
+"ing - Ingress" is another "core" concept of Kubernetes, it allows simple, rule-based
+HTTP routing that does not exist in service. however, in reality to handle
+the ingress rules, you need at least another component called `ingress controller`
 
 === ingress controller
 
-ingress is tyically implemented by a third party proxy. These implementations
-are known as `ingress controllers`. An ingress controller is responsible for
-reading the Ingress rules and program the rules into the proxy which does the
-real work - dispatching traffic based on `host` / URL.
+An ingress controller is responsible for reading the Ingress rules and program
+the rules into the proxy which does the real work - dispatching traffic based
+on `host` / URL.
 
-Different Kubernetes environments have different implementations of the
-controller, and each ingress controllers have their own implementations to
+ingress controllers are tyically implemented by a third party vendors.
+Different Kubernetes environments have different ingress controller based on the need
+of the cluster. each ingress controllers have their own implementations to
 program the ingress rules. bottom line is, there has to be an Ingress controller
-running in the cluster. 
+running in the cluster.
+
+ingress controller providers
+nginx
+gce
+haproxy
+avi
+f5
+istio
+contour
+etc
+
+You may deploy any number of ingress controllers within a cluster. When you create an ingress,
+you should annotate each ingress with the appropriate ingress.class to indicate which ingress
+controller should be used if more than one exists within your cluster.
+annotation for ingress objects explained in the annotation section.
 
 === ingress vs service
 
@@ -1364,13 +1378,11 @@ expose service to outside of the cluster. but there are some main differences.
 `Ingress` operates at the application layer of the OSI network model, while
 `service` operates at layer 4 only. `Ingress` understand the HTTP/HTTPS protocol,
 service only does forwarding based on IP and port, which means it does not care
-about the protocol details.
+about the application layer protocol details.
 
-each LoadBalancer service requires its own public IP address, whereas an Ingress
-only requires one. When a client sends an HTTP request to the Ingress, the host
-and path in the request determine which service the request is forwarded to.
-even when providing access to multiple URLs by multiple services, overall
-ingress only requires one public IP.
+each service of the ingress needs an public ip if it is exposed directly to outside
+of the cluster. when ingress is a front-end to all these services, one public ip
+would be sufficient which makes life easy for cloud-admin.
 
 === ingress examples
 
@@ -1436,13 +1448,13 @@ metadata:
   name: ingress-virutal-host
 spec:
   rules:
-  - host: www.juniper.net
+  - host: www.juniperhr.com
     http:
       paths:
       - backend:
           serviceName: webservice-1
           servicePort: 80
-  - host: www.cisco.com
+  - host: www.junipersales.com
     http:
       paths:
       - backend:
@@ -1453,10 +1465,12 @@ spec:
 `name based virtual host` supports routing HTTP traffic to multiple host names
 at the same IP address. the example above may not be practical (unless one day
 the two domains merge!) but it is good enough to showcase the idea. in the yaml
-file 2 `host` are defined, which are the "juniper" and "cisco" URL. but remember
-we said the ingress will be allocated with one public IP, so request toward that
-one IP, will be routed, based on the `host` in URL, to different backend
+file 2 `host` are defined, which are the "juniperhr" and "junipersales" URL. but
+remember we said the ingress will be allocated with one public IP, so request
+toward that one IP, will be routed, based on the `host` in URL, to different backend
 services. we'll have a very detail case study in chapter 4 about this example.
+
+=== TLS support
 
 == Network policy
 
