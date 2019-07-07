@@ -17,7 +17,11 @@ This chapter demonstrates the how kubernetes objects works in contrail setup.
 === Why contrail with Kubernetes ?
 
 Now after we have seen the main concepts of Kubernetes in chapter 2 and 3, what
-could be the gain in adding Contrail to a standard Kubernetes deployment ?
+could be the gain in adding Contrail to standard Kubernetes deployment ?
+
+Note: In kubernetes, networking is handled by cni providers. cni provoiders
+make sure that any pod can talk to any pod which is the basic networking
+requirement of kubernetes.
 
 in brief, Contrail offers common deployment for multiple environments
 (OpenStack, Kubernetes, etc) as well it enriches Kubernetes networking and
@@ -66,9 +70,7 @@ Kubernetes/contrail architecture and the object mapping
 === contrail-kube-manager
 
 A new components of contrail has been add called `contrail-Kube-manager` which
-would listen to API request sent from the Kubernetes API server and translate
-that to Contrail controller. on the compute node the contrail Vrouter would
-replace Kube-proxy as shown in the figure:
+would watch kubernetes objects and translate that to Contrail controller. 
 
 .contrail kubernetes architecture
 
