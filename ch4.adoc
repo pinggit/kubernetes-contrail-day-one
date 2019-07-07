@@ -1885,12 +1885,12 @@ performance, a public domain name is typically bound to a group of public IP
 addresses and load sharing happens between them. that is why DNS sometimes is
 also used to do loadbalancing.
 
-kubernetes Ingress, however, works in a similar-looking but essentially totally
-different way. with Ingress, instead of map URL to the backend server's IP
-directly, it is mapped to another abstract we already know, the "service", and
-behind service there are backends. since we've learned a lot about kubernetes
-`service` so far, you understand what will happen basically after Ingress
-dispatch the URL request to service.
+kubernetes Ingress, works in a similar-looking but essentially totally different
+way. with Ingress, instead of map URL to the backend server's IP directly, it is
+mapped to another abstract we already know, the "service", and behind service
+there are backends. since we've learned a lot about kubernetes `service` so far,
+you understand what will happen basically after Ingress dispatch the URL request
+to service.
 
 that makes this Ingress section a little bit easier. we don't need to explain
 everything that happens in Ingress. instead, we can focus on the Ingress FIP
