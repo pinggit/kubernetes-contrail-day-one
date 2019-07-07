@@ -119,7 +119,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 == contrail multiple interface pod
 
-=== multiple interface pod
+=== multiple interface pod introduction
 
 in Kubernetes cluster, typically each pod only has one network interface (except
 the `loopback` interface). In reality, there are scenarios where multiple
@@ -663,7 +663,7 @@ VN. check "service chaining" section for more details.
 
 == contrail namespaces and isolation
 
-=== NS vs project
+=== namespace introduction
 
 In chapter3 you`ve read about `namespace` or `NS` in kubernetes, and how to use
 a `quota` to apply some constraints to the resource utilization by a NS. in the
@@ -846,7 +846,7 @@ security groups in contrail. this is covered later in this chapter.
 
 == contrail floating IP
 
-=== introduction
+=== floating IP introduction
 
 `floating IP`, or `FIP` for short, is a "traditional" concept that contrail
 supports since very early releases. Essentially it is an openstack utility to
@@ -1115,11 +1115,11 @@ project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`.
 
 == contrail services
 
-=== kubernetes service
+=== kubernetes service introduction
 
 service is the core object in kubernetes. in chapter 3 you've learned what is
 kubernetes service and how to create a `service` object with yaml file.
-functional-wise, a service is running as a layer 4 load balancer that is
+functional-wise, a service is running as a layer 4 (transport layer) load balancer that is
 sitting between clients and servers. client can be anything "requesting" a
 service. server in our context is the backend pods "providing" the
 response. the client only sees the "frontend" - a service IP and service port
@@ -1200,13 +1200,13 @@ concept:
 in fact, contrail re-uses a good part of this model in kubernetes service
 implementation. to support service loadbalancing, contrail extends the
 loadbalancer with a new driver, with it service will be implemented as "equal
-cost multiple path" (ECMP) loadbalancer working in layer 4. this is the primary
+cost multiple path" (ECMP) loadbalancer working in layer 4(transport layer) . this is the primary
 difference comparing with the "proxy" mode that the old neutron loadbalancer
 type does.
 
 NOTE: ingress, on the other hand, is conceptually even closer with the old
-neutron loadbalancer in the sense that both are layer 4 to layer 7 "proxy"
-based. more about ingress will be discussed in later section.
+neutron loadbalancer in the sense that both are layer 7 (application
+layer) "proxy" based. more about ingress will be discussed in later section.
 
 ==== contrail sevice loadbalancer
 
@@ -1243,7 +1243,8 @@ highlights in this figure:
 the most important thing to understand in this diagram, as we've mentioned, is
 that in contrast to the legancy neutron loadbalancer, and also the ingress
 loadbalancer which we'll discussed later, there is no application layer "proxy"
-in this process. contrail service implementation is based on layer 4 ECMP based
+in this process. contrail service implementation is based on layer 4 (transport
+layer) ECMP based
 loadbalancing. 
 
 ////
@@ -1424,7 +1425,7 @@ of our interests at this moment. but it does tell something interesting:
 * LB use service IP as its VIP
 * LB is connected to a listener by a reference
 * `loadbalancer_provider` is `native`, this is a new extension to implement
-  layer 4 ECMP for kubernetes service, different than the neutron LB
+  layer 4 (transport layer)  ECMP for kubernetes service, different than the neutron LB
   implemented by haproxy
 
 in the rest part of the exploration to LB and its related objects, we'll use the
@@ -2336,6 +2337,9 @@ image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-
 
 == contrail ingress
 
+=== kubernetes Ingress introduction
+
+.Ingress
 In previous section, you've learned how to expose service to the outside of the
 cluster. Besides `LoadBalancer` type of `service`, `ingress` is another ways
 to archive the same effect.
@@ -2347,22 +2351,38 @@ to archive the same effect.
 ////
 
 in chapter 3, we`ve learned the basic concept of `ingress` object. to recap the
-basic idea: comparing with `service`, Basically Ingress provides "Layer 7"
-load-balancing whereas the `service` provide "Layer 4" load-balancing. 
+basics: comparing with `service`, Basically Ingress provides "Layer 7"
+(application layer) load-balancing whereas the `service` provide "Layer 4"
+(transport layer) load-balancing. 
 
+.Ingress vs service
 in "service" example we've demonstrated the end to end work flow when an
 Internet host requests service provided by the backend pods inside of the
 kubernetes, where FIP plays an important role. in `curl` or web browser you
-input the FIP and service port, the request will reaches the pod. the FIP is
-like a "gateway" between service inside of the cluster and outside world.
+input the FIP and service port, the request will reaches the backend pod. the
+FIP is like a "gateway" between service inside of the cluster and outside world.
 
 in reality, however, the "raw" IP is rarely used today - typically you access
 all services via URLs. In the background there is "mapping" or "resolution" from
-URL to IP and that is normally when DNS comes into picture. kubernetes Ingress
-works in a similar but essentially different way.
+URL to IP and that is normally when DNS comes into picture. with DNS the URL is
+resolved to an IP address. in practice, to ensures the availability, uptime and
+performance, a public domain name is typically bound to a group of public IP
+addresses and load sharing happens between them. that is why DNS sometimes is
+also used to do loadbalancing.
 
-in this section, we'll introduce how does contrail integrate with ingress and
-then demonstrate with an end to end lab about how ingress works in contrail.
+kubernetes Ingress, however, works in a similar-looking but essentially totally
+different way. with Ingress, instead of map URL to the backend server's IP
+directly, it is mapped to another abstract we already know, the "service", and
+behind service there are backends. since we've learned a lot about kubernetes
+`service` so far, you understand what will happen basically after Ingress
+dispatch the URL request to service.
+
+that makes this Ingress section a little bit easier. we don't need to explain
+everything that happens in Ingress. instead, we can focus on the Ingress FIP
+exposure and service mapping. the second half of the story is all about service
+to backend mapping which we've read a lot. we'll also introduce how does
+contrail integrate with ingress and then demonstrate with an end to end lab
+about how ingress works in contrail.
 
 ////
 
@@ -2415,6 +2435,12 @@ contrail supports all 3 types of ingress:
 * name-based virtual hosting ingress.
 
 In this book we'll focus on the third type: name-based virtual hosting ingress.
+
+=== Ingress testbed
+
+in our lab we use the same testbed as what we use for `service` test:
+
+image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
 === ingress: virtual host
 
