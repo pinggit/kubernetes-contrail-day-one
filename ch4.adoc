@@ -1517,7 +1517,13 @@ illustrate the contrail service loadbalancer implementation details.
 
 in chapter 3 clusterIP service example, we have created a sevice and a backend
 pod. to verify the ECMP, let's increase the replica to 2 to generate a second
-backend pod:
+backend pod. this is a more realistic and rebost model: each pod will now be
+backing up each other to avoid a single point failure.
+
+instead of using yaml file to manually create a new webserver pod, with the
+"kubernetes spirit" in mind you should think of to `scale` a RC or deployment,
+as what you`ve seen earlier in this book. in our service example we`ve been
+using `RC` object to spawn our webserver pod on purpose:
 
 ----
 $ kubectl scale rc rc-webserver --replicas=2
@@ -1534,10 +1540,20 @@ NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AG
 service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45m   app=webserver
 ----
 
-we end up having 2 backend pods now, one is running in same node `cent222`
-as the client cirros pod, or a "local" node for cirros pod; the other one is
-running in the other node `cent333` - the "remote" node from client pod's
-perspective.
+immediately after you create a new webserver pod by scaling the RC with
+`replicas 2`, a new pod is launched.  we end up having 2 backend pods now, one
+is running in same node `cent222` as the client cirros pod, or a "local" node
+for cirros pod; the other one is running in the other node `cent333` - the
+"remote" node from client pod's perspective.  and the `endpoint` objects get
+updated to reflect the current set of backend pods behind the `service`.
+
+----
+$ kubectl get ep -o wide
+NAME             ENDPOINTS                           AGE
+service-web-lb   10.47.255.236:80,10.47.255.238:80   20m
+----
+
+NOTE: without `-o wide` option, only first endpoint will be displayed.
 
 next, on the client pod node `cent222`, we'll look at the the pod's VRF table to
 understand how the packets are forwarded towards the backend pods
@@ -1596,6 +1612,9 @@ vif0/8      OS: tapeth0-304431
             Drops:455
 ----
 
+TIP: don't forget to execute the vrouter command from within the vrouter docker.
+doing it from the host directly won't work.
+
 some important information to highlight from this capture:
 
 * NHID 87 is an "ECMP composite nexthop"
@@ -1616,13 +1635,16 @@ image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-
 
 ==== multiple port service
 
-we've understood the how the service layber 4 ECMP works and explored the LB
+we've understood how the service layber 4 ECMP works and explored the LB
 objects in lab. remember in the figure showing the LB and all relevant objects,
 we showed that one LB may having 2 or more LB listeners. each listener has an
 individual backend pool which has one or multiple member(s). 
 
-in kubernetes a `multiple port service` maps to that workflow. let's look at the
-yaml file of it:
+.service loadbalancer
+image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
+
+to understand the 1:N mapping between loadbalancer and listeners, we can use the
+`multiple port service` as an example. let's look at the yaml file of it:
 
 ----
 $ cat svc/service-web-clusterip-mp.yaml
@@ -1646,9 +1668,10 @@ what we've added is another item in the `ports` list: a new service port `9999`
 that maps to container's `targetPort` `90`. now with two port mappings we have
 to give each mapping a name, `port1` and `port2` respectively.
 
-NOTE: without a `name` the multiple ports yaml file won't work.
+NOTE: without a port `name` the multiple ports yaml file won't work.
 
-now we apply the yaml file and a new service with 2 ports is created:
+now we apply the yaml file and a new service `service-web-clusterip-mp` with 2
+ports is created:
 
 ----
 $ kubectl apply -f svc/service-web-clusterip-mp.yaml
@@ -1668,8 +1691,12 @@ service-web-clusterip-mp   10.47.255.238:80,10.47.255.238:90   69m
 NOTE: to simply the case study we've scaled down the backend RC to one pod
 
 it looks everything is ok, isn't it? the new service comes up with 2 service
-ports exposed, 8888 is the old one we've tested in chapter 3 examples, and the
+ports exposed, `8888` is the old one we've tested in previous examples, and the
 new `9999` port should work equally well.
+
+turns out that is not the case.
+
+service port 8888 works:
 
 ----
 $ kubectl exec -it cirros -- curl 10.101.102.27:8888 | w3m -T text/html | cat
@@ -1680,7 +1707,7 @@ $ kubectl exec -it cirros -- curl 10.101.102.27:8888 | w3m -T text/html | cat
                                     [giphy]
 ----
 
-turns out that is not the case:
+service port 9999 doesn't work:
 
 ----
 $ kubectl exec -it cirros -- curl 10.101.102.27:9999 | w3m -T text/html | cat
@@ -1688,8 +1715,8 @@ command terminated with exit code 7
 curl: (7) Failed to connect to 10.101.102.27 port 9999: Connection refused
 ----
 
-the request towards port 9999 is rejected. the `targetPort` is not running in
-the pod and container, so there is no way you will get a response from it.
+the request towards port 9999 is rejected. reason is the `targetPort` is not
+running in pod container, so there is no way you will get a response from it.
 
 ----
 $ kubectl exec -it rc-webserver-g27kg -- netstat -lnap
@@ -1704,22 +1731,21 @@ Proto RefCnt Flags       Type       State         I-Node   PID/Program name    P
 detect this situation, so in case the pod is not "ready", it will be restarted
 and you will catch the events.
 
-to resolve this let's start a server in pod to respond port `90`. 
+to resolve this let's start a server in pod to listen on port `90`. 
 one of the easiest way today to start a HTTP server is to use the
 `SimpleHTTPServer` module coming with `python`. in our test we only need to
-set the listened port to `90`
+set the port to `90`
 
 ----
 $ kubectl exec -it rc-webserver-g27kg -- python -m SimpleHTTPServer 90 
 Serving HTTP on 0.0.0.0 port 90 ...                                    
 ----
 
-NOTE: by default, python SimpleHTTPServer listen on port 8080, not what we want.
+NOTE: by default, python SimpleHTTPServer listens on port 8080.
 
-now the targetPort is on, we can start the request towards service port `9999`
-again from the cirros pod, this time it succeed, and get the returned webpage
-from python SimpleHTTPServer, which is listening at targetPort `90` in backend
-pod.
+now the `targetPort` is on, we can start the request towards service port `9999`
+again from the cirros pod. this time it succeed and get the returned webpage
+from python SimpleHTTPServer.
 
 ----
 $ kubectl exec -it cirros -- curl 10.103.87.232:9999 | w3m -T text/html | cat
@@ -1736,8 +1762,9 @@ Directory listing for /
  ━━━━━━━━━━━━━━━━━━━━━
 ----
 
-the SimpleHTTPServer logs a line, with an IP address showing where the request
-came from. in our case cirros client pod is with the IP `10.47.255.237`.
+for each incoming request the `SimpleHTTPServer` logs one line output, with an
+IP address showing where the request came from. in our case cirros client pod is
+with the IP `10.47.255.237`.
 
 ----
 10.47.255.237 - - [04/Jul/2019 23:49:44] "GET / HTTP/1.1" 200 -
@@ -1746,37 +1773,51 @@ came from. in our case cirros client pod is with the IP `10.47.255.237`.
 ==== the flow table
 
 so far we've tested clusterIP service, and we see client request is sent towards
-the service IP. in contrail environment vrouter is the module that does all of
-the packet forwarding job. when the vrouter in client pod get the packet, it
-looks up the pod's VRF table, get the nexthop and resolved to the correct
-physical interface and encapsulation. in our test so far, the client and backend
-pods are in 2 different node, so the source vrouter decides the packets need to
-be send in MPLSoUDP tunnel, towards the node where backend pod is running. what
-interests us is:
+the service IP. in contrail environment `vrouter` is the module that does all of
+the packet forwarding job. when the `vrouter` in client pod get the packet, it
+looks up the corresponding `vrouter` VRF table for the pod, get the nexthop and
+resolves to the correct egress interface and proper encapsulation. in our test
+so far, the client and backend pods are in 2 different nodes, so the source
+`vrouter` decides the packets need to be send in MPLSoUDP tunnel, towards the
+node where backend pod is running. what interests us the most is:
 
 * how the service IP and podIP is translated to each other? 
 * is there a way to "capture and see" the two IPs in a flow, "before" and
-  "after" the translations?
+  "after" the translations for comparison purpose?
 
 the most "straightforward" method you would think of is to capture the packets,
-then decode and see. doing that however, is not as easy as that. first you need
-to capture the packet at different places - at the pod interface, that is after
-the address is translated, that part is easy, and also somewhere before it is
-translated and reaches the pod interface, which means the fabric interface where
-data plane packets are tunneled in MPLSoUDP encapsulations.
+then decode and see. doing that however, is not as easy as what you've expected.
+first you need to capture the packet at different places:
+
+* at the pod interface, this is after the address is translated, that part is
+  easy
+* the fabric interface, this is before packet is translated and reaches the pod
+  interface. here the packets are with MPLSoUDP encapsulation since data plane
+  packets are "tunneled" between nodes.
+
+then you need to copy the pcap file out and load with wireshark to decode. you
+probably also need to set up wireshark to recognize the MPLSoUDP encapsulation.
 
 the easier way is to check the vrouter flow table which records IP and port
-details about a traffic flow. the only problem is that the TCP flow follows the
-TCP session. in our test with `curl`, the TCP session starts and stops
-immediately after the webpage is retrieved, then the flow is cleared too.you
-won't be fast enough to capture at the right moment. 
+details about a traffic flow. in this test we will prepare a big file `file.txt`
+in server pod and try to download it from the client pod. 
 
-to conquer this issue, we will prepare a big file in server pod and try to
-download it from the client. this way as long as the file transfer is ongoing
-the session will remain. later on in `ingress` example we will demonstrate a
-different method with a one-liner shell script.  for now in the cirros pod curl
-URL, instead of just give root path `/` to list the files in folder, we try to
-pull the "big" file: `file.txt`
+[TIP]
+====
+you may wonder why we don't simply use same curl test to pull the webpage, as
+what we've done in early test. in theory that is fine.  the only problem is that
+the TCP flow follows the TCP session. in our previous test with `curl`, the TCP
+session starts and stops immediately after the webpage is retrieved, then the
+vrouter clears the flow too. you won't be fast enough to capture the flow table
+at the right moment. instead, downloading a big file will hold the TCP session -
+as long as the file transfer is ongoing the session will remain, and we can take
+time to investigate the flow. later on in `ingress` example we will demonstrate
+a different method with a one-liner shell script.  
+
+====
+
+now in the cirros pod curl URL, instead of just give root path `/` to list the
+files in folder, we try to pull the file: `file.txt`
 
 ----
 $ kubectl exec -it cirros -- curl 10.103.87.232:9999/file.txt
@@ -1788,7 +1829,10 @@ in server pod we see the log indicating the file transfer starts:
 10.47.255.237 - - [05/Jul/2019 00:41:21] "GET /file.txt HTTP/1.1" 200 -
 ----
 
-now collect the flow table from both client and server node.
+now we have enough time to collect the flow table from both client and server
+node, in the vrouter docker.
+
+.client node flow table
 
 ----
 (vrouter-agent)[root@cent222 /]$ flow --match 10.47.255.237
@@ -1821,14 +1865,16 @@ highlights in this output:
 
 * cirros client starts TCP connection from its pod IP `10.47.255.237` and a
   rondom port, towards the service IP `10.103.87.232` and server port `9999`
-* TCP flag `SSrEEr` indicates the sessio is established bidirectionally.
-* Action `F` means forwarding. there is special treatment like NAT happening
-  here. 
+* the flow TCP flag `SSrEEr` indicates the session is established bidirectionally.
+* Action `F` means "forwarding". note that there is no special processing like
+  `NAT` happening here. 
 
 we can conclude, from client's perspective, it only see the service IP. it is
 not aware of any backend pod IP at all.
 
-now look at flow table in server node:
+.server node flow table
+
+now look at flow table in server node vrouter docker:
 
 ----
 (vrouter-agent)[root@cent333 /]$ flow --match 10.47.255.237
@@ -1858,27 +1904,29 @@ Listing flows matching ([10.47.255.237]:*)
 ----
 
 the second flow entry looks same as the one we just saw in client side capture.
-traffic lands vrouter fabric interface from remote cirros client node, acrossing
+traffic lands vrouter fabric interface from remote cirros client node, across
 MPLSoUDP tunnel. destination IP and port are service IP and service port
-respectively
+respectively. it seems nothing special here.
 
-however, the `Action` now is set to `N(DPd)`, not `F`. according to the header
-lines in the output, this means NAT, or specifically, `DNAT` (Destination
-address translation) with `DPAT` (Destination port translation). that means both
-the service IP and service port will be translated, to backend pod IP and port
+however, the flow `Action` now is set to `N(DPd)`, not `F`. according to the
+header lines in the `flow` command output, this means NAT, or specifically,
+`DNAT` (Destination address translation) with `DPAT` (Destination port
+translation). so both the service IP and service port will be translated, to
+backend pod IP and port.
 
 now look at the first flow entry. source IP `10.47.255.238` is the backend pod
 IP and source port is python server port `90` opened in backend container .
 obviously this is the returning traffic indicating the file downloading is still
 ongoing. the `Action` is also NAT(`N`), but this time it is the reverse
-operation, source NAT (`SNAT`) and source PAT(`SPAT`) will happen - vrouter will
+operation - source NAT (`SNAT`) and source PAT(`SPAT`) will happen. vrouter will
 translate backend's source IP source port to the service IP and port, before
-putting it into the MPLSoUDP tunnel.
+putting it into the MPLSoUDP tunnel and return back to client node.
 
 the complete end to end traffic flow is illustrated here:
 
 //image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
-image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
+//image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
+image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-11e9-813a-a6aa3989c09d.png[]
 
 === contrail LoadBalancer service
 
@@ -2012,11 +2060,17 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 * `gr-2/2/0.32771` represents the (MPLS over) GRE tunnel between node `cent222`
 and the gateway router.
 
-this figure below illustrates the service workflow:
+to summarize, the FIP given to the service as its external ip is advertised to
+gateway router, and get loaded in the router's VRF table. when Internet host
+sends a request to the FIP, through MPLSoGRE tunnel the gateway router will
+forward it to the compute node where backend pod is locating.
+
+the packet flow is illustrated in this figure:
 
 .service workflow
 image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
 
+////
 * you create a `FIP pool` from a public VN, with route-target the VN is
   advertised to the remote gateway router via MP-BGP 
 * you create a pod with a label `app: webserver`, kubernetes decides the pod
@@ -2036,13 +2090,17 @@ image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-
   the MPLS over GRE tunnel it will send the request to the node `cent222`
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
   so the packets will be sent to the right backend pod.
+////
 
 ==== verify the loadbalancer service
 
 To verify the end to end service access from Internet host to the backend pod, 
 we will login to the Internet host desktop and launch a browser, with URL
-pointing to `http://101.101.101.252:8888`. Remember the request has to be sent
-to the **FIP**, not the **service IP**(**clusterIP**) or backend **podIP**.
+pointing to `http://101.101.101.252:8888`. 
+
+TIP: just to keep in mind that the request has to be sent to the public **FIP**,
+not the **service IP**(**clusterIP**) or backend **podIP** which is only
+reachable from inside of the cluster!
 
 this is the returned web page:
 
@@ -2072,15 +2130,11 @@ the kubernetes service is available from Internet!
 ==== loadbalancer service ECMP
 
 so far you've seen how loadbalancer type of service is exposed to the Internet
-and how the FIP did the "trick". what you haven't seen yet is how does the
-"loadbalancer" perform "ECMP" processing. To demonstrate this we need more than
-one backend pod behind the `service`. this is a more realistic and rebost model:
-each pod will now be backing up each other to avoid a single point failure.
-
-instead of using yaml file to manually create a new webserver pod, with the
-"kubernetes spirit" in mind you should think of to `scale` a RC or deployment,
-as what you`ve seen in chapter 3 and previous sections. in our service example
-we`ve been using `RC` object to spawn our webserver pod on purpose:
+and how the FIP did the "trick". in ClusterIP service section, you've also seen
+how the service loadbalancer ECMP works. what you haven't seen yet is how does
+the "ECMP" processing works under loadbalancer type of service. To demonstrate
+this again we scale the RC to generate one more backend pod behind the
+`service`. 
 
 ----
 $ kubectl scale rc rc-webserver --replicas=2
@@ -2091,19 +2145,6 @@ NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMIN
 rc-webserver-r9zdt  1/1    Running  0         25m  10.47.255.238  cent333  <none>
 rc-webserver-xkjpw  1/1    Running  0         23s  10.47.255.236  cent222  <none>
 ----
-
-immediately after you create a new webserver pod by scaling the RC with
-`replicas 2`, a new pod is launched from the other node `cent333`, and the
-`endpoint` objects get updated to reflect the current set of backend pods
-behind the `service`.
-
-----
-$ kubectl get ep -o wide
-NAME             ENDPOINTS                           AGE
-service-web-lb   10.47.255.236:80,10.47.255.238:80   20m
-----
-
-NOTE: without `-o wide` option, only first endpoint will be displayed.
 
 here is the question: with 2 pods on different node as backend now, from the
 gatway router's perspective when it get the service request, which node it will
@@ -2127,9 +2168,10 @@ k8s-test.inet.0: 24 destinations, 46 routes (24 active, 0 holddown, 0 hidden)
 ----
 
 the same FIP prefix is imported as we've seen in previous example, except that
-now the same route has been learned twice! an additional MPLSoGRE tunnel is
-created. besides giving `detail` option to the `show route` command, another
-method to find the tunnel endpoints is to examine the soft GRE `gr-` interface:
+now the same route is learned twice and an additional MPLSoGRE tunnel is
+created. previously in ClusterIP service example we use `detail` option in `show
+route` command to find the tunnel endpoints, this time we examine the soft GRE
+`gr-` interface to find the same:
 
 ----
 labroot@camaro> show interfaces gr-2/2/0.32771
@@ -2164,23 +2206,22 @@ labroot@camaro> show interfaces gr-2/3/0.32771
       Flags: None
 ----
 
-the `IP-Header` of gr interface indicates the two end points of a GRE tunnel:
+the `IP-Header` of `gr-` interface indicates the two end points of a GRE tunnel:
 
 * `10.169.25.20:192.168.0.204`: tunnel between node `cent222` and gateway router
 * `10.169.25.21:192.168.0.204`: tunnel between node `cent333` and gateway router
 
-We end up to have 2 tunnels in the gateway router, each pointing to a node
-where backend pod is running. now you understand the router will perform ECMP
-load balancing between the two GRE tunnel, whenever it got service request
-toward the same FIP. 
+We end up to have 2 tunnels in the gateway router, each pointing to a different
+node where a backend pod is running. now we believe the router will perform
+ECMP load balancing between the two GRE tunnel, whenever it got service request
+toward the same FIP. let's check it out.
 
 ==== verify the loadbalancer service ECMP
 
-till now we believe we've got the whole picture of loadbalancer service, to
-verify it we'll just pull the webpage a few more time and we should see both
-podIP displayed.
+to verify the ECMP we'll just pull the webpage a few more time and we expect to
+see both podIP displayed eventually.
 
-turns out this never happens.
+turns out this never happens!
 
 ----
 [root@cent-client ~]# curl http://101.101.101.252:8888 | lynx -stdin --dump
@@ -2190,10 +2231,10 @@ This page is served by a Contrail pod
   Hostname = rc-webserver-xkjpw
 ----
 
-the only webpage we got is from `10.47.255.236`, by backend pod
-`rc-webserver-xkjpw`, running in node `cent222`. the other one never respond,
-indicating the expected ECMP does not happen yet. with Junos the `detail` or
-`extensive` keyword tells the reason:
+the only webpage we got is from the first backend pod `10.47.255.236`,
+`rc-webserver-xkjpw`, running in node `cent222`. the other one never show up.
+so the expected ECMP does not happen yet. when we examine the route again with
+`detail` or `extensive` keyword we find the root cause:
 
 ----
 labroot@camaro> show route table k8s-test.inet.0 101.101.101.252/32 detail | match state
@@ -2204,10 +2245,10 @@ Jun 30 00:48:29
                 Validation State: unverified
 ----
 
-even if the router learned the same prefix from both node, only one is `Active`
-and the other one won't take effect because it is `NotBest`. therefore, the
-second route and the corresponding GRE interface `gr-2/2/0.32771` will never get
-loaded into the forwarding table:
+from that we realize that, even if the router learned the same prefix from both
+node, only one is `Active` and the other one won't take effect because it is
+`NotBest`. therefore, the second route and the corresponding GRE interface
+`gr-2/2/0.32771` will never get loaded into the forwarding table:
 
 ----
 labroot@camaro> show route forwarding-table table k8s-test destination 101.101.101.252
@@ -2220,16 +2261,19 @@ Destination         Type  RtRef  Next  hop      Type  Index  NhRef  Netif
                                 Push 26     1272     2 gr-2/3/0.32771
 ----
 
-this is the nature of the default Junos BGP path selection and detail discussion
-of it is out of the scope of this book. the solution is to enable the `multipath
-vpn-unequal-cost` knob under the VRF:
+this is the default Junos BGP path selection behavior and detail discussion of
+it is out of the scope of this book. 
+
+NOTE: for Junos BGP path selection algorithm, check this link:
+https://www.juniper.net/documentation/en_US/junos/topics/topic-map/bgp-path-selection.html
+
+the solution is to enable the `multipath vpn-unequal-cost` knob under the VRF:
 
 ----
-labroot@camaro# set routing-instances ping-tes routing-options multipath vpn-unequal-cost
+labroot@camaro# set routing-instances k8s-test routing-options multipath vpn-unequal-cost
 ----
 
-now a `Multipath` with both GRE interface will be added under the FIP prefix,
-and the forwarding table reflects the same:
+now check the VRF table again:
 
 ----
 labroot@camaro# run show route table k8s-test.inet.0 101.101.101.252/32
@@ -2248,25 +2292,28 @@ k8s-test.inet.0: 27 destinations, 54 routes (27 active, 0 holddown, 0 hidden)
                    #[Multipath/255] 00:00:04, metric 100, metric2 0
                        via gr-2/1/0.32771, Push 72
                      > via gr-2/2/0.32771, Push 52
+----
 
+a `Multipath` with both GRE interface will be added under the FIP prefix, the
+forwarding table reflects the same:
+
+----
 labroot@camaro> show route forwarding-table table k8s-test destination 101.101.101.252
 Jun 30 01:12:36
 Routing table: k8s-test.inet
 Internet:
 Enabled protocols: Bridging, All VLANs,
-Destination        Type RtRef Next hop           Type Index    NhRef Netif
-101.101.101.252/32 user     0                    ulst  1048601     2
-                                                 indr  1048597     2
-                                                Push 26     1272     2 gr-2/3/0.32771
-                                                 indr  1048600     2
-                                                Push 26     1277     2 gr-2/2/0.32771
+Destination        Type RtRef Next hop    Type Index    NhRef Netif
+101.101.101.252/32 user     0             ulst  1048601     2
+                                          indr  1048597     2
+                                         Push 26     1272     2 gr-2/3/0.32771
+                                          indr  1048600     2
+                                         Push 26     1277     2 gr-2/2/0.32771
 ----
 
-NOTE: for Junos BGP path selection algorithm, check this link:
-https://www.juniper.net/documentation/en_US/junos/topics/topic-map/bgp-path-selection.html
-
 now try to pull the webpage from Internet host multiple times with `curl` or web
-browser, you will see the random result.
+browser, we see the random result - both backend pod get the request and
+responses back.
 
 ----
 [root@cent-client ~]# curl http://101.101.101.252:8888 | lynx -stdin --dump
@@ -2281,6 +2328,11 @@ This page is served by a Contrail pod
   IP address = 10.47.255.238
   Hostname = rc-webserver-r9zdt
 ----
+
+the end to end packet flow is illustrated here:
+
+.loadbalancer service ECMP
+image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
 
 == contrail ingress
 
@@ -2936,9 +2988,9 @@ we've explored a lot inside of the cluster. now let's look at the gateway
 router's VRF table. 
 
 ----
-labroot@camaro> show route table ping-test.inet.0 protocol bgp
+labroot@camaro> show route table k8s-test protocol bgp
 
-ping-test.inet.0: 7 destinations, 7 routes (7 active, 0 holddown, 0 hidden)
+k8s-test 7 destinations, 7 routes (7 active, 0 holddown, 0 hidden)
 @ = Routing Use Only, # = Forwarding Use Only
 + = Active Route, - = Last Active, * = Both
 
@@ -2952,9 +3004,9 @@ Same as in service example, from outside of the cluster, only FIP is visible.
 `detail` version of it conveys more information:
 
 ----
-labroot@camaro> show route table ping-test.inet.0 101.101.101.1 detail
+labroot@camaro> show route table k8s-test 101.101.101.1 detail
 
-ping-test.inet.0: 24 destinations, 49 routes (24 active, 0 holddown, 0 hidden)
+k8s-test 24 destinations, 49 routes (24 active, 0 holddown, 0 hidden)
 101.101.101.1/32 (1 entry, 1 announced)
         *BGP    Preference: 170/-201
                 Route Distinguisher: 10.169.25.20:5     #<---
@@ -3526,7 +3578,7 @@ $ tcpdump -ni tapeth0-baa392
 on the reverse direction, podIP runs webserver and responds with it's web page.
 the response follows the reverse path of the request:
 
-* pod responds to loadbalancer frontend IP, acrossing MPLSoUDP tunnel
+* pod responds to loadbalancer frontend IP, across MPLSoUDP tunnel
 * vrouter on node `cent333` perform source NAT, translating podIP into service IP
 * respond reaches to active haproxy running on node `cent222`
 * haproxy terminate the tcp connection with backend pod, "copies" the http
