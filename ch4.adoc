@@ -206,12 +206,9 @@ NS:
 this part of the definition is Juniper's extension. `contrail-kube-manager`
 reads the namespace metadata from kube-apiserver, parses the information defined
 in the "annotations" object, and sees that the "isolation" flag is set to
-"true". it then creates the tenant, the correponding routing instance, and all
-other necessary data in contrail config API database for the isolated namespace.
-one of the major difference between a non-isolated namespace vs an isolated
-namespace is that, contrail always create a seperate routing instance for the
-tenant triggered by the isolated namespace. fundamentally that is how the
-"isolation" is implemented. 
+"true". it then creates the tenant with the correponding routing instances(one for pod
+and one for service) instead of using the default ns routing instances
+for the isolated namespace. fundamentally that is how the "isolation" is implemented. 
 
 in the following sections we'll verify how the routing isolation works.
 
