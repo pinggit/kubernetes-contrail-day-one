@@ -134,9 +134,10 @@ one analogy we`ve given when introducing `namespace` concept is openstack
 `project`, or `tenant`. that is exactly how contrail is looking at it. whenever
 a new `namespace` object is created, `contrail-kube-manager` gets noticed about
 the object creation event and it will create the corresponding `project` in
-contrail api database. to differiciate a kubernetes NS project vs a "normal"
-contrail/openstack project, a prefix `k8s-` will be added to the k8s ns project
-name. so if you create a kubernetes NS `ns-user-1`, what you will see in
+contrail api database. to differiciate between multiple kubernetes NS project 
+in contrail, a kubernetes cluster name will be added to the k8s ns project name.
+default kubernetes cluster name is 'k8s'. it is configurable one.
+so if you create a kubernetes NS `ns-user-1`, what you will see in
 contrail GUI will be: `k8s-ns-user-1`:
 
 .contrail command: projects
@@ -145,18 +146,28 @@ image::https://user-images.githubusercontent.com/2038044/60316467-8fb91300-9938-
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
 `NS`, `tenant`, `project` interchangeably.
 
-=== NS isolation
+=== Non isolated NS, k8s-default-pod-network and k8s-default-service-network
 
-Just like in openstack you can have `shared tenant` and `private tenant`,
-similiar concept exists for k8s namespace in contrail. By default a k8s
-generated NS will be a "non-isolated namespace", which means all namespaces
-share the same routing instance or VRF (virtual routing and forwarding table),
-so that the bidirectional communication will happen by default between all pods
-in all shared namespaces, including the default namespace. in contrast, an
-"isolated namespace", will have its dedicated VRF, so by default only pods
-launched in this namespace can talk to each other directly. Additional
-configuration, e.g. policy, is required to make the pod being able to reach the
+as you aware that k8s basic networking requirement is any pod can talk to any pod
+in any namespace and cni providers should make sure that. simply all namespaces
+are not isolated in kubernetes by default. It is just like 'shared tenant' in openstack.
+
+To provide networking for all non isolated namespace there should be a common VRF
+(virtual routing and forwarding table) or routing instance. in kubernetes deployment,
+two VRF will be created by creating two virtual-networks(one for pods and one for services)
+in k8s default ns project by contrail. as you thought the name of the network is derived
+from k8s-cluster-name, namespace name and 'pod-network' or 'service-network'.
+k8s-default-pod-network uses the flat-subnet '10.32.0.0/12' and k8s-default-service-networks
+uses the another flat-subnet '10.96.0.0/12'. both subnets are configurable.
+
+=== Isolated NS 
+in contrast, "isolated namespace", will have its own pod-network and service-network, so by
+default only pods launched in this namespace can talk to service and pods on the same namespace.
+Additional configuration, e.g. policy, is required to make the pod being able to reach the
 network outside of current namespace.
+
+[Note: The same flat-subnets 10.32.0.0/12 and 10.96.0.0/12 are shared by the pod and service
+networks in the isolated namespaces.]
 
 here is the yaml file to create an isolated namespace:
 
