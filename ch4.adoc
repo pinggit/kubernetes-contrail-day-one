@@ -19,14 +19,11 @@ This chapter demonstrates the how kubernetes objects works in contrail setup.
 Now after we have seen the main concepts of Kubernetes in chapter 2 and 3, what
 could be the gain in adding Contrail to standard Kubernetes deployment ?
 
-Note: In kubernetes, networking is handled by cni providers. cni provoiders
-make sure that any pod can talk to any pod which is the basic networking
-requirement of kubernetes.
-
 in brief, Contrail offers common deployment for multiple environments
 (OpenStack, Kubernetes, etc) as well it enriches Kubernetes networking and
 security capabilities.
 
+.multiple environment integration
 When it comes to deployment for multiple environments, Yes containers is the
 current trend to build applications, but don’t expect everyone to migrate
 everything from VM to containers that fast (This is not to mention the nested
@@ -52,7 +49,23 @@ this book we won’t cover contrail integration with other environments as we
 focus only in Kubernetes. But any feature that we explain in here could be
 extended for other environments.
 
+.kubernetes enrichment
+
 Then what we mean by contrail enriching standard Kubernetes deployment?
+
+kubernetes by itself does not implement the networking, networking is handled in
+a plugin called "Container Network Interface" - `CNI`. there are a lot of
+opensourced CNI plugin by different providers in the industry. on the other
+hand, kubernetes does impose some very fundamental requirements for any CNI
+implementations. the most important part of the requirement is that pods on a
+node must be able to communicate with all pods on all nodes **without** NAT.
+that indicates a "flat" pod network. 
+
+contrail is one of such a CNI plugin. you can refer to
+https://kubernetes.io/docs/concepts/cluster-administration/networking/
+for more available CNI plugins.
+
+with CNI plugins, 
 Kubernetes offers flat network connectivity with some security feature confined
 in a cluster, but Contrail could offer on top of that:
 
@@ -69,8 +82,10 @@ Kubernetes/contrail architecture and the object mapping
 
 === contrail-kube-manager
 
-A new components of contrail has been add called `contrail-Kube-manager` which
-would watch kubernetes objects and translate that to Contrail controller. 
+A new components of contrail has been added called `contrail-Kube-manager`. what
+it does basically is to watch kubernetes apiserver events, and translate
+kubernetes objects into Contrail controller object. the following figure
+illustratesthe basic work flow:
 
 .contrail kubernetes architecture
 
@@ -78,8 +93,6 @@ would watch kubernetes objects and translate that to Contrail controller.
 //image::https://raw.githubusercontent.com/pinggit/kubernetes-contrail-day-one/master/diagrams/kubemanager.png?token=AAPRSHE5SF522ETPA6NAUDK5D7PHS[]
 
 image::https://user-images.githubusercontent.com/2038044/60748771-5f3c2f00-9f5f-11e9-9f72-1f28794c8d5b.png[]
-
-
 
 === kubernetes to contrail object mapping
 
@@ -134,40 +147,75 @@ one analogy we`ve given when introducing `namespace` concept is openstack
 `project`, or `tenant`. that is exactly how contrail is looking at it. whenever
 a new `namespace` object is created, `contrail-kube-manager` gets noticed about
 the object creation event and it will create the corresponding `project` in
-contrail api database. to differiciate between multiple kubernetes NS project 
-in contrail, a kubernetes cluster name will be added to the k8s ns project name.
-default kubernetes cluster name is 'k8s'. it is configurable one.
-so if you create a kubernetes NS `ns-user-1`, what you will see in
-contrail GUI will be: `k8s-ns-user-1`:
+contrail api database. to differiciate between multiple kubernetes NS project in
+contrail, a kubernetes cluster name will be added to the kubernetes NS or
+project name. the default kubernetes cluster name is 'k8s'.  so if you create a
+kubernetes NS `ns-user-1`, what you will end up to see in contrail GUI will be:
+`k8s-ns-user-1`:
 
 .contrail command: projects
 image::https://user-images.githubusercontent.com/2038044/60316467-8fb91300-9938-11e9-9de6-429b56429868.png[]
+
+****
+the kubernetes `cluster name` is configurable, during deployment process. if you
+don't configure it `k8s` will be the default. once the cluster is created, the
+name can not be changed anymore. to view the `cluster name`, go to
+`contrail-kube-manager` and it can be found in the configuration file.
+
+----
+$ docker exec -it kubemanager_kubemanager_1 grep cluster /etc/contrail/contrail-kubernetes.conf
+cluster_name=k8s        #<---
+cluster_project={}
+cluster_network={}
+----
+
+****
 
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
 `NS`, `tenant`, `project` interchangeably.
 
 === Non isolated NS, k8s-default-pod-network and k8s-default-service-network
 
-as you aware that k8s basic networking requirement is any pod can talk to any pod
-in any namespace and cni providers should make sure that. simply all namespaces
-are not isolated in kubernetes by default. It is just like 'shared tenant' in openstack.
+after previous section now you are aware that kubernetes basic networking
+requirement is a "flat"/"NATless" network - any pod can talk to any pod in any
+namespace, any cni providers should ensure that. consequently in kubernetes by
+default all namespaces are simply **not** isolated. It is just like a "shared
+tenant" in openstack.
 
-To provide networking for all non isolated namespace there should be a common VRF
-(virtual routing and forwarding table) or routing instance. in kubernetes deployment,
-two VRF will be created by creating two virtual-networks(one for pods and one for services)
-in k8s default ns project by contrail. as you thought the name of the network is derived
-from k8s-cluster-name, namespace name and 'pod-network' or 'service-network'.
-k8s-default-pod-network uses the flat-subnet '10.32.0.0/12' and k8s-default-service-networks
-uses the another flat-subnet '10.96.0.0/12'. both subnets are configurable.
+To provide networking for all non-isolated namespace, there should be a common
+VRF (virtual routing and forwarding table) or RI (routing instance). in contrail
+kubernetes environment, two "default" VNs are pre-configured in k8s default NS
+project, for pod and service respectively. correspondingly there are 2 VRFs each
+with same names as their correspondingly VN. 
+
+the name of the two VNs/VRFs are in this format:
+
+    <k8s-cluster-name>-<namespace name>-<pod-network|service-network>
+
+so for default NS it will be:
+
+* k8s-default-pod-network: pod VN/VRF, with the default subnet `10.32.0.0/12`
+* k8s-default-service-network: service VN/VRF, with a default subnet `10.96.0.0/12`
+
+NOTE: the default subnet for pod or service is configurable.
+
+now, if you created a new non-isolated NS, say `ns-non-isolated`, by default it
+will inherit these two default pod and service VNs/VRFs. that is why in any
+non-isolated NS and `default` NS, the communication between pods in the default
+pod network works fine. for the isolated NS, however, it will be a different
+story.
 
 === Isolated NS 
-in contrast, "isolated namespace", will have its own pod-network and service-network, so by
-default only pods launched in this namespace can talk to service and pods on the same namespace.
-Additional configuration, e.g. policy, is required to make the pod being able to reach the
-network outside of current namespace.
 
-[Note: The same flat-subnets 10.32.0.0/12 and 10.96.0.0/12 are shared by the pod and service
-networks in the isolated namespaces.]
+in contrast, "isolated namespace", will have its own pod-network and
+service-network, so by default only pods launched in this namespace can talk to
+service and pods on the same namespace.  Additional configuration, e.g. policy,
+is required to make the pod being able to reach the network outside of current
+namespace.
+
+NOTE: The same flat-subnets 10.32.0.0/12 and 10.96.0.0/12 are shared by the pod
+and service networks in the isolated namespaces. but since the networks are with
+a different VRF, by default it is isolated with other NS.
 
 here is the yaml file to create an isolated namespace:
 
