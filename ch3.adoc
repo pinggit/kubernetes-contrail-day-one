@@ -1959,10 +1959,31 @@ metadata to objects, Annotation has a lot of use cases such as attaching
 - pointers for logging and analytics
 - phone number, directory entries and web site 
 - timestamps, image hashes and registry address 
-- network, namespaces 
+- network, namespaces
+- type of ingress controller
 
-In this book we will focus on using Annotations to assign network information to
-POD and we will see later on in chapter 4 how Kubernetes annotation can instruct
+example for annotations:
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: annotations-demo
+  annotations:	#<--- 
+    imageregistry: "https://hub.docker.com/"
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.7.9
+    ports:
+    - containerPort: 80
+---
+
+=== Annotations in Ingress
+
+=== Annotations in Network Attachment Defination
+
+Annotations can be used to assign network information to POD and we will
+see later on in chapter 4 how Kubernetes annotation can instruct
 contrail to attach an interface to certain network 
 
 Before seeing Annotations in action lets first create a network with minimum
