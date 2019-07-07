@@ -1335,7 +1335,11 @@ then associated to a different service. that's it.
 if you now think kubernetes Ingress is nothing but to define some rules, and the
 rules are just to instruct the system to direct incoming request to different
 services, based on the URLs, you are basically right, but in the high level
-only.
+only. the figure below shows the dependency between the 3 kubernetes object:
+`Ingress`, `service` and `pod`:
+
+.Ingress
+image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
 
 in practice there are other things you need to understand.
 
