@@ -1353,7 +1353,22 @@ ingress controllers are tyically implemented by a third party vendors.
 Different Kubernetes environments have different ingress controller based on the need
 of the cluster. each ingress controllers have their own implementations to
 program the ingress rules. bottom line is, there has to be an Ingress controller
-running in the cluster. 
+running in the cluster.
+
+ingress controller providers
+nginx
+gce
+haproxy
+avi
+f5
+istio
+contour
+etc
+
+You may deploy any number of ingress controllers within a cluster. When you create an ingress,
+you should annotate each ingress with the appropriate ingress.class to indicate which ingress
+controller should be used if more than one exists within your cluster.
+annotation for ingress objects explained in the annotation section.
 
 === ingress vs service
 
