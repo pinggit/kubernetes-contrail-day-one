@@ -1,6 +1,7 @@
 // vim:set ft=asciidoc cc=80 tw=80:
 = Chapter 4: Kubernetes and Contrail integration 
 :toc: right
+:toclevels: 3
 //:toc-placement: preamble
 :source-highlighter: pygments
 :source-highlighter: coderay
@@ -1141,7 +1142,7 @@ screw of a chair breaks for whatever reason, you won't bother to "repair" it but
 instead you just grab a new one.
 ////
 
-=== service in contrail
+=== contrail service: ECMP loadbalancer
 
 in contrail kubernetes integration environment, all 3 types of services are
 supported:
@@ -1214,7 +1215,8 @@ objects.
 
 .service loadbalancer
 //image::https://user-images.githubusercontent.com/2038044/60640833-0f425880-9df7-11e9-91e1-9b0830394aaa.png[]
-image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
+//image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
+image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
 
 highlights in this figure:
 
@@ -1291,7 +1293,7 @@ default the clusterIP is not reachable from external.
 
 ////
 
-==== the service loadbalancer objects
+==== navigating the service loadbalancer objects
 
 we've talked a lot about it the contrail "loadbalancer object" and you may
 wonder what it looks like. now we'll dig a little big deeper to look at the
@@ -1426,20 +1428,35 @@ of our interests at this moment. but it does tell something interesting:
   implemented by haproxy
 
 in the rest part of the exploration to LB and its related objects, we'll use the
-legacy contrail UI, the same is also supported in the new contrail command UI
+legacy contrail UI, but the same is also supported in the new contrail command
+UI. 
 
-for each service there is a LB object, in the below capture it shows 2 LB objects
-indicating 2 services were created
+for each service there is a LB object, in the below capture it shows 2 LB
+objects:
+
+* ns-user-1-service-web-clusterip
+* ns-user-1-service-web-clusterip-mp
+
+this indicates 2 services were created. the service loadbalancer object's name
+is composed by connecting `<NS name>-<service name>` hence we can tell the
+2 service's name.
 
 .loadbalancer objects
 image::https://user-images.githubusercontent.com/2038044/60685179-a0edac80-9e6f-11e9-98c1-e2db001df543.png[]
 
-expand the first LB and click on `advanced json view` icon on the right, you
-will see the same output as what you've seen in `curl` capture
+click on the small triangle icon in left of the first loadbalancer object
+`ns-user-1-service-web-clusterip` to expand it, then click on `advanced json
+view` icon on the right, you will see the similar detail information as what
+you've seen in `curl` capture. for example the `VIP`, `loadbalancer_provider`,
+`loadbalancer_listener` object that refers it, etc. 
+
+from here you can keep expanding the `loadbalancer_listener` object by clicking
+the `-` character to see the detail information of it. you then see a
+`loadbalancer_pool`, expand it again you will see `member`. by the reference all
+of these objects are connected to each other and work together.
 
 .loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
-
 
 click on the LB name and select "listener", then expand it and click on
 `advanced json view` icon on the right, you will get the listener details. the
@@ -1449,7 +1466,7 @@ listener is listening on service port 8888, and it is referenced by a `pool`.
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
 
 just repeat the exploring process we will get down to the pool and two
-`members`. the member is with a port of `80`, which maps to the container
+`members` in it. the member is with a port of `80`, which maps to the container
 targetPort in pod.
 
 .pool:
@@ -1458,37 +1475,49 @@ image::https://user-images.githubusercontent.com/2038044/60685626-15c1e600-9e72-
 .members:
 image::https://user-images.githubusercontent.com/2038044/60685682-6fc2ab80-9e72-11e9-804d-5eccd8e055df.png[]
 
+next we'll examine the vrouter VRF table for the pod to show contrail service
+loadbalancer ECMP operation details. in order to better understand the "1 to N"
+mapping between loadbalancer and listener shown in the loadbalancer object
+figure, we'll also give an example of configuring a "multiple port service" in
+our setup.  we'll conclude the ClusterIP service section by inspecting the
+vrouter flow table to illustrate the service packet workflow.
+
 === service testbed
 
-our testbed composes of:
+before starting our investigation, let's look at our testbed. in this book we
+build a setup including the following devices, most of our case studies are
+based on it:
 
-* one server running as k8s `master` and contrail controllers
-* two servers, each running as a k8s `node` and contrail vrouter
-* one QFX switch running as the underlay "leaf"
-* one MX running as a gateway router, or a "spine"
-* one server runs as an Internet host machine
+* one cenos server running as k8s `master` and contrail controllers
+* two cenos servers, each running as a k8s `node` and contrail vrouter
+* one Juniper QFX switch running as the underlay "leaf"
+* one Juniper MX router running as a gateway router, or a "spine"
+* one centos server runs as an Internet host machine
 
 the digaram is here:
 
 image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
-
 NOTE: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
 server. this is also the same testbed for ingress.
 
-=== service: clusterIP
+in appendix you will find all of the details about the setup. the prerequisites,
+software/hardware specifications, sample configuration files, and installation
+steps. following the steps you will be able to build a same setup in your lab.
 
-in chapter 3 we've demonstrate how to create and verify a clusterIP service. in
-this section we'll revisit the lab look at some important details about contrail
-specific implementations. we'll continue and add a few more test to illustrate
-the loadbalancer ECMP concept
+=== contrail ClusterIP service
+
+in chapter 3 we've demonstrated how to create and verify a clusterIP service. in
+this section we'll revisit the lab and look at some important details about
+contrail specific implementations. we'll continue and add a few more tests to
+illustrate the contrail service loadbalancer implementation details.
 
 ==== the vrf table: ECMP
 
 in chapter 3 clusterIP service example, we have created a sevice and a backend
-pod. let's increase the replica to 2 to generate a second backend pod:
-
+pod. to verify the ECMP, let's increase the replica to 2 to generate a second
+backend pod:
 
 ----
 $ kubectl scale rc rc-webserver --replicas=2
@@ -1505,20 +1534,20 @@ NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AG
 service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45m   app=webserver
 ----
 
-ok. we end up having 2 backend pods now, one is running in same node `cent222`
+we end up having 2 backend pods now, one is running in same node `cent222`
 as the client cirros pod, or a "local" node for cirros pod; the other one is
 running in the other node `cent333` - the "remote" node from client pod's
 perspective.
 
 next, on the client pod node `cent222`, we'll look at the the pod's VRF table to
-understand how the packets will be forwarded towards the backend pods
+understand how the packets are forwarded towards the backend pods
 
 .vrouter vrf table
 image::https://user-images.githubusercontent.com/2038044/60680116-18174680-9e58-11e9-9235-48c152959df7.png[]
 
-the most important part of the screenshot is the routing entry "Prefix:
-10.105.139.153 / 32 (1 Route)", it is our clusterIP address. underneath the
-prefix there is a statement "ECMP Composite sub nh count: 2". this indicates the
+the most important part of the screenshot is the routing entry `Prefix:
+10.105.139.153 / 32 (1 Route)`, it is our ClusterIP address. underneath the
+prefix there is a statement `ECMP Composite sub nh count: 2`. this indicates the
 prefix has multiple possible next hop to reach. now expand it by clicking the
 small triangle icon in the left, you will be given a lot more details about this
 prefix.
@@ -1578,6 +1607,12 @@ some important information to highlight from this capture:
   are located, this is the path to the "remote" node.
 * nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
   local backend pod's interface. the `vif --get 8` proves this.
+
+the loadbalancer ECMP workflow is illustrated in this figure:
+
+.contrail service loadbalancer ECMP
+//image::https://user-images.githubusercontent.com/2038044/60762382-97f60a00-a02c-11e9-81ad-b1f05d815571.png[]
+image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-11e9-8cec-41d5e177bfb9.png[]
 
 ==== multiple port service
 
@@ -1665,9 +1700,9 @@ Active UNIX domain sockets (servers and established)
 Proto RefCnt Flags       Type       State         I-Node   PID/Program name    Path
 ----
 
-readinessProbe introduced in chater 3 is the official kubernetes tool to detect
-this situation, so in case the pod is not "ready", it will be restarted and you
-will catch the events.
+`readinessProbe` introduced in chater 3 is the official kubernetes tool to
+detect this situation, so in case the pod is not "ready", it will be restarted
+and you will catch the events.
 
 to resolve this let's start a server in pod to respond port `90`. 
 one of the easiest way today to start a HTTP server is to use the
@@ -1842,30 +1877,34 @@ putting it into the MPLSoUDP tunnel.
 
 the complete end to end traffic flow is illustrated here:
 
-image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
+//image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
+image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
 
 === contrail LoadBalancer service
 
-you can also specify `ServiceType` as `LoadBalancer` if you want to expose the
-service to the external world. whenever a service of `type: LoadBalancer` get
-created, in contrail environment what will happen is , not only a `clusterIP'
-will be allocated and exposed to other pods within the cluster, but also a
-`floating ip` will be assigned to the loadbalancer instance and exposed to the
-public world outside of the cluster. 
+in chapter 3 we've briefly talked about LoadBalancer service. in there we
+mentioned if the goal is to expose the service to the external world outside of
+the cluster, we just specify `ServiceType` as `LoadBalancer` in the service yaml
+file. 
+
+whenever a service of `type: LoadBalancer` get created, in contrail environment
+what will happen is , not only a `clusterIP' will be allocated and exposed to
+other pods within the cluster, but also a `floating ip` will be assigned to the
+loadbalancer instance and exposed to the public world outside of the cluster. 
 
 while the `clusterIP` is still acting as a `VIP` to the client **inside** of the
 cluster, the `floating ip` will essentially act as a `VIP` facing those client
 sitting **outside** of the cluster, for example, a remote Internet host which
 sends request to the service across the gateway router. 
 
-we'll demonstrate how does the `LoadBalancer` type of service works in an end to
-end lab setup including the kubernetes cluster, fabric switch, gateway router,
-and Internet host.
+in this section we'll demonstrate how does the `LoadBalancer` type of service
+works in our end to end lab setup, including the kubernetes cluster, fabric
+switch, gateway router, and Internet host.
 
 ==== create loadbalancer service
 
-let's look at the yaml file of a `LoadBalancer` service. it is very similar
-except just one more line declaring the service `type`:
+let's look at the yaml file of a `LoadBalancer` service. it is same as ClusterIP
+service except just one more line declaring the service `type`:
 
 ----
 $ cat service-web-lb.yaml
@@ -1887,9 +1926,7 @@ create and verify the service:
 ----
 $ kubectl apply -f service-web-lb.yaml
 service/service-web-lb created
-----
 
-----
 $ kubectl get svc -o wide
 NAME            TYPE          CLUSTER-IP   EXTERNAL-IP      PORT(S)         AGE    SELECTOR
 service-web-lb  LoadBalancer  10.96.89.48  101.101.101.252  8888:32653/TCP  10s    app=webserver
@@ -1897,15 +1934,17 @@ service-web-lb  LoadBalancer  10.96.89.48  101.101.101.252  8888:32653/TCP  10s 
 
 comparing with the `clusterIP` service type, this time in the "EXTERNAL-IP"
 column there is an IP allocated. if you remember what we've covered in the
-"floating IP pool" section, you will understand this "EXTERNAL-IP" is actually a
-`FIP` allocated from the `NS level FIP pool` - we did not give any specific FIP
-pool information in the yaml file so `NS default FIP pool` will be used
-automatically. 
+"floating IP pool" section, you should understand this "EXTERNAL-IP" is actually
+a `FIP`, allocated from the `NS level FIP pool` - we did not give any specific
+FIP pool information in the service object yaml file, so based on the algorithm
+`NS default FIP pool` will be used automatically. 
 
-the route-target community setting in the FIP VN makes it reachable by the
+==== examine VRF table in gateway router
+
+the `route-target` community setting in the FIP VN makes it reachable by the
 Internet host, so effectively our service is now also exposed to the Internet
-instead of only to inside of the cluster. Examining the gateway router's VRF
-table reveals this:
+,instead of only to pods inside of the cluster. Examining the gateway router's
+VRF table reveals this:
 
 ----
 labroot@camaro> show route table k8s-test.inet.0 101.101.101/24
@@ -1953,7 +1992,12 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
                 Task: BGP_60100_60100.10.169.25.19
                 Announcement bits (1): 1-KRT
                 AS path: ?
-                Communities: target:500:500 target:64512:8000016 encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd) unknown type 8004 value eac4:7a1207 unknown type 8071 value eac4:b unknown type 8084 value eac4:10000 unknown type 8084 value eac4:ff0004 unknown type 8084 value eac4:1020006 unknown type 8084 value eac4:1030001
+                Communities: target:500:500 target:64512:8000016
+                    encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd)
+                    unknown type 8004 value eac4:7a1207 unknown type 8071 value
+                    eac4:b unknown type 8084 value eac4:10000 unknown type 8084
+                    value eac4:ff0004 unknown type 8084 value eac4:1020006
+                    unknown type 8084 value eac4:1030001
                 Import Accepted
                 VPN Label: 44
                 Localpref: 200
@@ -1962,7 +2006,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 ----
 
 * the `source` indicates from which BGP peer the route is learned,
-  `10.169.25.19` is the contrail controller (and kubernetes master) in our case
+  `10.169.25.19` is the contrail controller (and kubernetes master) in our lab
 * `protocol next hop` tells who generates the route. `10.169.25.20` is node
 `cent222` where the backend webserver pod is running
 * `gr-2/2/0.32771` represents the (MPLS over) GRE tunnel between node `cent222`
