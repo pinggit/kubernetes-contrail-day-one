@@ -24,6 +24,7 @@ in brief, Contrail offers common deployment for multiple environments
 security capabilities.
 
 .multiple environment integration
+
 When it comes to deployment for multiple environments, Yes containers is the
 current trend to build applications, but don’t expect everyone to migrate
 everything from VM to containers that fast (This is not to mention the nested
@@ -174,7 +175,8 @@ cluster_network={}
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
 `NS`, `tenant`, `project` interchangeably.
 
-=== Non isolated NS, k8s-default-pod-network and k8s-default-service-network
+=== Non-isolated NS
+
 
 after previous section now you are aware that kubernetes basic networking
 requirement is a "flat"/"NATless" network - any pod can talk to any pod in any
@@ -182,40 +184,62 @@ namespace, any cni providers should ensure that. consequently in kubernetes by
 default all namespaces are simply **not** isolated. It is just like a "shared
 tenant" in openstack.
 
-To provide networking for all non-isolated namespace, there should be a common
-VRF (virtual routing and forwarding table) or RI (routing instance). in contrail
-kubernetes environment, two "default" VNs are pre-configured in k8s default NS
-project, for pod and service respectively. correspondingly there are 2 VRFs each
-with same names as their correspondingly VN. 
+.k8s-default-pod-network and k8s-default-service-network
+
+To provide networking for all non-isolated namespace, there should be a
+**common** VRF (virtual routing and forwarding table) or RI (routing instance).
+in contrail kubernetes environment, two "default" VNs are pre-configured in k8s
+default NS project, for pod and service respectively. correspondingly there are
+2 VRFs each with same names as their correspondingly VN. 
 
 the name of the two VNs/VRFs are in this format:
 
     <k8s-cluster-name>-<namespace name>-<pod-network|service-network>
 
-so for default NS it will be:
+so for default NS the name will become:
 
-* k8s-default-pod-network: pod VN/VRF, with the default subnet `10.32.0.0/12`
-* k8s-default-service-network: service VN/VRF, with a default subnet `10.96.0.0/12`
+* `k8s-default-pod-network`: pod VN/VRF, with the default subnet `10.32.0.0/12`
+* `k8s-default-service-network`: service VN/VRF, with a default subnet `10.96.0.0/12`
 
 NOTE: the default subnet for pod or service is configurable.
 
-now, if you created a new non-isolated NS, say `ns-non-isolated`, by default it
-will inherit these two default pod and service VNs/VRFs. that is why in any
+it is important to know that these 2 default VNs are **shared** between all of
+the "non-isolated" namespaces. what that means is, they will be available for
+any new non-isolated NS that you create, implicitly.  that is why in any
 non-isolated NS and `default` NS, the communication between pods in the default
-pod network works fine. for the isolated NS, however, it will be a different
-story.
+pod network works fine. 
+
+NOTE: this only applies to the "default" VNs. all new VNs that you create will
+be isolated with other VNs, regardless of same or different NS. additional
+configuration is needed to make pods belonging two different VNs to communicate
+with each other.
+
+for the isolated NS, however, it will be a different story.
 
 === Isolated NS 
 
-in contrast, "isolated namespace", will have its own pod-network and
-service-network, so by default only pods launched in this namespace can talk to
-service and pods on the same namespace.  Additional configuration, e.g. policy,
-is required to make the pod being able to reach the network outside of current
-namespace.
+in contrast, "isolated" namespace, will have its own default pod-network and
+service-network, accordingly two new VRFs are also created for each "isolated"
+namspace. The same flat-subnets `10.32.0.0/12` and `10.96.0.0/12` are shared by
+the pod and service networks in the isolated namespaces. however since the
+networks are with a different VRF, by default it is isolated with other NS.
+therefore, by default pods launched in isolated NS can only talk to service and
+pods on the same namespace. Additional configurations, e.g. policy, is required
+to make the pod being able to reach the network outside of current namespace.
 
-NOTE: The same flat-subnets 10.32.0.0/12 and 10.96.0.0/12 are shared by the pod
-and service networks in the isolated namespaces. but since the networks are with
-a different VRF, by default it is isolated with other NS.
+////
+TODO: give a diagram, otherwise confusing
+
+default-domain:k8s-default:k8s-default-pod-network:k8s-default-pod-network
+default-domain:k8s-default:k8s-default-service-network:k8s-default-service-network
+default-domain:k8s-default:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+
+default-domain:k8s-ns-non-isolated:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+
+default-domain:k8s-ns-user-1:k8s-ns-user-1-pod-network:k8s-ns-user-1-pod-network
+default-domain:k8s-ns-user-1:k8s-ns-user-1-service-network:k8s-ns-user-1-service-network
+default-domain:k8s-ns-user-1:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+////
 
 here is the yaml file to create an isolated namespace:
 
@@ -252,11 +276,12 @@ NS:
     "opencontrail.org/isolation" : "true"
 
 this part of the definition is Juniper's extension. `contrail-kube-manager`
-reads the namespace metadata from kube-apiserver, parses the information defined
-in the "annotations" object, and sees that the "isolation" flag is set to
-"true". it then creates the tenant with the correponding routing instances(one for pod
-and one for service) instead of using the default ns routing instances
-for the isolated namespace. fundamentally that is how the "isolation" is implemented. 
+reads the namespace `metadata` from `kube-apiserver`, parses the information
+defined in the `annotations` object, and sees that the `isolation` flag is set
+to `true`. it then creates the tenant with the correponding routing
+instances(one for pod and one for service) instead of using the default ns
+routing instances for the isolated namespace. fundamentally that is how the
+"isolation" is implemented. 
 
 in the following sections we'll verify how the routing isolation works.
 
@@ -338,12 +363,19 @@ PING 10.47.255.239 (10.47.255.239): 56 data bytes
 the test result shows that, bidirectional communication between two non-isolated
 namespaces (namespace `ns-non-isolated` and `default` in this case) works, but
 traffic from non-isolated NS (`default` NS) toward isolated NS does not pass
-through. what about traffic within the same isolated NS? with the power of the
-`deployment` we can quickly test it out: in isolated NS `ns-isolated`, clone one
-more pod by `scale` the deployment with `replicas=2` and ping between the 2
-pods:
+through. what about traffic within the same isolated NS? 
+
+with the power of the `deployment` we can quickly test it out: in isolated NS
+`ns-isolated`, clone one more pod by `scale` the deployment with `replicas=2`
+and ping between the 2 pods:
 
 ----
+$ kubectl scale deployment cirros --replicas=2
+$ kubectl get pod -o wide -n ns-isolated
+NAME                     READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+cirros-85fc7dd848-6l7j2  1/1    Running  0         8s   10.47.255.239  cent222  <none>
+cirros-85fc7dd848-215k8  1/1    Running  0         8s   10.47.255.238  cent333  <none>
+
 $ kubectl -n ns-isolated exec -it cirros-85fc7dd848-6l7j2 -- ping 10.47.255.238
 PING 10.47.255.238 (10.47.255.238): 56 data bytes
 64 bytes from 10.47.255.238: seq=0 ttl=63 time=1.470 ms
@@ -522,7 +554,7 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
-=== global level default FIP pool
+==== global level default FIP pool
 
 to define the global level default FIP pool, you need to specify the full
 qualified pool name (domain > project > network) in configuration file of
@@ -580,7 +612,7 @@ Creating kubemanager_kubemanager_1 ... done
 
 now the global default FIP pool is defined.
 
-=== NS level default FIP pool
+==== NS level default FIP pool
 
 the next FIP pool scope is in NS level. each NS can define its own default
 pool.  same way as kubernetes annotations object is used to give a subnet to a
@@ -604,7 +636,7 @@ get a FIP allocated from this pool. In practice, most NS (especially
 those isolated NS) will need its own NS default pool so you will see this
 type of configuration very often in field.
 
-=== object level FIP pool
+==== object level FIP pool
 
 the last one is object-specific pool. here is an example:
 
@@ -627,6 +659,33 @@ spec:
 in this example, service `service-web-lb-pool-public-1` will get an FIP from
 pool `pool-public-1`, which is created based on VN `vn-public-1` under current
 project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`.
+
+=== creating FIP
+
+once FIP pool is created and available, an FIP can be allocated from the FIP
+pool for the objects that requires one. this can be done either manually, by
+associating an FIP to a VMI (VM or pod interface), or automatically by contrail
+system when it sees the need.
+
+.automatically assignment
+
+later in this book, you will see examples when contrail automatically assign a
+FIP and associate it to objects:
+
+* LoadBalancer service
+* Ingress objects
+
+in fact, ClusterIP by itself is also implemented by FIP. we'll check out more
+details later.
+
+.manually association
+
+// TODO: <<SCREENSHOT>>
+
+=== advertising FIP
+
+//TODO
+
 
 == contrail services
 
@@ -1029,8 +1088,80 @@ this section we'll revisit the lab and look at some important details about
 contrail specific implementations. we'll continue and add a few more tests to
 illustrate the contrail service loadbalancer implementation details.
 
-==== the vrf table: ECMP
+==== ClusterIP as FIP
 
+let's review what we got from service lab in chapter3:
+
+----
+$ kubectl get svc -o wide
+NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE   SELECTOR
+service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45m   app=webserver
+
+$ kubectl get pod -o wide --show-labels
+NAME                 READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE   LABELS
+cirros               1/1     Running   1          5d1h   10.47.255.237   cent222   <none>           app=cirros
+rc-webserver-g27kg   1/1     Running   0          45m    10.47.255.238   cent333   <none>           app=webserver
+----
+
+here we see one service is created, with one pod running as its backend. the
+label in the pod matches to the SELECTOR in service. the pod name also indicates
+this is a RC-generated pod. later we can scale the RC for ECMP case study, for
+now we'll stick to one pod and examine the ClusterIP implementation details.
+
+in contrail, a `ClusterIP` is essentially implemented in the form of a FIP. once
+a service is created, a FIP will be created from the service subnet and
+associated to the backend pod VMI and IP. this FIP/clusterIP is also acting as a
+"VIP" to the client pods inside of the cluster. this holds true for all type of
+contrail kubernetes service, for LoadBalancer type of service contrail will
+allocate a second FIP "external-ip" as the VIP, but in that case the external
+VIP is advertised outside of the cluster through gateway router. you will get
+more details about that later.
+
+from UI we'll see the automatically allocated FIP as ClusterIP.
+
+.ClusterIP as FIP
+image::https://user-images.githubusercontent.com/2038044/60973473-57c9ac80-a2f6-11e9-81a7-df74349e9877.png[]
+
+the FIP is also associated with the pod VMI and podIP, in the case the VMI is
+representing the pod interface.
+
+.pod interface
+image::https://user-images.githubusercontent.com/2038044/60975990-df191f00-a2fa-11e9-9f81-e635c141c7e6.png[]
+
+expand the `fip_list`, we'll see the `port_map` in it:
+
+----
+fip_list:  {
+    list:  {
+        FloatingIpSandeshList:  {
+            ip_addr: 10.105.139.153
+            vrf_name: default-domain:k8s-ns-user-1:k8s-ns-user-1-service-network:k8s-ns-user-1-service-network
+            installed: Y
+            fixed_ip: 10.47.255.238
+            direction: ingress
+            port_map_enabled: true
+            port_map:  {
+                list:  {
+                    SandeshPortMapping:  {
+                    protocol: 6
+                    port: 80
+                    nat_port: 8888
+                    }
+                }
+            }
+        }
+    }
+}
+----
+
+the `port_map` tells that port `8888` is a `nat_port`, `6` is the protocol
+number so it means protocol TCP. TCP port 8888 will be translated to container
+port `80` and vice versa.
+
+now you understand with FIP representing ClusterIP, NAT will happen in service.
+later we'll examine NAT again in the flow table.
+
+==== scale backend pods
 in chapter 3 clusterIP service example, we have created a sevice and a backend
 pod. to verify the ECMP, let's increase the replica to 2 to generate a second
 backend pod. this is a more realistic and rebost model: each pod will now be
@@ -1070,6 +1201,39 @@ service-web-lb   10.47.255.236:80,10.47.255.238:80   20m
 ----
 
 NOTE: without `-o wide` option, only first endpoint will be displayed.
+
+we go ahead and check the FIP again.
+
+.ClusterIP as FIP (ECMP)
+image::https://user-images.githubusercontent.com/2038044/60973157-b2163d80-a2f5-11e9-957a-438642355391.png[]
+
+we see the same FIP, but now it is associated with two podIP and VMIes. 
+
+==== ECMP routing table: control node perspective
+
+first, to examine the ECMP, let's take a look at the routing table in the
+controller's routing instance.
+
+.control node routing instance table
+image::https://user-images.githubusercontent.com/2038044/60966312-ee41a200-a2e5-11e9-8966-053f0bbc20ea.png[]
+
+the routing instance (RI) has a full name with the following format:
+
+    <DOMAIN>:<PROJECT>:<VN>:<RI>
+
+in most cases RI inheritate the same name from it's VN, so in our case the
+full IPv4 routing table has this name:
+`default-domain:k8s-ns-user-1:k8s-ns-user-1-pod-network:k8s-ns-user-1-pod-network.inet.0`
+the `.inet.0` indicate the routing table type is unicast IPv4. there are many
+other tables which is not of our interests right now.
+
+two routing entries with the same exact prefixes of the ClusterIP show up in the
+routing table, with two different next hops, each pointing to a different node.
+what happens is each node advertises the presence of the backend pods in itself
+to the control node via XMPP, which then reflect the routes to the other compute
+node.
+
+==== ECMP routing table: compute node perspective
 
 next, on the client pod node `cent222`, we'll look at the the pod's VRF table to
 understand how the packets are forwarded towards the backend pods
@@ -1452,7 +1616,7 @@ the cluster, we just specify `ServiceType` as `LoadBalancer` in the service yaml
 file. 
 
 whenever a service of `type: LoadBalancer` get created, in contrail environment
-what will happen is , not only a `clusterIP' will be allocated and exposed to
+what will happen is , not only a `clusterIP` will be allocated and exposed to
 other pods within the cluster, but also a `floating ip` will be assigned to the
 loadbalancer instance and exposed to the public world outside of the cluster. 
 
@@ -1499,7 +1663,7 @@ service-web-lb  LoadBalancer  10.96.89.48  101.101.101.252  8888:32653/TCP  10s 
 comparing with the `clusterIP` service type, this time in the "EXTERNAL-IP"
 column there is an IP allocated. if you remember what we've covered in the
 "floating IP pool" section, you should understand this "EXTERNAL-IP" is actually
-a `FIP`, allocated from the `NS level FIP pool` - we did not give any specific
+another `FIP`, allocated from the `NS FIP pool` - we did not give any specific
 FIP pool information in the service object yaml file, so based on the algorithm
 `NS default FIP pool` will be used automatically. 
 
@@ -1911,20 +2075,42 @@ metadata:
 ----
 ////
 
-=== contrail ingress
+=== contrail ingress loadbalancer
 
-Ingress is implemented through load balancer feature in contrail. Whenever
-ingress is configured in kubernetes, `contrail-kube-manager` get the events and
-creates the loadbalancer object in contrail-controller. `contrail-svc-monitor`
-component listens for the load balancer objects and launches two haproxy
-processes, each in a seperate compute node. both `haproxy` processes are
-programmed with appropriate configuration based on the ingress rules you
-defined. the two haproxy processes work in "active-standby" mode. service
-request, as a type of `overlay` traffic, traverses through gateway router and
-lands the "active" haproxy running in one of the compute node, from there the
-traffic is "proxied" to the backend pod. In the case that the backend pods are
-running in a different compute node, a MPLS over UDP tunnel is created between
-the two compute node.
+like contrail's service implementation, contrail Ingress, is also implemented
+through loadbalancer, but with a different `loadbalancer_provider` attribute,
+accordingly `contrail-svc-monitor` component takes different actions to
+implement `Ingress` in contrail environment.
+
+Remember in "Contrail-Kubernetes architecture" section we gave the "object
+mapping" between kubernetes and contrail. in there you see kubernetes `service`
+maps to `ECMP loadbalancer (native)` and `Ingress` maps to `Haproxy
+loadbalancer`. 
+
+in `service` section when we were exploring the loadbalancer and
+the relevant objects (listener, pool, and member), we noticed the loadbalancer's
+`loadbalancer_provider` attribute is with a type `native`. 
+
+        "loadbalancer_provider": "native",
+
+in this section we'll look at contrail Ingress's `loadbalancer` and we'll
+understand the similiarities and difficulties comaring with `service`
+loadbalancer
+
+=== contrail ingress workflow
+
+Whenever an ingress is configured in kubernetes, `contrail-kube-manager` that is
+watching the kube-apiserver get the events and creates an loadbalancer object in
+contrail-controller.  `contrail-svc-monitor` component listens for the load
+balancer objects and launches two haproxy processes, each in a seperate compute
+node. both `haproxy` processes are programmed with appropriate configuration
+based on the ingress rules you defined. the two haproxy processes work in
+"active-standby" mode.  service request, as a type of `overlay` traffic,
+traverses through gateway router and lands the "active" haproxy running in one
+of the compute node, from there the traffic is "proxied" to the node where
+backend pods are located and reaches the pods. In the case that the backend pods
+are running in a different compute node, a MPLS over UDP tunnel is created
+between the two compute node.
 
 ////
 Contrail has its built-in implementation of Kubernetes Ingress loadbalancer -
@@ -1957,6 +2143,10 @@ in our lab we use the same testbed as what we use for `service` test:
 
 image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
+=== ingress: single service
+
+=== ingress: simple fan-out
+
 === ingress: virtual host
 
 Name-based virtual hosts support routing HTTP traffic to multiple host names at
@@ -1971,18 +2161,19 @@ backend pod.
 to demonstrate `virtual host` type of Ingress, the objects that we need to
 create are:
 
-* 2 services objects: `service-1`, `service-2`
-* an `Ingress` object: the rules, mapping 2 URLs to 2 services
-* each service requires at least one pod as backend: pod-1, pod-2
+* an `Ingress` object: the rules, mapping 2 URLs to 2 backend services
+* 2 backend services objects: `service-1`, `service-2`
+* each service requires at least one pod as backend: `pod-1` for `service-1`,
+  `pod-2` for `service-2`.
 
 additionally, a "client" pod is needed to test the ingress from inside of the
-cluster. we can use the same `cirros` pod we've used in "multiple interface pod"
-example.
+cluster. we can use the same `cirros` pod we've used in earlier examples.
 
+////
 besides that, there are 2 components running in the background:
 
 * an Ingress controller: in contrail environment it is `contrail-kube-manager`,
-  running as a pod in one of the kubernetes node.
+  running as a docker container in one of the kubernetes node.
 * the loadbalancer: in contrail environment it is the `HAproxy` process,
   launched by `contrail-svc-monitor`
 
@@ -1990,10 +2181,11 @@ these are created automatically by contrail system so we don't need to worry
 about them basically, but we need to understand their fundamental roles so
 whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
+////
 
 ==== `ingress` definition
 
-in our virtual host ingress test lab, we want to define the following rules:
+in our virtual host ingress test lab, we define the following rules:
 
 * request toward URL `www.juniper.net` will be directed to a service `service-1`
   with `servicePort` 8888
@@ -2002,7 +2194,7 @@ in our virtual host ingress test lab, we want to define the following rules:
 * request toward any URLs other than these 2, will be directed to `service-1`
   with `servicePort` 8888
 
-the corresponding yaml definition file will look like this:
+here is the corresponding yaml definition file:
 
 ----
 apiVersion: extensions/v1beta1
@@ -2030,15 +2222,16 @@ spec:
             path: /
 ----
 
-that's it. `Ingress` object itself is only about the `rules`, or more
-specifically the mapping from a URL to the service. next we'll look at the
-service.
+that's it. `Ingress` object itself is just about the `rules`, or more
+specifically, mappings from a URL to the backend service. next we'll look at the
+backend service.
 
 ==== `service` definition
 
-we can use exactly the same service as introduced in `service` example. we just
-need to clone it into 2 for the 2 ingress rules defined for each URLs. this is
-definition of one of the services.
+we can use exactly the same service as introduced in `service` example. since we
+defined 2 rules each for a URL, we need two services also. we just need to
+"clone" the first service and then change the service's name and selector to
+generate the second service. e.g.: this is definition of `service-1` service.
 
 ----
 apiVersion: v1
@@ -2054,14 +2247,15 @@ spec:
   #type: LoadBalancer
 ----
 
-NOTE: we've commented the service `type`. the service will be
-exposed by Ingress so `LoadBalancer` type now become optional.
+NOTE: the service `type` is optional. with `Ingress`, `service` does not need to
+be exposed to external directly anymore. therefore `LoadBalancer` type of
+service is not required. 
 
 ==== backend `pod` definition
 
-same as in `service` example, we can use exactly the same rc as introduced in
-`multiple interfaces pod` example. we just need to clone it into 2 for the 2
-services. this is the definition of one of the RCs.
+same as in `service` example, we can use exactly the same `webserver` rc. we
+just need to clone it into 2 for the 2 services. this is the definition of one
+of the RCs.
 
 .service `service-1`
 
@@ -2091,24 +2285,22 @@ spec:
         - containerPort: 80
 ----
 
-for the "client" pod we'll use the same cirros pod as you've seen in "multiple
-interface pod" section
-
 === an "all in one" yaml file
 
 as usual, we can create an individual yaml file for each of the objects. but
-considering these objects always need to work with each other to make the
-Ingress work, we can "merge" all yaml files into one. yaml syntax supports this
-by using a "document delimitor" `---` between each object definition. the
-benefits are:
+considering in `Ingress`, these objects always need to be created and removed
+together, it is better to "merge" all yaml files into one. yaml syntax supports
+this by using a "document delimitor", a `---` line between each object
+definition. the benefits are:
 
-* you can create everything in one go, by given the yaml file name.
-* similarly, if things does not seem to work and you need to clean up, you can
-  delete everything in one command
+* you can create all objects in the yaml file in one go, using just one `kubectl apply`
+  command with the yaml file name
+* similarly, if anything goes wrong and you need to clean up, you can delete
+  all objects created with the yaml file in one `kubectl delete` command
 * whenever needed, you can still delete/update each individual objects
   independently, by giving the object name
 
-NOTE: imaging during ingress test you may need to create and delete all objects
+NOTE: imaging during test process you may need to create and delete all objects
 as a whole very often, grouping multiple objects in one yaml file is a very
 convenient and recommended method.
 
@@ -2232,16 +2424,16 @@ spec:
 === `apply` the all-in-one yaml file
 
 before applying the yaml file to get all objects created, let's take a quick
-look at the node, see if there is any haproxy process running already:
+look at our two nodes, see if there is any `haproxy` process running already:
 
 ----
 $ ps aux | grep haproxy
-root      7637  0.0  0.0 112712   984 pts/0    S+   18:03   0:00 grep --color=auto haproxy
+$ 
 ----
 
-the answer is no. haproxy will be created only after we created ingress and the
-corresponding loadbalancer object is seen by `contrail-service-monitor`. we'll
-check this again shortly.
+So the answer is no. haproxy will be created only after we created `Ingress` and
+the corresponding loadbalancer object is seen by `contrail-service-monitor`.
+we'll check this again after we create an `Ingress`.
 
 ----
 $ kubectl apply -f ingress/ingress-test.yaml
@@ -2252,7 +2444,7 @@ replicationcontroller/rc-webserver-1 created
 replicationcontroller/rc-webserver-2 created
 ----
 
-the Ingress, services, RC (generating backend pod) is now created.
+the Ingress, two services and two RC objects are now created.
 
 === examine ingress objects
 
@@ -2317,12 +2509,14 @@ addresses shown here:
       - ip: 101.101.101.1
       - ip: 10.47.255.248
 
+//in `namespace` section we've known `10.32.0.0/12` is the default pod subnet.
+
 we've seen these two subnets in service examples:
 
 * 10.47.255.x is IP allocated from the pod's default subnet
 * 101.101.101.x is the FIP associated with the VM IP.
 
-but the question is why an Ingress needs an pod IP and FIP?
+but the question is why an Ingress even needs an pod IP and FIP?
 
 ////
 this is the IP addresses allocated to the haproxy "virtual machine". 
@@ -2363,8 +2557,9 @@ rc-webserver-2-t6fhs   1/1     Running   0          149m   10.47.255.242   cent2
 ----
 
 everything looks fine. for each service there is a backend pod. we have learned
-how selector and label works in service-pod associations. next we'll examine the
-haproxy and try to make some sense out of the 2 IPs allocated to Ingress object.
+how selector and label works in service-pod associations so there is nothing new
+here. next we'll examine the haproxy and try to make some sense out of the 2 IPs
+allocated to Ingress object.
 
 === examine haproxy process again
 
@@ -2377,9 +2572,8 @@ happens:
 ----
 $ ps aux | grep haproxy
 188   7934  0.0  0.0  55440   852  ?      Ss  18:04  0:00  haproxy  
-    -f /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.conf 
-    -p /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.pid
-root  7938  0.0  0.0  112712  984  pts/0  S+  18:04  0:00  grep     --color=auto  haproxy
+  -f /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.conf 
+  -p /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.pid
 ----
 
 .node `cent333`
@@ -2387,27 +2581,47 @@ root  7938  0.0  0.0  112712  984  pts/0  S+  18:04  0:00  grep     --color=auto
 ----
 $ ps aux | grep haproxy
 188       4380  0.0  0.0  55584   928 ?        Ss   18:04   0:00 haproxy 
-    -f /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.conf 
-    -p /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.pid -sf 4348
-root      5039  0.0  0.0 112712   980 pts/0    S+   18:07   0:00 grep --color=auto haproxy
+  -f /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.conf 
+  -p /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/haproxy.pid -sf 4348
 ----
 
-right after ingress and services got created, we see a haproxy process created
-in 2 nodes! remember earlier when we talk about ingress contrail implementation,
-we've said kubernetes ingress will trigger creation of a loadbalancer object in
-contrail database. we also mentioned the `contrail-svc-monitor` plays a role in
-the workflow, it watches loadbalancer creation and will launch a haproxy process
-running with ingress rules in the its configuration file. that is only a high
-level overview about the contrail's implementation of ingress. another important
-detail we've missed is that the contrail-svc-monitor also creates a `service
-instance` (SI) with `haproxy-loadbalancer` type of template applied. now we can
-explain the IP `10.47.255.248` seen in ingress: it is an cluster-internal IP
-address allocated to the SI, which is the frontend IP that the loadbalancer will
-listen. it is also the one that the ingress FIP maps to with NAT. whenever node
-receives traffic destined to the ingress FIP, vrouter will translate the
-"public" FIP into this "private" loadbalancer IP address. loadbalancer, through
-haproxy, will do proxy and forward the traffic to the service and eventually
-backend pod.
+right after ingress got created, we see a haproxy process created in each node!
+
+
+remember earlier when we talk about ingress contrail implementation, we've said
+contrail Ingress is also implemented through loadbalancer (like service), but
+Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
+which makes `contrail-svc-monitor` takes a different action than what it does
+for service. now it is the time to tell that the `loadbalancer_provider` is
+`opencontrail`, and accordingly the `contrail-svc-monitor` action is to launch a
+haproxy process running with ingress rules in its configuration file. this
+basically explains what we see now.
+
+that is only a high level overview about the contrail's implementation of
+ingress. in fact the for each loadbalancer with `loadbalancer_provider` being
+`opencontrail`, `contrail-svc-monitor` will a service-instance (SI). next we'll
+explore the objects in a little bit more details.
+
+=== exploring Ingress service-instance objects
+
+other important details we've not talked yet are:
+
+* the contrail-svc-monitor creates a `service instance` (SI) with
+  `haproxy-loadbalancer` type of template applied. 
+* the SI will link to a VM via a "port tuple"
+* in Ingress ,the VM is not a "real" VM but a linux namespace, the namespace VM
+  will also has its VMI, and a reference to an instance-ip
+
+
+image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-11e9-8bee-abfc5cbc400f.png[]
+
+now we can explain the IP `10.47.255.248` seen in ingress: it is an
+cluster-internal pod IP address allocated to the SI, which is the frontend IP
+that the loadbalancer will listen. it is also the one that the ingress FIP maps
+to with NAT. whenever node receives traffic destined to the ingress FIP, vrouter
+will translate the "public" FIP into this "private" loadbalancer IP address.
+loadbalancer, through haproxy, will do proxy and forward the traffic to the
+service and eventually backend pod.
 
 //LB, LB-listeners, LB pools, LB members, etc
 //https://github.com/Juniper/contrail-web-controller/blob/master/specs/load_balancing.md
