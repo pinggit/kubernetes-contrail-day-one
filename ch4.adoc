@@ -396,7 +396,7 @@ security groups in contrail. this is covered later in this chapter.
 === floating IP introduction
 
 `floating IP`, or `FIP` for short, is a "traditional" concept that contrail
-supports since very early releases. Essentially it is an openstack utility to
+supports since very early releases. Essentially it is an openstack concept to
 "map" a VM IP, which is typically a private IP address, to a public IP (the
 "floating IP" in this context) that is reachable from the outside of the
 cluster. Internally the one to one mapping is implemented by NAT. whenever a
@@ -405,6 +405,9 @@ IP, it will translate it to the VM's private IP and forward the packet to the
 VM. similarly it will do the translation on reverse direction. Eventually both
 VM and Internet host can talk to each other, and both can initiate the
 communication.
+
+[Note: vrouter is a contrail forwarding plane resides in each compute node handles
+workloads traffic]
 
 the figure below illustrates the basic work flow of FIP:
 
@@ -416,16 +419,15 @@ image::https://user-images.githubusercontent.com/2038044/60556767-b8faea00-9d10-
 
 here are some highlights regarding FIP and FIP pool configuration:
 
-* a FIP is allocated from a `FIP pool`
 * a FIP is associated with a VM's `port`, or a `VMI` (Virtual Machine
   Interface).
+* a FIP is allocated from a `FIP pool`
 * a FIP pool is created based on a virtual network(`FIP-VN`)
-* the `FIP-VN` may mark itself as "public", by setting `route-target` (`RT`)
-  attributes. 
-* when a `FIP` is advertised to the outside of the cluster, typically through a
-  gateway router, the router will examine the RT. if it sees a match with its
-  route import policy, it will load the route into its VRF table. all remote
-  clients connected to the VRF will be able to communicate with the FIP.
+* the `FIP-VN` will be available to outside of the cluster, by setting matching
+  `route-target` (`RT`) attributes of gateway routers VRF table . 
+* when a gateway router sees a match with its route import policy in the RT,
+  it will load the route into its VRF table. all remote clients connected to
+  the VRF will be able to communicate with the FIP.
 
 Regarding the FIP concept and role, there is nothing new in contrail
 kubernetes environment. But the usage of floating IP has been extended in
@@ -504,13 +506,13 @@ options so that a FIP pool named "public" will automatically be created.
 
 === FIP pool scope
 
-there are different ways you can define an floating IP pool, and correspondingly
-the scope of the pools will also be different. here are 3 possible scopes an IP
-pool may have:
+there are different ways you can define an floating IP pool in kubernetes in contrail,
+and correspondingly the scope of the pools will also be different. here are 3 possible
+levels with priroity
 
 * object specific
-* NS default
-* global default
+* Namespace level
+* global level
 
 .object specific
 
@@ -521,20 +523,20 @@ FIP pool `pool1`, a service `dns` to get FIP from another FIP pool `pool2`, etc.
 This give the most granular control of where the FIP comes from for an object,
 the cost is you need to explicitly specify it in your yaml file for every object
 
-.NS default
+.NS level
 
 in a NS, a "lazy" way to give FIP is to define a "NS level" FIP pool, so that
-all objects created in that NS will "by default" get FIP assignment from that
-pool. with NS default pool defined (e.g. `pool-ns-default`), there is no need to
+all objects created in that NS will get FIP assignment from that pool. 
+with NS level pool defined (e.g. `pool-ns-default`), there is no need to
 specify the same pool name in each object's yaml file any more. you can still
 give a different pool name, say `my-webservie-pool` in an object `webservice` ,
 in that case object `webservice` will get the FIP from `my-webservice-pool`
-instead of from the NS level pool `poo-ns-default`, because the former is more
+instead of from the NS level pool `pool-ns-default`, because the former is more
 specific.
 
-.global default
+.global level
 
-a "even lazier" method is to define a "global" level default pool, which means
+a "even lazier" method is to define a "global" level pool, which means
 the scope will be the whole cluster, including all namespaces. 
 
 you can combine all 3 methods to take advantages of the flexibility. here is a
@@ -554,9 +556,9 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
-==== global level default FIP pool
+=== global level FIP pool
 
-to define the global level default FIP pool, you need to specify the full
+to define the global level FIP pool, you need to specify the full
 qualified pool name (domain > project > network) in configuration file of
 `contrail-kube-manager` docker container. 
 
@@ -592,7 +594,7 @@ about the setup. to specify a `global FIP pool`, add following line in it:
 KUBERNETES_PUBLIC_FIP_POOL={'domain': 'default-domain','name': 'pool-global-default','network': 'vn-global-default','project': 'k8s-ns-user-1'}
 ----
 
-it reads: the global default FIP pool is called `pool-global-default`, and it
+it reads: the global FIP pool is called `pool-global-default`, and it
 is defined based on a VN `vn-global-default` under project `k8s-ns-user-1`.
 the project name indicates the corresponding kubernetes namespace is `ns-user-1`.
 
@@ -610,11 +612,11 @@ Creating kubemanager_node-init_1 ... done
 Creating kubemanager_kubemanager_1 ... done
 ----
 
-now the global default FIP pool is defined.
+now the global FIP pool is defined.
 
-==== NS level default FIP pool
+=== NS level FIP pool
 
-the next FIP pool scope is in NS level. each NS can define its own default
+the next FIP pool scope is in NS level. each NS can define its own FIP
 pool.  same way as kubernetes annotations object is used to give a subnet to a
 VN, it is also used to specify a FIP pool. the yaml file looks:
 
@@ -628,7 +630,7 @@ metadata:
   name: ns-user-1
 ----
 
-in this example, NS `ns-user-1` is given a NS level default FIP pool named
+in this example, NS `ns-user-1` is given a NS level FIP pool named
 `pool-ns-default`, and the corresponding VN is `vn-ns-default`. once the NS
 `ns-user-1` is created with this yaml file, any new service which requires an
 FIP, if not created with the object-specific pool name in its yaml file, will
