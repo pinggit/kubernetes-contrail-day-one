@@ -406,8 +406,8 @@ VM. similarly it will do the translation on reverse direction. Eventually both
 VM and Internet host can talk to each other, and both can initiate the
 communication.
 
-[Note: vrouter is a contrail forwarding plane resides in each compute node handles
-workloads traffic]
+NOTE: vrouter is a contrail forwarding plane resides in each compute node handles
+workloads traffic
 
 the figure below illustrates the basic work flow of FIP:
 
@@ -702,6 +702,69 @@ details later.
 
 once a FIP is associated to a pod interface, it will be advertised to the MP-BGP
 peers, which are typically gateway routers.
+
+following screenshot shows how to add/edit a BGP peer.
+
+.contrail command: select "main-menu" > INFRASTRUCTURE: "Cluster" > "Advanced Options"
+image::https://user-images.githubusercontent.com/2038044/61074698-4c55ae80-a3e6-11e9-81d5-5efa962cbdb5.png[]
+
+****
+.CC
+contrail command (CC) is the new user interface (UI) coming with the
+contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
+most of lab studies. just keep in mind that in the future CC will be the only UI
+and the "legacy" one will be deprecated. 
+
+.CC "main-menu":
+in CC, the functions and settings are groups in a a "main menu". it is also the
+entry point from where you can navigate through different functions. 
+
+.CC "main-menu":
+image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
+
+in order to get this menu, click on group name right next to the "contrail
+command" logo on the upper left of the UI. in the above screen capture that
+group is "Infrastructure", but regardless it can be any group, just click it and
+you will get the main menu, then from there you can select and jump into all
+other settings.
+****
+
+
+.contrail command: select "BGP router" > "create"
+image::https://user-images.githubusercontent.com/2038044/61074999-0cdb9200-a3e7-11e9-80a3-b180d6454267.png[]
+
+input all the BGP peer information, don't forget to associate the controller(s),
+which is shown next:
+
+.change ASN
+image::https://user-images.githubusercontent.com/2038044/61075110-4d3b1000-a3e7-11e9-8eec-ece0304ce4d8.png[]
+
+from the dropdown of `peer` under `Associated Peers`, select the controller(s)
+to peer with this new BGP router that you are trying to add.  click `save` when
+done. a new BGP peer with ROUTER TYPE "router" will pop up.
+
+.a new BGP router in the BGP router list
+//image::https://user-images.githubusercontent.com/2038044/61074880-be2df800-a3e6-11e9-82af-7e58ccd7e710.png[]
+image::https://user-images.githubusercontent.com/2038044/61079058-1289a580-a3f0-11e9-93a7-85eb53397a32.png[]
+
+now we've added a peer BGP router. we just need to click `edit` to double check
+the local BGP speaker's parameters, in our test we want to build MP-IBGP
+neighborship between contrail controller and gateway router. so we make sure the
+ASN is same on both end.
+
+.contrail controller BGP parameters: ASN
+image::https://user-images.githubusercontent.com/2038044/61075264-94c19c00-a3e7-11e9-90bd-6006dad35ef0.png[]
+
+now you can check BGP neighborship status in gateway router.
+
+----
+labroot@camaro> show bgp summary | match 10.169.25.19
+10.169.25.19          60100       2235       2390       0      39    18:19:34 Establ
+----
+
+once the neighborship is "Established", BGP routes will be exchanged between the
+two speakers, that is the time we'll see that the FIP learned in the gateway
+router.
 
 ----
 labroot@camaro> show route table ping-test.inet.0 101.101.101.2
@@ -3922,27 +3985,6 @@ if you login to the contrail UI, you will see something "unexpected".
 .contrail command: "main-menu" -> "virtual networks"
 
 image::https://user-images.githubusercontent.com/2038044/60283772-f78b4180-98d7-11e9-9358-1ed47aeeef57.png[]
-
-****
-.CC
-contrail command (CC) is the new user interface (UI) coming with the
-contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
-most of lab studies. just keep in mind that in the future CC will be the only UI
-and the "legacy" one will be deprecated. 
-
-.CC "main-menu":
-in CC, the functions and settings are groups in a a "main menu". it is also the
-entry point from where you can navigate through different functions. 
-
-.CC "main-menu":
-image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
-
-in order to get this menu, click on group name right next to the "contrail
-command" logo on the upper left of the UI. in the above screen capture that
-group is "Infrastructure", but regardless it can be any group, just click it and
-you will get the main menu, then from there you can select and jump into all
-other settings.
-****
 
 make sure you select a correct "project", in this case it is `k8s-default`.
 
