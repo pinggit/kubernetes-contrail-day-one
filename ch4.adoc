@@ -4082,15 +4082,17 @@ VN. check "service chaining" section for more details.
 
 == service chaining with CSRX
 
+=== contrail service chaining introduction
+
 service chaining is the idea of forwarding traffic through multiple network
 entity in a certain order, each network entity do specific function such as
-firewall, IPS , NAT , LB , …,etc the legacy way of doing service chaining would
+firewall, IPS , NAT , LB , …,etc. the legacy way of doing service chaining would
 use standalone HW appliances which made service chaining inflexible, expensive
-and takes a long time to setup Dynamic service chaining is where network
+and takes a long time to setup. Dynamic service chaining is where network
 functions deployed as VM or Container and could be chained automatically in a
-logical way.  in the next example we use contrail for services chaining between
+logical way. in the next example we use contrail for services chaining between
 two PODs in two different networking using CSRX container L4-L7 firewall to
-secure the traffic between these two networks as shown in the figure 
+secure the traffic between these two networks as shown in the figure:
 
 .service chaining
 image::https://user-images.githubusercontent.com/2038044/60268925-85a4ff00-98bb-11e9-94c3-219d41038642.png[]
@@ -4104,10 +4106,12 @@ image::https://user-images.githubusercontent.com/2038044/60268925-85a4ff00-98bb-
   POD would fail to be created 
 ====
 
+=== create VNs
+
 so let’s start create two networks using this YAML files 
 
 ----
-[root@cent11]# cat vn-left.yaml
+# cat vn-left.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -4120,7 +4124,7 @@ metadata:
 spec:
  config: '{ "cniVersion": "0.3.0", "type": "contrail-k8s-cni" }'
 
-[root@cent11]# cat vn-left.yaml
+# cat vn-left.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -4135,19 +4139,19 @@ spec:
 ----
 
 ----
-[root@cent11]# kubectl create -f vn-left.yaml
-[root@cent11]# kubectl create -f vn-right.yaml
+# kubectl create -f vn-left.yaml
+# kubectl create -f vn-right.yaml
 ----
 
 Verify using Kubectl 
  
 ----
-[root@cent11 ~]# kubectl get network-attachment-definition
+# kubectl get network-attachment-definition
 NAME       AGE
 vn-left    19d
 vn-right   17d
 
-[root@cent11 ~]# kubectl describe network-attachment-definition
+# kubectl describe network-attachment-definition
 Name:         vn-left
 Namespace:    default
 Labels:       <none>
@@ -4187,20 +4191,21 @@ Events:    <none>
 ----
 
 It’s a good practice to confirm these two networks are seen now in contrail
-before proceeding. 
-From the Contrail Controller module control node (http://10.85.188.16:8143 in
-our setup), select Configure > Networking > Networks > default-domain > k8s-default
-As shown in the figure which focus on left network
+before proceeding.  From the Contrail UI, select Configure > Networking >
+Networks > default-domain > k8s-default, As shown in the figure which focus on
+left network
 
 NOTE: using namespace: default object in the YAML file for a network will create
 it n in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
 
+=== create client pods
+
 Create two ubuntu Pods, one in each network using the annotation object
 
 ----
-[root@cent11 ~]# cat left-ubuntu-sc.yaml 
+# cat left-ubuntu-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -4221,7 +4226,7 @@ spec:
              - NET_ADMIN
 
 
-[root@cent11 ~]# cat right-ubuntu-sc.yaml 
+# cat right-ubuntu-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -4241,22 +4246,24 @@ spec:
            add:
              - NET_ADMIN
 
-[root@cent11 ~]# kubectl create -f right-ubuntu-sc.yaml
-[root@cent11 ~]# kubectl create -f left-ubuntu-sc.yaml
+# kubectl create -f right-ubuntu-sc.yaml
+# kubectl create -f left-ubuntu-sc.yaml
 
 
-[root@cent11 ~]# kubectl get pod
+# kubectl get pod
 NAME              READY   STATUS    RESTARTS   AGE
 left-ubuntu-sc    1/1     Running   0          25h
 right-ubuntu-sc   1/1     Running   0          25h
 
 ----
 
+=== create CSRX pod
+
 create Juniper CSRX container that have one interface on the left network and
 one interface on the right network using this YAML file 
 
 ----
-[root@cent11 ~]# cat csrx1-sc.yaml 
+# cat csrx1-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -4280,12 +4287,12 @@ spec:
     securityContext:
       privileged: true
 
-[root@cent11 ~]# kubectl create -f csrx1-sc.yaml
+# kubectl create -f csrx1-sc.yaml
 
 
 Confirm the interface placement in the correct network 
 
-[root@cent11 ~]# kubectl describe pod 
+# kubectl describe pod 
 Name:               csrx1-sc
 Namespace:          default
 Priority:           0
@@ -4389,11 +4396,14 @@ NOTE: each container has one interface belong to “cluster-wide-default” netw
 regardless the use of the annotations object because annotations object above
 creates and put one extra interface in a specific network 
 
+=== verify podIP
+
+.verify podIP
 
 Login to the left, right Pods and the CSRX to confirm the IP/MAC address 
  
 ----
-[root@cent11 ~]# kubectl exec -it left-ubuntu-sc bash
+# kubectl exec -it left-ubuntu-sc bash
 root@left-ubuntu-sc:/# ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -4410,7 +4420,7 @@ root@left-ubuntu-sc:/# ip a
 
 
 
-[root@cent11 ~]# kubectl exec -it right-ubuntu-sc bash
+# kubectl exec -it right-ubuntu-sc bash
 root@right-ubuntu-sc:/# ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -4426,7 +4436,7 @@ root@right-ubuntu-sc:/# ip a
        valid_lft forever preferred_lft forever
 
 
-[root@cent11 ~]# kubectl exec -it csrx1-sc cli
+# kubectl exec -it csrx1-sc cli
 root@csrx1-sc>
 root@csrx1-sc> show interfaces 
 Physical interface: ge-0/0/1, Enabled, Physical link is Up
@@ -4447,6 +4457,7 @@ NOTE: By default, CSRX eth0 is visible only from shell and used for management.
 And when attaching networks, the first attach network is mapped to eth1 which is
 GE-0/0/1 And the second attach is mapped to eth2 which is GE-0/0/0
 
+.configure CSRX IP
 Configure this basic setup on the CSRX, to assign the correct IP address use the
 MAC/IP address mapping from the “ kubectl describe pod” command show output as
 well configure default security policy to allow everything for now 
@@ -4486,6 +4497,8 @@ Physical interface: ge-0/0/0, Enabled, Physical link is Up
         Destination: 10.20.20.0/24, Local: 10.20.20.2
 ----
 
+=== ping test
+
 From the Left POD try to ping the left POD, ping would fail as there is no route 
 
 ----
@@ -4515,17 +4528,22 @@ PING 10.20.20.1 (10.20.20.1) 56(84) bytes of data.
 4 packets transmitted, 0 received, 100% packet loss, time 2999ms
 ----
 
-
-Still ping failed, as we didn’t create the service chaining which will also take care of the routing
-let’s see what happen to our packets 
+Still ping failed, as we didn’t create the service chaining which will also take
+care of the routing. let’s see what happen to our packets 
 
 ----
 root@csrx1-sc# run show security flow session 
 Total sessions: 0
+----
 
-No session on the CSRX.
-Login to the compute node “cent22” that host this container to dump the traffic using tshark and check the routing 
-To get the interface linking the containers 
+No session on the CSRX.  
+
+=== troubleshooting ping issue
+
+Login to the compute node “cent22” that host this container to dump the traffic
+using tshark and check the routing To get the interface linking the containers 
+
+----
 [root@cent22 ~]# vif -l
 Vrouter Interface Table
 
@@ -4605,7 +4623,6 @@ image::https://user-images.githubusercontent.com/2038044/60268930-863d9580-98bb-
 try to ping again from the left POD to the right POD and use tshark on the tap
 interface for the right POD for further inspection 
 
-
 ----
 [root@cent22 ~]# tshark -i tapeth1-89a4e2
 Running as user "root" and group "root". This could be dangerous.
@@ -4614,7 +4631,6 @@ Capturing on 'tapeth1-89a4e2'
   2 0.000037656 IETF-VRRP-VRID_00 -> 02:89:cc:86:48:8d ARP 42 Gratuitous ARP for 10.20.20.253 (Request)
   3 1.379993896 IETF-VRRP-VRID_00 -> 02:89:cc:86:48:8d ARP 42 Who has 10.20.20.1?  Tell 10.20.20.253
 ----
-
 
 Looks like the ping isn’t reaching the right POD at all , lets see on the CSRX
 left network tap interface  
@@ -4633,9 +4649,11 @@ Capturing on 'tapeth1-844f1c'
   8 2.201462515   10.10.10.1 -> 10.20.20.1   ICMP 98 Echo (ping) request  id=0x020a, seq=412/39937, ttl=63
 ----
 
-We can see the packet but there is nothing in the CSRX security prospective to drop this packet
+We can see the packet but there is nothing in the CSRX security prospective to
+drop this packet
 
-checking the routing table of the left network VRF by logging to the vrouter_vrouter-agent_1 in the compute node 
+checking the routing table of the left network VRF by logging to the
+`vrouter_vrouter-agent_1` docker in the compute node 
 
 ----
 [root@cent22 ~]# docker ps | grep vrouter
@@ -4648,7 +4666,6 @@ e25f1467403d        ci-repo.englab.juniper.net:5000/contrail-nodemgr:master-late
 (vrouter-agent)[root@cent22 /]$
 ----
 
-
 Note that 6 is the routing table VRF of the left network, same would goes for
 the right network VRF routing table there is missing route 
 
@@ -4657,18 +4674,18 @@ the right network VRF routing table there is missing route
 
 So even if all the PODs are hosted on the same compute nodes, they can’t reach
 each other. And if these PODs are hosted on different compute nodes then you
-have a bigger problem to solve Service chaining isn’t about adjusting the routes
+have a bigger problem to solve. Service chaining isn’t about adjusting the routes
 on the containers but mainly about exchange routes between the vrouter-agent
-between the compute nodes regardless of the location of the POD as well adjust
-that automatically if the POD moved to another compute node Before we build
+between the compute nodes regardless of the location of the POD, as well adjust
+that automatically if the POD moved to another compute node. Before we build
 service chaining lets address an important concerns for network administrator
 who are not fan of this kind of CLI troubleshooting, can we do the same
-troubleshooting using contrail controller GUI the answer is yes and lets do it 
+troubleshooting using contrail controller GUI? 
 
+the answer is yes and lets do it.
 
-From the Contrail Controller module control node (http://10.85.188.16:8143 in
-oursetup), select monitor > infrastructure > virtual router then select the node
-the that host the POD , in our case “Cent22.local” 
+From the Contrail Controller UI, select monitor > infrastructure > virtual
+router then select the node the that host the POD , in our case “Cent22.local” 
 
 image::https://user-images.githubusercontent.com/2038044/60268931-863d9580-98bb-11e9-9682-d330878fa386.png[]
 
@@ -4690,6 +4707,8 @@ selecting L2 ( which is equvilant to “rt --dump 6 --family bridge” command
 
 image::https://user-images.githubusercontent.com/2038044/60268936-86d62c00-98bb-11e9-9050-ca104b278a1a.png[]
 
+=== create service chaining
+
 Now lets utilize the CSRX to service chaining using contrail command GUI
 
 creating Service chaining is 4 steps make sure to do them in this order 
@@ -4699,12 +4718,10 @@ creating Service chaining is 4 steps make sure to do them in this order
 3. creating network policy and select the service instance you created before
 4. apply this network policy on network   
 
-
 NOTE: since contrail command GUI is the solution to provide a single point of
 management for all environments, we will use it to build service changing but
 you still can use the normal contrail controller GUI to build service changing
  
-
 Login to contrail command GUI ( in our setup https://10.85.188.16:9091/) then select service > catalog > create 
 
 image::https://user-images.githubusercontent.com/2038044/60268937-86d62c00-98bb-11e9-8744-b8213b5246ed.png[]
@@ -4713,7 +4730,6 @@ image::https://user-images.githubusercontent.com/2038044/60268938-876ec280-98bb-
 insret a name of services template “myweb-CSRX-CS” in here then chose v2 ,
 virtual machine ( no other option available) for service mode we will work with
 In-network and firewall as service type  
- 
 
 image::https://user-images.githubusercontent.com/2038044/60268941-876ec280-98bb-11e9-8f68-5c49af9b06d1.png[]
 
@@ -4732,10 +4748,6 @@ the service chaining and click on port tuples to expand it
 
 image::https://user-images.githubusercontent.com/2038044/60268945-88075900-98bb-11e9-87fa-375337170b12.png[]
 
-
-
-
- 
 then for each of the three interface bound one interface of the CSRX then click create
 
 NOTE: the name of the virtual machine interface isn’t shown in the drop down
@@ -4743,9 +4755,9 @@ menu instead the instance ID, you can identify that from the tap interface name
 as we showed before.  In other word all you have to know is most 6 left
 character for any interface belong to that container as all the interface in a
 given instance ( VM or container)  share the same first characters from the left 
-
  
-Before you procced make sure the status of the three interfaces are up and they are showing the correct IP address of the CSRX instance 
+Before you procced make sure the status of the three interfaces are up and they
+are showing the correct IP address of the CSRX instance 
  
 image::https://user-images.githubusercontent.com/2038044/60268947-88075900-98bb-11e9-9b0a-ecf0c6a03e33.png[]
 
@@ -4758,16 +4770,10 @@ Insert a name for your network policy then in the first rule add left network as
 image::https://user-images.githubusercontent.com/2038044/60268949-889fef80-98bb-11e9-844a-326b5d506038.png[]
 
 Select advanced option to attached the service instance you create before and click create 
- 
-
 
 image::https://user-images.githubusercontent.com/2038044/60268951-889fef80-98bb-11e9-84c5-f354b3d8938e.png[]
 
-
-
-
 To attach this network policy to network click virtual network and select the left network and edit 
- 
 
 image::https://user-images.githubusercontent.com/2038044/60268953-889fef80-98bb-11e9-8826-2626a76c3d4a.png[]
 
@@ -4776,7 +4782,7 @@ do the same for the right network
 
 image::https://user-images.githubusercontent.com/2038044/60268955-89388600-98bb-11e9-9605-14fbc8d30fbe.png[]
 
-
+=== verify service chaining
 
 Now lets check the effect of this service changing on routing 
 From the Contrail Controller module control node (http://10.85.188.16:8143 in
@@ -4786,10 +4792,10 @@ and select the left VRF
  
 image::https://user-images.githubusercontent.com/2038044/60268956-89388600-98bb-11e9-9e82-7d5fbddf38f8.png[]
 
-Now we can the right networks host routes has been leaked to the left network (10.20.20.1/32 , 10.20.20.2/32 in this case) 
+Now we can the right networks host routes has been leaked to the left network
+(10.20.20.1/32 , 10.20.20.2/32 in this case) 
 
 Now let’s try to ping the right pod from the left pod to see the session created on the CSRX 
-
 
 ----
 root@left-ubuntu-sc:/# ping 10.20.20.1
@@ -4812,6 +4818,8 @@ Session ID: 5379, Policy name: default-policy-logical-system-00/2, Timeout: 2, V
 Total sessions: 2
 
 ----
+
+=== security policy
 
 Now let try to create security policy on the CSRX to allow only http and https
 
