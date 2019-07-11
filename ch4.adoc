@@ -93,7 +93,7 @@ illustratesthe basic work flow:
 //image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/kubemanager.png[]
 //image::https://raw.githubusercontent.com/pinggit/kubernetes-contrail-day-one/master/diagrams/kubemanager.png?token=AAPRSHE5SF522ETPA6NAUDK5D7PHS[]
 
-image::https://user-images.githubusercontent.com/2038044/60748771-5f3c2f00-9f5f-11e9-9f72-1f28794c8d5b.png[]
+image::https://github.com/aymanaborabh/kubernetes-contrail-day-one/blob/master/diagrams/kube-manager-chapter%204.png[]
 
 === kubernetes to contrail object mapping
 
