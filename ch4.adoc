@@ -669,25 +669,91 @@ pool for the objects that requires one. this can be done either manually, by
 associating an FIP to a VMI (VM or pod interface), or automatically by contrail
 system when it sees the need.
 
+.manually association
+
+you can manually create a FIP out of a FIP pool in contrail UI, and then
+associate it with a pod VMI.
+
+.create a FIP manually
+
+.create FIP
+image::https://user-images.githubusercontent.com/2038044/61014424-567b9c80-a355-11e9-832e-3a7f33d2590e.png[]
+
+.associate a FIP in a pod interface
+image::https://user-images.githubusercontent.com/2038044/61014684-aa3ab580-a356-11e9-92e7-882e21dd6657.png[]
+
+NOTE: make sure the FIP pool is shared to the project where FIP is going to be
+created.
+
 .automatically assignment
 
-later in this book, you will see examples when contrail automatically assign a
-FIP and associate it to objects:
+in some cases a FIP will be created automatically. later in this book, you will
+see examples when contrail automatically assign a FIP and associate it to
+kubernetes objects:
 
 * LoadBalancer service
 * Ingress objects
 
-in fact, ClusterIP by itself is also implemented by FIP. we'll check out more
+in fact, `ClusterIP` by itself is also implemented by FIP. we'll check out more
 details later.
 
-.manually association
-
-// TODO: <<SCREENSHOT>>
 
 === advertising FIP
 
-//TODO
+once a FIP is associated to a pod interface, it will be advertised to the MP-BGP
+peers, which are typically gateway routers.
 
+----
+labroot@camaro> show route table ping-test.inet.0 101.101.101.2
+Jul 11 01:18:31
+
+ping-test.inet.0: 8 destinations, 8 routes (8 active, 0 holddown, 0 hidden)
+@ = Routing Use Only, # = Forwarding Use Only
++ = Active Route, - = Last Active, * = Both
+
+101.101.101.2/32   *[BGP/170] 00:01:42, MED 200, localpref 100, from 10.169.25.19
+                       AS path: ?
+                    validation-state: unverified, > via gr-2/3/0.32771, Push 47
+----
+
+the FIP route is reflected from the contrail controller, with a "next hop" being
+the compute node where the associated pod is running.
+
+----
+labroot@camaro> show route table ping-test.inet.0 101.101.101.2 detail | match "next hop"
+Jul 11 01:19:18
+                Next hop type: Indirect, Next hop index: 0
+                Next hop type: Router, Next hop index: 1453
+                Next hop: via gr-2/3/0.32771, selected
+                Protocol next hop: 10.169.25.20
+                Indirect next hop: 0x900e640 1048601 INH Session ID: 0x70f
+----
+
+in this capture the next hop is on `10.169.25.20`, node `cent222`. the dynamic
+soft GRE configuration make the gateway router automatically create a soft GRE
+tunnel interface:
+
+----
+labroot@camaro> show interfaces gr-2/3/0.32771
+Jul 11 01:19:53
+  Logical interface gr-2/3/0.32771 (Index 432) (SNMP ifIndex 1703)
+    Flags: Up Point-To-Point SNMP-Traps 0x4000 
+    IP-Header 10.169.25.20:192.168.0.204:47:df:64:0000000800000000 Encapsulation: GRE-NULL
+    Copy-tos-to-outer-ip-header: Off, Copy-tos-to-outer-ip-header-transit: Off
+    Gre keepalives configured: Off, Gre keepalives adjacency state: down
+    Input packets : 0
+    Output packets: 0
+    Protocol inet, MTU: 9142
+    Max nh cache: 0, New hold nh limit: 0, Curr nh cnt: 0, Curr new hold cnt: 0, NH drop cnt: 0
+      Flags: None
+    Protocol mpls, MTU: 9130, Maximum labels: 3
+      Flags: None
+----
+
+the `IP-Header` indicates GRE outer IP header, so the "tunnel" is built from
+current gateway router whose BGP local address is `192.168.0.204`, to remote "PE
+node" `10.169.25.20`, in this case it's actually a contrail compute node
+`cent222`.
 
 == contrail services
 
@@ -2104,10 +2170,12 @@ loadbalancer
 Whenever an ingress is configured in kubernetes, `contrail-kube-manager` that is
 watching the kube-apiserver get the events and creates an loadbalancer object in
 contrail-controller.  `contrail-svc-monitor` component listens for the load
-balancer objects and launches two haproxy processes, each in a seperate compute
-node. both `haproxy` processes are programmed with appropriate configuration
-based on the ingress rules you defined. the two haproxy processes work in
-"active-standby" mode.  service request, as a type of `overlay` traffic,
+balancer objects and takes a different action based on its
+`loadbalancer_provider` attribute. when it sees `loadbalancer_provider`
+attribute being `opencontrail`, it launches two haproxy processes, each in a
+seperate compute node. both `haproxy` processes are programmed with appropriate
+configuration based on the ingress rules you defined. the two haproxy processes
+work in "active-standby" mode.  service request, as a type of `overlay` traffic,
 traverses through gateway router and lands the "active" haproxy running in one
 of the compute node, from there the traffic is "proxied" to the node where
 backend pods are located and reaches the pods. In the case that the backend pods
@@ -2115,20 +2183,36 @@ are running in a different compute node, a MPLS over UDP tunnel is created
 between the two compute node.
 
 ////
-Contrail has its built-in implementation of Kubernetes Ingress loadbalancer -
-the `HAProxy` load-balancer. 
-////
+contrail Ingress is also implemented through loadbalancer (like service), but
+Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
+which makes `contrail-svc-monitor` takes a different action than what it does
+for service. now it is the time to tell that the `loadbalancer_provider` is
+`opencontrail`, and accordingly the `contrail-svc-monitor` action is to launch a
+haproxy process running with ingress rules in its configuration file. this
+basically explains what we see now.
 
-////
+that is only a high level overview about the contrail's implementation of
+ingress. 
+in fact that for each loadbalancer with `loadbalancer_provider` being
+`opencontrail`, `contrail-svc-monitor` will generate a service-instance (SI).
+next we'll explore the objects in a little bit more details.
+
 this is how it works:
 
-* `contrail-kube-manager` keeps listening to the `kube-apiserver` events
-* user configures an `ingress` (rules)
-* contrail `contrail-kuber-manager` gets the event from `kube-apiserver`
-* contrail `contrail-kuber-manager` creates a `load-balancer object` in
-  contrail DB.
-* contrail `service monitor` component launches the HAProxy process, with
-  appropriate configuration, based on the ingress rules defined in the yaml file.
+. `contrail-kube-manager` keeps listening to the `kube-apiserver` events
+. user configures an `ingress` (rules)
+. contrail `contrail-kube-manager` gets the event from `kube-apiserver`
+. contrail `contrail-kube-manager` creates a `load-balancer object` in
+  contrail DB, set `loadbalancer_provider` attribute to `opencontrail`.
+. contrail `service monitor` component sees the loadbalancer creation event,
+  based on `loadbalancer_provider` value, it actions differently. when the value
+  is `opencontrail`, `contrail-svc-monitor` invokes a "haproxy driver/plugin"
+. the "haproxy driver" will create a service instance (SI) with
+  `haproxy-loadbalancer` type of template applied.
+. the SI will has a "port tuple" linked to a linux netns VM
+. the linux netns VM VM has its VMI, and a reference to an instance-ip
+. `contrail-svc-monitor` launches the HAProxy process, with appropriate
+  configuration, based on the ingress rules defined in the yaml file.
 ////
 
 contrail supports all 3 types of ingress:
@@ -2589,33 +2673,32 @@ $ ps aux | grep haproxy
 
 right after ingress got created, we see a haproxy process created in each node!
 
-
 remember earlier when we talk about ingress contrail implementation, we've said
 contrail Ingress is also implemented through loadbalancer (like service), but
 Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
 which makes `contrail-svc-monitor` takes a different action than what it does
-for service. now it is the time to tell that the `loadbalancer_provider` is
-`opencontrail`, and accordingly the `contrail-svc-monitor` action is to launch a
-haproxy process running with ingress rules in its configuration file. this
-basically explains what we see now.
+for service. the `loadbalancer_provider` for Ingress loadbalancer is
+`opencontrail`, and accordingly the `contrail-svc-monitor` action on it is to
+launch a haproxy process running with ingress rules in its configuration file.
+this basically explains the haproxy processes we see in the 2 nodes.
 
+////
 that is only a high level overview about the contrail's implementation of
 ingress. in fact the for each loadbalancer with `loadbalancer_provider` being
-`opencontrail`, `contrail-svc-monitor` will a service-instance (SI). next we'll
-explore the objects in a little bit more details.
+`opencontrail`, `contrail-svc-monitor` will generate a service-instance (SI).
+next we'll explore the objects in a little bit more details.
+////
 
 === exploring Ingress service-instance objects
 
-other important details we've not talked yet are:
-
-* the contrail-svc-monitor creates a `service instance` (SI) with
-  `haproxy-loadbalancer` type of template applied. 
-* the SI will link to a VM via a "port tuple"
-* in Ingress ,the VM is not a "real" VM but a linux namespace, the namespace VM
-  will also has its VMI, and a reference to an instance-ip
-
-
+.contrail object: SI, port tuple, VMI
 image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-11e9-8bee-abfc5cbc400f.png[]
+
+.loadbalancers
+image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
+
+.ingress loadbalancer object
+image::https://user-images.githubusercontent.com/2038044/61021789-f98ddf80-a370-11e9-9cce-30a0c2671bc2.png[]
 
 now we can explain the IP `10.47.255.248` seen in ingress: it is an
 cluster-internal pod IP address allocated to the SI, which is the frontend IP
@@ -2624,9 +2707,6 @@ to with NAT. whenever node receives traffic destined to the ingress FIP, vrouter
 will translate the "public" FIP into this "private" loadbalancer IP address.
 loadbalancer, through haproxy, will do proxy and forward the traffic to the
 service and eventually backend pod.
-
-//LB, LB-listeners, LB pools, LB members, etc
-//https://github.com/Juniper/contrail-web-controller/blob/master/specs/load_balancing.md
 
 now we see the haproxy process is running, we can check further on its
 configuration file and confirm the ingress rules are programmed properly.
