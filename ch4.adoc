@@ -148,7 +148,7 @@ one analogy we`ve given when introducing `namespace` concept is openstack
 `project`, or `tenant`. that is exactly how contrail is looking at it. whenever
 a new `namespace` object is created, `contrail-kube-manager` gets noticed about
 the object creation event and it will create the corresponding `project` in
-contrail api database. to differiciate between multiple kubernetes NS project in
+contrail api database. to differentiate between multiple kubernetes NS project in
 contrail, a kubernetes cluster name will be added to the kubernetes NS or
 project name. the default kubernetes cluster name is 'k8s'.  so if you create a
 kubernetes NS `ns-user-1`, what you will end up to see in contrail GUI will be:
@@ -2678,9 +2678,10 @@ contrail Ingress is also implemented through loadbalancer (like service), but
 Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
 which makes `contrail-svc-monitor` takes a different action than what it does
 for service. the `loadbalancer_provider` for Ingress loadbalancer is
-`opencontrail`, and accordingly the `contrail-svc-monitor` action on it is to
-launch a haproxy process running with ingress rules in its configuration file.
-this basically explains the haproxy processes we see in the 2 nodes.
+`opencontrail`, and accordingly the action that `contrail-svc-monitor` take on
+it is to launch a haproxy process running with ingress rules in its
+configuration file.  this basically explains the haproxy processes we see in the
+2 nodes.
 
 ////
 that is only a high level overview about the contrail's implementation of
@@ -2689,24 +2690,77 @@ ingress. in fact the for each loadbalancer with `loadbalancer_provider` being
 next we'll explore the objects in a little bit more details.
 ////
 
-=== exploring Ingress service-instance objects
+=== exploring Ingress loadbalancer objects
 
+////
 .contrail object: SI, port tuple, VMI
 image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-11e9-8bee-abfc5cbc400f.png[]
+////
+
+we've talked about Ingress loadbalancers for a while. in `service` section,
+we've looked into service loadbalancer object in UI and learned more details
+about the object data structrure. now after we created Ingress object, let's
+check the loadbalancers object again and see what Ingress brings in.
 
 .loadbalancers
 image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
 
+3 loadbalancers are generated after we applied the all-in-one yaml file.
+
+* 2 for services
+* 1 for Ingress
+
+we've learned the service loadbalancer object previously, if you expand the
+service you will see more details, but nothing would surprise us now.
+
+.service loadbalancer object
+//image::https://user-images.githubusercontent.com/2038044/61049744-409cc480-a3b3-11e9-8a8e-5cdff7e6a931.png[]
+image::https://user-images.githubusercontent.com/2038044/61050199-64143f00-a3b4-11e9-9f7d-339775a3ae0e.png[]
+
+as expected, the service loadbalancer has a ClusterIP, and a listener object
+that is listening on port 8888. one thing we want to highlight here is the
+`loadbalancer_provider`. here it is "native", so the action
+`contrail-svc-monitor` takes is layer 4 ECMP, which we've explored a lot. now
+let's expand Ingress loadbalancer and look at the details.
+
 .ingress loadbalancer object
 image::https://user-images.githubusercontent.com/2038044/61021789-f98ddf80-a370-11e9-9cce-30a0c2671bc2.png[]
 
-now we can explain the IP `10.47.255.248` seen in ingress: it is an
-cluster-internal pod IP address allocated to the SI, which is the frontend IP
-that the loadbalancer will listen. it is also the one that the ingress FIP maps
-to with NAT. whenever node receives traffic destined to the ingress FIP, vrouter
-will translate the "public" FIP into this "private" loadbalancer IP address.
-loadbalancer, through haproxy, will do proxy and forward the traffic to the
-service and eventually backend pod.
+some highlights in the figure:
+
+* `loadbalancer_provider` is `opencontrail`
+* Ingress loadbalancer has a reference to `service-instance` (SI) object
+* SI has a property `ha_mode` set to `active-standby`
+* SI has an interface with IP `10.47.255.238`
+
+now we can explain the Ingress IP `10.47.255.248` seen in ingress: it is an
+cluster-internal IP address allocated from the default pod network to the SI.
+It is the frontend IP that the loadbalancer will listen for the requests. it is
+also the one that the ingress FIP `101.101.101.1` maps to with NAT. to
+differentiate it from the Ingress FIP, we will name it "Ingress podIP" from now
+on.
+
+Now we understand the purpose of these two IPs:
+
+* Ingress `podIP` is the VIP facing inside of the cluster. To reach Ingress from
+  inside of the cluster, requests coming from other pods will have their
+  destination IP set to Ingress `podIP`.
+* Ingress `FIP` is VIP facing outside world. To reach Ingress from outside of
+  the cluster, requests coming from Internet hosts need to have their
+  destinations IP set to Ingress FIP.  when node receives traffic destined to
+  the Ingress FIP from outside of the cluster, vrouter will translate it into
+  the Ingress `podIP`
+
+NOTE: the detail Ingress loadbalancer object implementation refers to SI, and SI
+again includes other data structure or reference to other objects (port-tuple,
+linux netns, VMI, etc). overall it is more complicated than what we've covered
+and it is hard to put everything in this book. we've tailored the details into a
+high level overview so that important concepts like haproxy and the two
+important Ingress IPes are easier to understand.
+
+Once packet arrives to the Ingress `podIP`, from internal or external, Ingress
+loadbalancer will do TCP proxy operation through haproxy process, and dispatch
+the traffic towards the service and eventually to the backend pod.
 
 now we see the haproxy process is running, we can check further on its
 configuration file and confirm the ingress rules are programmed properly.
@@ -2727,7 +2781,7 @@ will be a `haproxy` subfolder. the file structure looks like this:
 ----
 
 you can check either `ba92b465-9ae9-11e9-9b3e-0050569e6cfc.conf` or
-`haproxy/haproxy.conf` file for the haproxy configuration:
+`haproxy/haproxy.conf` file for the same haproxy configuration:
 
 ----
 $ cd /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/
@@ -2755,19 +2809,26 @@ defaults
 frontend acf8b96d-b322-4bc2-aa8e-0611baa43b9f
 
         option tcplog
-        bind 10.47.255.248:80                   #<---loadbalancer IP
+        bind 10.47.255.248:80                   #<---Ingress loadbalancer podIP
         mode http
         option forwardfor
 
+        #map www.juniper.net to backend "xxx4e6a681ec8e6", which maps to "service-1"
         acl 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_host hdr(host) -i www.juniper.net
         acl 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_path path /
-        use_backend 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6 if 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_host 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_path
+        use_backend 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6 if
+            77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_host
+            77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6_path
 
-        default_backend cd7a7a5b-6c49-4c23-b656-e23493cf7f46
-
+        #map URL www.cisco.net to backend "xxx44d1ca50a92f", which maps to "service-2"
         acl 1e1e9596-85b5-4b10-8e14-44d1ca50a92f_host hdr(host) -i www.cisco.net
         acl 1e1e9596-85b5-4b10-8e14-44d1ca50a92f_path path /
-        use_backend 1e1e9596-85b5-4b10-8e14-44d1ca50a92f if 1e1e9596-85b5-4b10-8e14-44d1ca50a92f_host 1e1e9596-85b5-4b10-8e14-44d1ca50a92f_path
+        use_backend 1e1e9596-85b5-4b10-8e14-44d1ca50a92f if
+            1e1e9596-85b5-4b10-8e14-44d1ca50a92f_host
+            1e1e9596-85b5-4b10-8e14-44d1ca50a92f_path
+
+        #map other URLs, to default backend "xxx4e6a681ec8e6"
+        default_backend cd7a7a5b-6c49-4c23-b656-e23493cf7f46
 
 backend 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6    #<---service-1
         mode http
@@ -2775,21 +2836,25 @@ backend 77c6ad05-e3cc-4be4-97b2-4e6a681ec8e6    #<---service-1
         option forwardfor
         server 33339e1c-5011-4f2e-a276-f8dd37c2cc51 10.101.158.92:8888 weight 1
 
-backend cd7a7a5b-6c49-4c23-b656-e23493cf7f46    #<---default
-        mode http
-        balance roundrobin
-        option forwardfor
-        server e8384ee4-7270-4272-b765-61488e1d3e9c 10.101.158.92:8888 weight 1
-
 backend 1e1e9596-85b5-4b10-8e14-44d1ca50a92f    #<---service-2
         mode http
         balance roundrobin
         option forwardfor
         server aa0cde60-2526-4437-b943-6f4eaa04bb05 10.104.4.232:8888 weight 1
+
+backend cd7a7a5b-6c49-4c23-b656-e23493cf7f46    #<---default
+        mode http
+        balance roundrobin
+        option forwardfor
+        server e8384ee4-7270-4272-b765-61488e1d3e9c 10.101.158.92:8888 weight 1
 ----
 
+NOTE: the config file is slightly formatted to make it fit to a page width. also
+we moved the default backend to after the 2 "named" backends so it is easier to
+explain them.
+
 the configuration seems like a little bit complicated, but the most important
-part of it is relatively easy to understand:
+part of it does not look hard to read:
 
 * the haproxy `frontend` section defines each URL, or `host`, and its path. here the
   2 hosts are `www.juniper.net` and `www.cisco.com`. `path` is what follows the
@@ -2798,8 +2863,8 @@ part of it is relatively easy to understand:
   case. it has a format of `serviceIP:servicePort`, which is the exact `service`
   object we've created using the all-in-one yaml file.
 * `use_backend` command in `frontend` section declares the ingress rules: `if` the
-  request includes specific URL and path, direct it toward the corresponding
-  service.
+  request includes a specified URL and path, "use" the corresponding "backend"
+  to forward the traffic
 * `default_backend` defines which backend is the "default": it will be used when
   a haproxy receives a URL request that is other than the two defined one
 
@@ -2878,57 +2943,71 @@ k8s-test 24 destinations, 49 routes (24 active, 0 holddown, 0 hidden)
 ----
  
 * through XMPP, vrouter advertises the FIP prefix to contrail controller.
-  at least 2 pieces of information from the output indicates who originates the
-  FIP - node `cent222`:
+  at least 2 pieces of information from the output indicates who represents the
+  FIP in this example - node `cent222`:
   - `Protocol next hop` being `10.169.25.20`
   - `Route Distinguisher` being `10.169.25.20:5`
 * through MP-BGP, contrail controller "reflects" the FIP prefix to the gateway
   router, `Source: 10.169.25.19` indicates this fact.
 
-so it looks `cent222` is selected to be the active haproxy node, and so the
-other node `cent333` will be the standby one. therefore you should expect
-service request coming from Internet host goes to node `cent222`. of course, the
-overlay traffic will be carried in MPLS over GRE tunnel, same as what you've
-seen from service example.
+so it looks `cent222` is "selected" to be the active haproxy node, and the other
+node `cent333` is the standby one. therefore you should expect service request
+coming from Internet host goes to node `cent222` first. of course, the overlay
+traffic will be carried in MPLS over GRE tunnel, same as what you've seen from
+service example.
 
-NOTE: both nodes have loadbalancer and haproxy running so both will advertise the
-FIP prefix `101.101.101.1` to gateway router. however, they are advertised with
-different local preference value. the "Active" node has a value of `200` and the
-"standby" node's value is `100`. that is why the "other" BGP route is dropped
-and only one is displayed. `Localpref` being `200` proves it is coming from the
-active compute node.
+[NOTE]
+==== 
+another fact that we've skipped on purpose is the different "local
+preference" value used by the active and standby node when advertising FIP
+prefix. saying that will involve other complex topics like the active node
+selection algorithm and so on. but it is worth a brief introduction:
+
+both nodes have loadbalancer and haproxy running so both will advertise the FIP
+prefix `101.101.101.1` to gateway router. however, they are advertised with
+different local preference value. the "Active" node advertise with a value of
+`200` and the "standby" node with `100`. contrail controller have both routes
+from the 2 nodes, but only the "winning" one will be advertised to the gateway
+router. that is why the "other" BGP route is dropped and only the one is
+displayed.  `Localpref` being `200` proves it is coming from the active compute
+node.
+====
 
 === verify ingress: from internal
 
-we've explored a lot about ingress configuration, now it is time to verify the
-result. since the Ingress serves both inside and outside of the cluster, our
-verification work will start from the cirros pod inside of cluster, then from
-the Internet host outside of it.
+we've explored a lot about ingress configuration and objects examination, now it
+is time to verify the test result. since the `Ingress` serves both inside and
+outside of the cluster, our verification will start from the cirros pod
+inside of cluster, then from the Internet host outside of it.
 
 .from inside of cluster
 
 ----
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238:80 | w3m -T text/html | cat
+$ kubectl exec -it cirros -- \
+    curl -H 'Host:www.juniper.net' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = rc-webserver-1-g65dg
                                     [giphy]
 
-$ kubectl exec -it cirros -- curl -H 'Host:www.cisco.com' 10.47.255.238:80 | w3m -T text/html | cat
+$ kubectl exec -it cirros -- \
+    curl -H 'Host:www.cisco.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
                         Hostname = rc-webserver-2-m2272
 
-$ kubectl exec -it cirros -- curl -H 'Host:www.google.com' 10.47.255.238:80 | w3m -T text/html | cat
+$ kubectl exec -it cirros -- \
+    curl -H 'Host:www.google.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = rc-webserver-1-g65dg
                                     [giphy]
 
-$ kubectl exec -it cirros -- curl 10.47.255.238:80 | w3m -T text/html | cat
+$ kubectl exec -it cirros -- \
+    curl 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
@@ -2937,28 +3016,48 @@ $ kubectl exec -it cirros -- curl 10.47.255.238:80 | w3m -T text/html | cat
 ----
 
 we still use the `curl` command to trigger HTTP requests towards the ingress's
-loadbalancer IP. the return proves the test works: the 2 requests towards
+loadbalancer IP. the return proves our `Ingress` works: the 2 requests towards
 "juniper" and "cisco" URL is proxied to 2 different backend pods, through 2
 backend services `service-1` and `service-2` respectively. the third request
-towards "google" is a "unknown" URL which does not have a matching service, so
-it goes to the default backend service - `service-1`. 
+towards "google" is a "unknown" URL which does not have a matching service in
+`Ingress` configuration, so it goes to the default backend service -
+`service-1`. 
 
-The `-H` option plays an important role in Ingress test with `curl`. it carries
-the full URL in HTTP payload that the loadbalancer is waiting for. without it
-the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
-so it will be treated same as with a unknown URL.
+same rule applies to the fourth request. without given a URL via `-H`, `curl`
+will fill `host` with the request IP address, `10.47.255.238` in this test, and
+since that "URL" does not have a defined backend service so the default backend
+service will be used. in our test, we have just one backend pod for each
+service, so the podIP in returned webpage tells who is who. except in the second
+test the returned podIP `1047.255.235` represent `service-2`, all other three
+tests returns podIP for `service-1`, as expected.
+
+here is the end to end service request flow when accessing from a pod in the
+cluster:
+
+.Ingress traffic flow: access from internal
+image::https://user-images.githubusercontent.com/2038044/61061849-0b9c6c00-a3cb-11e9-8788-cb1c1dedafc4.png[]
+
+NOTE: The `-H` option is important in Ingress test with `curl`. it carries the
+full URL in HTTP payload that the loadbalancer is waiting for. without it the
+HTTP header will carry `Host: 10.47.255.238`, which has no matching rule, so it
+will be treated same as with a unknown URL.
 
 === verify ingress: from external (Internet host)
 
-to make sure the URL resolves to the FIP address, we need to update `/etc/hosts`
-file by adding one line in the end:
+the more exciting part of the test is to visit the URLs from external. overall
+we hope `Ingress` meant to provide the "extra power" to expose services to the
+Internet host, even though it does not have to. 
+
+to make sure the URL resolves to the right FIP address, we need to update
+`/etc/hosts` file by adding one line in the end - you don't want to just end up
+with a nice webpage from Juniper/cisco official website as your test result.
 
 ----
 # echo "101.101.101.1  www.juniper.net www.cisco.com www.google.com" >> /etc/hosts
 # cat /etc/hosts
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-101.101.101.1  www.juniper.net www.cisco.com www.google.com
+101.101.101.1  www.juniper.net www.cisco.com www.google.com     #<---
 ----
 
 now, from internet host's "desktop", we launch two chrome page side by side, and
@@ -2966,13 +3065,15 @@ input URLs `www.juniper.net` and `www.cisco.com`. By keep refreshing the 2 pages
 we can confirm "juniper" page is always returned by RC `rc-webserver-1` pod
 `10.47.255.236`, "cisco" page is always returned by RC `rc-webserver-2` pod
 `10.47.255.235`. we launch a third chrome page and input `www.google.com`, we
-see "google" page is returned by the same pod serving "cisco" URL.
+see "google" page is returned by the same pod serving "Juniper" URL.
 
 image::https://user-images.githubusercontent.com/2038044/60478459-c6e93600-9c50-11e9-848b-a73e9c6d010f.png[]
 
-`curl` command test result is exactly the same as what we've seen when testing
-from a pod, except this time we send requests to FIP, instead of the
-loadbalancer internal IP.
+same result can be seen from `curl` also. the command is exactly the same as
+what we've seen when testing from a pod, except this time we send requests to
+Ingress FIP, instead of the Ingress internal podIP.
+
+from Internet host machine:
 
 ----
 $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
@@ -3003,7 +3104,16 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                                     [giphy]
 ----
 
-=== ingress work flow
+everything works!
+
+here is the end to end service request flow when accessing from Internet host:
+
+.Ingress traffic flow: access from external
+//image::https://user-images.githubusercontent.com/2038044/60410376-09017180-9b96-11e9-927e-4cf1d98f2cef.png[]
+//image::https://user-images.githubusercontent.com/2038044/61061268-eb1fe200-a3c9-11e9-9d36-191955b766e1.png[]
+image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
+
+=== ingress work flow in details
 
 to conclude the ingress section, let's examine the traffic flow step by step in
 our lab setup, starting from Internet host, through gateway router, haproxy to
@@ -3424,12 +3534,6 @@ the response follows the reverse path of the request:
   frontend IP to FIP
 * response is sent to gateway router, which forwards to Internet host
 * Internet host gets the response.
-
-==== the whole story
-
-this figure visualizes the basic service request path:
-
-image::https://user-images.githubusercontent.com/2038044/60410376-09017180-9b96-11e9-927e-4cf1d98f2cef.png[]
 
 == contrail multiple interface pod
 
