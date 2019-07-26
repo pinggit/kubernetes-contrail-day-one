@@ -78,7 +78,7 @@ container technology. So naturely you may wonder why you need kubernetes.
 
 Technically speaking, kubernetes works in a relatively higher level than
 dockers. what does that mean exactly? when you compare kubernetes with docker,
-One rough analogy is to compare python with C language. C is powerful enough to
+One analogy is to compare python with C language. C is powerful enough to
 build almost everything including the whole bunch of fundamental OS components
 and APIs. but you in practice you probably would prefer to write scripts to
 automate tasks in your work using python much more than using C. with python
@@ -92,7 +92,7 @@ low-level system API calls and hardware details.
 
 another analogy is TCP/IP Internet protocols. when you develop a file transfer
 tool like `ftp`, naturely you prefer to start your work based on TCP socket
-instead of IP socket. with TCP socket you are seating on top of the TCP
+instead of raw socket. with TCP socket you are seating on top of the TCP
 protocol, which provides a much more solid fundation that has all of the built-in
 reliability features like error detection, flow and congestion control,
 retransmission and so on. What you need to consider is how to deliver the data
@@ -100,6 +100,16 @@ from one end and receive it from the other end. with raw socket you are working
 on IP protocol and even lower layer, so you have to consider and implement all
 of the reliability features before you can even start to work on the file
 transfer features of your tool.
+
+////
+another analogy is openstack UI (herizon) vs QEMU and virsh manager. with QEMU
+you can start any virtual machine, either with native qemu command line or virsh
+command.  doing that you have to deal with all of low level details, and the
+command line goes a few lines long easily. with openstack UI it is much simpler.
+basically you just choose an image, a "flavor", and virtual-network(s) and
+leave all other detail parameters to openstack.
+////
+
 
 back to our topic of kubernetes, Assuming you want to run multiple containers
 across multiple machines, you will have a lot of work to do if you interact
@@ -141,7 +151,7 @@ The "nodes" are controlled by the "master" and in most of the time you will
 only need to talk to master . 
 
 One of the most common interface between you and the cluster is a command-line
-tool "kubectl". It is installed as a client application either in the same
+tool `kubectl`. It is installed as a client application either in the same
 "master" node or in a seperate machine like in your PC. Regardless of where it
 is, it can talk to the master via the REST-API exposed by the master.
 
@@ -253,7 +263,7 @@ running in each, it is time to look at how things works together in figure 2.1
 .kubernetes architecture
 image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
 
-Figure 2.1 Kubernetes Architecture
+//Figure 2.1 Kubernetes Architecture
 
 At the top behind `kubectl` is where you are. via `kubectl` commands you talk
 to kubernetes "master", which manages the 2 "node" boxes on the right. it
@@ -353,15 +363,16 @@ the most oftenly used objects are:
 NOTE: "high-level" objects are build upon the basic objects. They provide
 additional functionality and convenience features. 
 
-Figure 2.2 showing relationships between the terms you read in this
+////
+below figure showing relationships between the terms you read in this
 chapter: "feature", "abstraction", "objects", "process" and "controller".
 
     kubernetes  +---------------------------------------+
     features    |                                       |
         |       |                                       |
         |       +---------------------------------------+
-        |       | high level objects: RC,RS,DE,SS,DS,JOB|
-        v       |   (controller process)  |             |
+        |       | high level objects: RC,RS,DEPLOYMENT  |
+        v       | (controller process) SS,DS,JOB...     |
     abstractions| ........................|...........  |
     (objects)   |                         v             |
         |       | basic objects: POD,SERVICE,VOLUME,NS  |
@@ -370,8 +381,8 @@ chapter: "feature", "abstraction", "objects", "process" and "controller".
     container   |     docker engine, rtx engine, etc    |
     features    +---------------------------------------+
 
-
-Figure 2.2 Kubernetes objects and features
+//Figure 2.2 Kubernetes objects and features
+////
 
 in the frontend, kubernetes get all things done via a group of "object".  with
 kubernetes you only needs to think of how to describe your task in the config
@@ -384,7 +395,7 @@ image (e.g. by 'docker build').
 //Higher level concepts such as service-discovery, loadbalancing and
 //network policies are handled by Kubernetes as well.
 
-you will read more about each objects and their magic power with examples in
+you will read more about each object and their magic power with examples in
 chapter 3. later in this chapter we'll look at the the most fundamental object:
 POD.
 
@@ -493,10 +504,10 @@ deployment) you can replicate and scale up and down the same group of
 containers (now in the form of one pod object) very easily - normally in a few
 seconds. this sharply increased the deployment and maintenance efficiency.
 
-besides that, containers in the same pod will share the same resources and
-local network. Containers can easily communicate with other containers in the
-same pod as though they were on the same machine while maintaining a degree of
-isolation from others. you'll see more about these advantages later.
+besides that, containers in the same pod will share the same network space.
+Containers can easily communicate with other containers in the same pod as
+though they were on the same machine while maintaining a degree of isolation
+from others. you'll see more about these advantages later.
 
 now, let's get your feet wet. we'll look at how to use a config file to launch a
 "pod" in kubernetes cluster.
@@ -625,9 +636,14 @@ to get more details of what is running inside of the pod:
 
 not surprisingly, our pod `pod-1` is composed of 2 containers declared in
 the YAML file, with an IP address assigned by kubernetes cluster and shared
-between all containers as shown in Figure 2.3
+between all containers as shown in following figure.
 
-////
+.pod and containers
+image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
+//Figure 2.3 two container in a POD  
+
+=== `pause` container
+
 if you login to node `test2`, you will see the docker containers running inside
 of the pod:
 
@@ -639,52 +655,18 @@ of the pod:
 
 the third container with image name "k8s.gcr.io/pause" is a special container
 that was created by the kubernetes system to "hold" the network namespace for
-the pod. for every pod Kubernetes creates a `pause` container to acquire the
+the pod. for every pod, Kubernetes creates a `pause` container to acquire the
 respective pod’s IP address and set up the network namespace for all other
 containers in that pod.
 
-Figure x shows a pod including a few user containers and a `pause` container.
+below figure shows a pod including a few user containers and a `pause` container.
 
 .pod, user containers and the special `pause` container
 image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-11e8-87aa-daacaf24909f.png[]
-////
 
-.pod and containers
-image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
-Figure 2.3 two container in a POD  
-=== Kubectl tool 
+=== intra-pod communication
 
-so far you've seen we created the object by `kubectl` command. this command,
-just like the `docker` command in docker world, is the interface in kubernetes
-world to talk to the cluster, or more precisely, the kubernetes master, via
-kubernetes API. it is a very versatile tool that provides many options to
-fulfill all kinds of tasks you would need to deal with kubernetes. 
-
-as a quick example, assuming you have enabled the auto-completion feature for
-kubectl, you can list all your current environment supported options by logging
-into the master and typing `kubectl`, followed by two `tab` keystrokes.
-
-    root@test1:~# kubectl<TAB><TAB>
-    alpha          attach         completion     create         exec
-    logs           proxy          set            wait annotate  auth
-    config         delete         explain        options        replace
-    taint          api-resources  autoscale      convert        describe       
-    patch          rollout        top            api-versions   certificate    
-    drain          get            plugin         run            uncordon apply
-    cluster-info   cp             edit           label          port-forward
-    scale          version        expose         cordon
-
-NOTE: to setup auto-completion for kubectl command, follow the instruction from
-help of `completion` option: `kubectl completion -h`
-
-//don't panic! the most commonly used options - the ones you can reply on to get
-//80% of your work done, are just a few of them.
-
-you will see and learn the usage of these options in the rest part of this
-book.
-
-===   Login to container
-
+//TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
 
     #login to pod-1's container apache 
@@ -695,11 +677,11 @@ in kubernetes master, to login to a container:
     root@test1:~# kubectl exec -it pod-1 -c db bash
     [ root@pod-1:/data ]$ 
 
-if you ever played with docker you will immediately realized that this is neat.
-remember the containers were launched at one of the "node", with docker you will
-have to first login to the correct remote node before using a similiar `docker
-exec` command to login to each container. kubernetes hides these details and
-allow you to do everything from one node - the master.
+if you ever played with docker you will immediately realized that this is pretty
+neat.  remember the containers were launched at one of the "node", with docker
+you will have to first login to the correct remote node, and then use a similiar
+`docker exec` command to login to each container. kubernetes hides these details
+and allow you to do everything from one node - the master.
 
 .check processes running in container
 
@@ -752,4 +734,35 @@ communication between containers in a pod can happen simply by using
     ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<---
     LISTEN     0      128                  :::6379              :::*
 
+
+=== Kubectl tool 
+
+so far you've seen we created the object by `kubectl` command. this command,
+just like the `docker` command in docker world, is the interface in kubernetes
+world to talk to the cluster, or more precisely, the kubernetes master, via
+kubernetes API. it is a very versatile tool that provides many options to
+fulfill all kinds of tasks you would need to deal with kubernetes. 
+
+as a quick example, assuming you have enabled the auto-completion feature for
+kubectl, you can list all your current environment supported options by logging
+into the master and typing `kubectl`, followed by two `tab` keystrokes.
+
+    root@test1:~# kubectl<TAB><TAB>
+    alpha          attach         completion     create         exec
+    logs           proxy          set            wait annotate  auth
+    config         delete         explain        options        replace
+    taint          api-resources  autoscale      convert        describe       
+    patch          rollout        top            api-versions   certificate    
+    drain          get            plugin         run            uncordon apply
+    cluster-info   cp             edit           label          port-forward
+    scale          version        expose         cordon
+
+NOTE: to setup auto-completion for kubectl command, follow the instruction from
+help of `completion` option: `kubectl completion -h`
+
+//don't panic! the most commonly used options - the ones you can reply on to get
+//80% of your work done, are just a few of them.
+
+you will see and learn the usage of these options in the rest part of this
+book.
 

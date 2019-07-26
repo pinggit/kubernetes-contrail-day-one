@@ -862,7 +862,7 @@ so let’s understand different type of services:
 * NodePort
 * LoadBalancer
 
-=== ClusterIP
+=== ClusterIP service
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
 the `ServiceType` is not given. the kubernetes official website gives this
@@ -1042,6 +1042,8 @@ now we are convinced our service works. requests to service has been
 redirected to the correct backend pod, with a pod IP `10.47.255.238`, pod name
 `rc-webserver-vl6zs`.
 
+==== specify a clusterIP
+
 if you want to have a specific 'clusterIP', you can mention it in the spec.
 Ip address should be in service ip pool.
 
@@ -1063,7 +1065,7 @@ spec:
 ----
 
 
-=== NodePort 
+=== NodePort service
 
 NodePort service exposes a service on each node's ip at a static port. It maps
 a static port on each node with a port of the application the POD as shown in 
@@ -1103,17 +1105,17 @@ this services
 
 now let’s expose a nginx pod with the services shown above
 
-[root@cent11]# cat nginx.yaml 
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: nginx-pod
-      labels:
-        app: webserver
-    spec:
-      containers:
-        - name: nginx-c
-          image: nginx
+    [root@cent11]# cat nginx.yaml 
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: nginx-pod
+          labels:
+            app: webserver
+        spec:
+          containers:
+            - name: nginx-c
+              image: nginx
 
     [root@cent11]# kubectl create -f web-app.yaml
     service "web-app" created
@@ -1183,36 +1185,74 @@ functions of NodePort and ClusterIP Services.
 Kubernetes clusters running on cloud providers support the automatic provision
 of a load balancer. the only difference between the 3 type of services are the
 `type` value. to reuse the same NodePort service yaml file and create a
-loadbalancer service, just change the `type` to `LoadBalancer`:
+loadbalancer service, just set the `type` to `LoadBalancer`:
 
 ----
-type: LoadBalancer
+$ cat service-web-lb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-lb
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+  type: LoadBalancer    #<---
 ----
 
 the cloud will see this keyword and a load balancer will be created, with a
-public IP serving as the frontend virtual IP. traffic coming to this virtual IP
-will be redirect to the service backend pod. because the loadbalancer VIP is
-publicly reachable, any client whoever has access to the VIP and port can access
-the service provided by kubernetes cluster.
+public IP allocated serving as the frontend virtual IP. traffic coming to this
+external IP will be redirected to the service backend pod. please keep in mind
+that this "redirection" process, is solely an transport layer operation.
+frontend public external IP and port will be translated to private backend
+cluster IP. it does not involve any application layer activities. there is no
+such things like parsing URL, proxy HTTP request, etc. because the loadbalancer
+VIP is publicly reachable, any Internet host whoever has access to the VIP and
+port can access the service provided by kubernetes cluster.
+
+from Internet host's perspective, when it requests service, it refers this
+public external VIP and service port and the request will reaches the backend
+pod.  the external VIP is acting as a "gateway" between service inside of the cluster
+and outside world.
 
 how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
 a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
 we'll have a detail demonstration about how loadbalancer service works in
 contrail kubernetes environment in chapter 4.
 
-=== externalIP
+==== externalIP
 
-Exposing service outside of the cluster can also be achieved via 'externalIP'
-In the Service spec, externalIPs can be specified along with any of the
-ServiceTypes. externalIPs are not managed by Kubernetes and are the responsibility
-of the cluster administrator. 
+Exposing service outside of the cluster can also be achieved via `externalIPs`
+option. 
 
-=== kube-proxy
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-externalips
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+  externalIPs:          #<---
+  - 101.101.101.1       #<---
+----
+
+In the Service spec, `externalIPs` can be specified along with any of
+the ServiceTypes. `externalIPs` are not managed by Kubernetes and are the
+responsibility of the cluster administrator. 
+
+
+=== service implementation: kube-proxy
 
 By default kubernetes uses kube-proxy for services. kube-proxy can be deployed in
 user-space proxy-mode, iptables proxy-mode and ipvs. when the traffic hits the node,
 it would be forwarded to one of the back end pod via a depolyed kube-proxy forwarding
-plane. Also cni providers can have there own implementaions for services.
+plane. CNI providers can have there own implementations for services.
 
 
 == Endpoints
@@ -1282,7 +1322,7 @@ NAME             ENDPOINTS                                            AGE
 service-web-lb   10.47.255.250:80,10.47.255.251:80,10.47.255.252:80   5d17h
 ----
 
-=== Service without SELECTOR
+.Service without SELECTOR
 
 in the preceding example, the `Endpoints` object is generated automatically by
 the kubernetes system whenever a service is created, and at least one pod with
@@ -1302,16 +1342,75 @@ request traffic exactly the same way as if all backend is pod.
 You’ve now seen ways of exposing a service to clients outside the cluster:
 `NodePort` service and `LoadBalancer service`. another method is `Ingress`
 
+=== kubernetes Ingress introduction
+
+in service section, we understand that `service` works in transport layter so
+sees only IP and ports.  in reality, however, the "raw" IP is rarely used today
+- typically you access all services via URLs. In the background there is
+"mapping" or "resolution" from URL to IP and that is normally when DNS comes
+into picture.  when user input a URL to access a service, DNS resolves the
+`host` in it to an IP address which `service` can accept and process. 
+
+TIP: in practice, to ensures the availability, uptime and performance, a public
+domain name is typically bound to a group of public IP addresses and load
+sharing happens between them.  that is why DNS sometimes is also used to do
+loadbalancing.
+
+kubernetes Ingress, works in a similar-looking but essentially different way
+than DNS. `Ingress`, or `ing` for short, is another "core" concept of
+Kubernetes. it allows simple, rule-based HTTP routing that does not exist in
+service. Ingress is built on top of service. with Ingress, you can define
+URL-based rules to distribute HTTP/HTTPS access requests to multiple different
+"backend services".  we've learned a lot about kubernetes `service` so far, so
+you understand what will happen after that - the requests will be forwarded to
+each service's corresponding backend pods.
+
+=== Ingress vs service
+
+there are similiarities between loadbalancer service and ingress. both can
+expose service to outside of the cluster. but there are some main differences.
+
+.operation layer/level
+`Ingress` operates at the application layer of the OSI network model, while
+`service` operates at transport layer only. `Ingress` understand the HTTP/HTTPS
+protocol, service only does forwarding based on IP and port, which means it does
+not care about the application layer protocol (HTTP/HTTPS) details.
+
+////
+Ingress provides "Layer 7" (application layer) load-balancing whereas the
+`service` provide "Layer 4" (transport layer) load-balancing. 
+in contrast with `service`, Ingress is aware of the HTTP/HTTPS protocols. 
+////
+
+.forwarding mode
+Ingress does the application layer "proxy", in pretty much the same way a
+traditional web loadbalancer does.
+
+//the implementation uses open sourced haproxy to do the "proxy" job, which is
+//typically an application layer forwarding. 
+a typical web loadbalancer proxy sitting between machine A (client) and B
+(server), works at the application layer. it is "aware of" the application layer
+protocols (HTTP/HTTPS) so the client-server intraction does NOT look
+"transparent" to the loadbalancer.  basically It creates two connections each
+with source (A) and destination (B) machine.  Machine A does not even know about
+the existence of machine B at all. For machine A, Proxy is the only thing it
+talks to and it does not care how and where the proxy gets its data.
+
+.number of public IPs
+each service of the ingress needs an public ip if it is exposed directly to
+outside of the cluster. when ingress is a front-end to all these services, one
+public ip would be sufficient which makes life easy for cloud-admin.
+
 === Ingress object
 
-before we talk about it, the best way to get a feel of Ingress object is to look
+before we talk about Ingress object, the best way to get a feel of it is to look
 at the yaml definition:
 
 ----
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: ingress-simple-fanout
+  name: ingress-sf
 spec:
   rules:
   - host: www.juniper.net
@@ -1319,33 +1418,66 @@ spec:
       paths:
       - path: /dev
         backend:
-          serviceName: service-1
+          serviceName: webservice-1
           servicePort: 8888
       - path: /qa
         backend:
-          serviceName: service-2
-          servicePort: 9999
+          serviceName: webservice-2
+          servicePort: 8888
 ----
 
 it looks pretty simple. the `spec` defines only one item that is the `rules`.
 the rules says a `host`, which is "juniper" URL here, may have 2 possible `path`
-in the URL string, after the `host` part of it: `/dev` and `/qa`. each path is
-then associated to a different service. that's it.
+in the URL string. the `path` is whatever follows the `host` in the URL, in this
+case they are `/dev` and `/qa`. each `path` is then associated to a different
+service. when Ingress sees HTTP requests arrives, it proxies the traffic to each
+URL path's associated backend service. each service, as we've learned this in
+`service` section, will deliver the request to their corresponding backend path.
+that's it. 
+actually this is one of the 3 types of Ingress that kubernetes
+supports today - "simple fan-out Ingress".  later we'll introduce the other two
+types of Ingress.
+
+****
+.about URL, `host`, `path`
+term `host` and `path` are used frequently in kubernetes Ingress documentations.
+`host`:: is "fully qualified domain name" of a server. 
+`path`, or `url-path`:: is the rest part of the string after the `host` in a
+URL. in the case of having a `port` in the URL, then it is the strings after the
+port.
+
+let's take a look at the following URL:
+
+    http://www.juniper.net:1234/my/resource
+           --------------- ---- -----------
+           host            port path
+
+    http://www.juniper.net:/my/resource
+           --------------- ------------
+           host            path
+
+`host` is `www.juniper.net`, whatever follows port `1234` is called `path`,
+`my/resource` in this example. if a URL has no `port`, then the strings
+following `host` are `path`. 
+//one tip is that strictly speaking the `/` between
+//`host` and `path` are not part of either one. 
+for more details you can read
+rfc1738, but for the context of this book understanding what we introduce here
+would suffice.
+****
 
 if you now think kubernetes Ingress is nothing but to define some rules, and the
 rules are just to instruct the system to direct incoming request to different
-services, based on the URLs, you are basically right, but in the high level
-only. the figure below shows the dependency between the 3 kubernetes object:
-`Ingress`, `service` and `pod`:
+services, based on the URLs, you are basically right in the high level. the
+figure below shows the dependency between the 3 kubernetes object: `Ingress`,
+`service` and `pod`:
 
 .Ingress
 image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
 
-in practice there are other things you need to understand.
-
-"ing - Ingress" is another "core" concept of Kubernetes, it allows simple, rule-based
-HTTP routing that does not exist in service. however, in reality to handle
-the ingress rules, you need at least another component called `ingress controller`
+in practice there are other things you need to understand.  in reality to handle
+the ingress rules, you need at least another component called `ingress
+controller`
 
 === ingress controller
 
@@ -1376,20 +1508,6 @@ create an ingress, you should annotate each ingress with the appropriate
 one exists within your cluster. annotation for ingress objects will be explained
 in the annotation section.
 
-=== ingress vs service
-
-there are similiarities between loadbalancer service and ingress. both can
-expose service to outside of the cluster. but there are some main differences.
-
-`Ingress` operates at the application layer of the OSI network model, while
-`service` operates at layer 4 only. `Ingress` understand the HTTP/HTTPS protocol,
-service only does forwarding based on IP and port, which means it does not care
-about the application layer protocol details.
-
-each service of the ingress needs an public ip if it is exposed directly to outside
-of the cluster. when ingress is a front-end to all these services, one public ip
-would be sufficient which makes life easy for cloud-admin.
-
 === ingress examples
 
 there are basically 3 types of ingresses:
@@ -1398,7 +1516,8 @@ there are basically 3 types of ingresses:
 * Simple fanout Ingress
 * Name based virtual hosting Ingress
 
-we'll look at each ingress's yaml file examples. 
+we've looked at the "simple fanout Ingress". now let's also look at yaml file
+example for the other two type of Ingress.
 
 ==== single service ingress
 
@@ -1414,8 +1533,8 @@ spec:
 ----
 
 this is the simplest form of ingress. the ingress will get an external IP so the
-service will be exposed to the public, however, since there is no `host` defined
-so it does not differentiate different URLs. all requests will goes to one same
+service will be exposed to the public, however, it has no `rules` defined, so it
+does not parse `host` or `path` in the URLs. all requests will goes to one same
 service.
 
 ==== simple fanout ingress
@@ -1424,7 +1543,7 @@ service.
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: ingress-simple-fanout
+  name: ingress-sf
 spec:
   rules:
   - host: www.juniper.net
@@ -1433,17 +1552,19 @@ spec:
       - path: /dev
         backend:
           serviceName: webservice-1
-          servicePort: 80
-      - path: /qa 
+          servicePort: 8888
+      - path: /qa
         backend:
           serviceName: webservice-2
-          servicePort: 80
+          servicePort: 8888
 ----
 
-comparing with `single service` ingress, `simple fanout` ingress is more
-practical. we've checked this out in the beginning of this section. after the
-ingress is created it will be allocated an external IP and do URL routing, based
-on the path.
+we've checked this out in the beginning of this section.  comparing with `single
+service` ingress, `simple fanout` ingress is more practical. it is not only able
+to expose service via a public IP, but also able to do "URL routing" or "fan
+out" based on the `path`. this is a very common usage scenario when a company
+wants to direct traffic to each department's dedicated servers based on the
+"suffix" of URL after the domain name. 
 
 ==== virtual host ingress
 
@@ -1468,15 +1589,53 @@ spec:
           servicePort: 80
 ----
 
-`name based virtual host` supports routing HTTP traffic to multiple host names
-at the same IP address. the example above may not be practical (unless one day
-the two domains merge!) but it is good enough to showcase the idea. in the yaml
-file 2 `host` are defined, which are the "juniperhr" and "junipersales" URL. but
-remember we said the ingress will be allocated with one public IP, so request
-toward that one IP, will be routed, based on the `host` in URL, to different backend
-services. we'll have a very detail case study in chapter 4 about this example.
+`name based virtual host` is similar to simple fanout ingress in that, it is
+able to do rule-based URL routing. the unique power of this type of Ingress is
+that it supports routing HTTP traffic to multiple host names at the same IP
+address. the example above may not be practical (unless one day the two domains
+merge!) but it is good enough to showcase the idea. in the yaml file 2 "hosts"
+are defined, the "juniperhr" and "junipersales" URL respectively.  even though
+ingress will be allocated with one public IP only, based on the `host` in URL,
+request toward that same public IP will still be routed to different backend
+services - that is why it is called a "virtual hosting Ingress". we'll have a
+very detail case study in chapter 4 about this example.
+
+NOTE: it is also possible to merge a "simple fanout" Ingress and a "virtual
+host" Ingress in one Ingress, in this book we won't cover this topic though.
+
+=== multiple ingress controller
+
+you can have multiple ingress controllers in one cluster. in that case the
+cluster needs to know which one to choose.  for example, later on in chapter 4
+we'll talk about contrail's built-in Ingress controller which, does not stop us
+from installing another third party Ingress controller like "nginx" Ingress
+controller. we will end up having 2 Ingress controllers in the same cluster with
+the names are:
+
+* `opencontrail` (default)
+* `nginx`
+
+contrail's implementation is the `default` one so you don't have to select it
+explicitly. to select nginx as Ingress controller, use this annotations
+`kubernetes.io/ingress.class`:
+
+----
+metadata:
+  name: foo
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+----
+
+this will make contrail's Ingress controller `opencontrail` to ignore the
+Ingress configuration.
 
 === TLS support
+
+//TODO
+
+== kubernetes networking
+
+//TODO
 
 == Network policy
 

@@ -1,8 +1,6 @@
 
-== misc/optional topic(can be a new chapter if big enough)
+= openshift integration
 
-=== openshift integration
+= contrail command introduction
 
-=== contrail command introduction
 
-this is referred through this book, so put some introduction here.
