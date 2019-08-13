@@ -1,5 +1,5 @@
 // vim:set ft=asciidoc syntax=ON tw=80:
-= Kubernetes in practice
+= Chapter3: Kubernetes in practice
 :toc: right
 //:toc-placement: preamble
 :source-highlighter: pygments
