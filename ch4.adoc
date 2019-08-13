@@ -4004,9 +4004,10 @@ tests returns podIP for `webservice-1`, as expected.
 
 ==== verify ingress: from external (Internet host)
 
-to test simple fan-out Ingress from outside of the cluster, again we can either
-use chrome browser or `curl` CLI.
+to test simple fan-out Ingress from outside of the cluster, again we can 
+use `curl` CLI.
 
+////
 with chrome, this time we launch two chrome page side by side, and input URLs
 `www.juniper.net/qa` and `www.juniper.net/dev`. By keep refreshing the 2 pages
 we can confirm "qa" page is always returned by RC `rc-webserver-1` pod
@@ -4016,9 +4017,13 @@ we can confirm "qa" page is always returned by RC `rc-webserver-1` pod
 //TODO: capture
 image::https://user-images.githubusercontent.com/2038044/60478459-c6e93600-9c50-11e9-848b-a73e9c6d010f.png[]
 
-same result can be seen from `curl` also. the command is the same as what we've
-seen when testing from a pod, except this time we send requests to Ingress FIP,
-instead of the Ingress internal podIP.
+same result can be seen from `curl` also. 
+////
+
+the command is the same as what we've seen when initiating the HTTP request from
+inside of a pod, except this time we are initiating from an Internet host. we
+will send the HTTP requests to the Ingress's public FIP, instead of its internal
+podIP.
 
 from Internet host machine:
 
@@ -4558,7 +4563,7 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
 
 everything works!
 
-=== troubleshooting contrail ingress packet flow
+=== contrail ingress packet flow
 
 let's examine the external service request flow step by step in our lab setup,
 starting from Internet host, through gateway router, haproxy, to the destination
