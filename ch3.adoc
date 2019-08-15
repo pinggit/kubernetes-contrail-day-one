@@ -1633,6 +1633,254 @@ Ingress configuration.
 
 //TODO
 
+== secret
+
+//https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+
+=== secret introduction
+
+A Secret is an object that contains a small amount of sensitive data such as a
+password, a token, or a key. Such information might otherwise be put in a Pod
+specification or in an image; putting it in a Secret object allows for more
+control over how it is used, and reduces the risk of accidental exposure.
+
+Users can create secrets, and the system also creates some secrets.
+
+To use a secret, a pod needs to reference the secret. A secret can be used with
+a pod in two ways: as files in a volume mounted on one or more of its
+containers, or used by kubelet when pulling images for the pod.
+
+=== secret types
+
+* Opaque：base64
+* kubernetes.io/dockerconfigjson
+* kubernetes.io/service-account-token
+
+=== `ubernetes.io/dockerconfigjson` type of secrets
+
+* private registry (juniper hub)
+* private repository in public registry (docker hub)
+
+==== create secret from CLI
+
+----
+$ kubectl create secret docker-registry secret-jnpr
+    --docker-server=hub.juniper.net
+    --docker-username=JNPR-FieldUser213
+    --docker-password=CLJd2jpMsVc9zrAuTFPn
+secret/secret-jnpr created
+----
+
+==== verify the secret
+
+----
+$ kubectl get secrets
+NAME                  TYPE                                  DATA   AGE
+secret-jnpr           kubernetes.io/dockerconfigjson        1      6s
+default-token-hkkzr   kubernetes.io/service-account-token   3      62d
+----
+
+----
+$ kubectl get secrets secret-jnpr -o wide
+NAME             TYPE                             DATA   AGE
+secret-jnpr      kubernetes.io/dockerconfigjson   1      2m15s
+
+$ kubectl get secrets secret-jnpr -o yaml
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2VjdXJpdHkiOnsidXNlcm5hbWUiOiJKTlBSLUZpZWxkVXNlcjIxMyIsInBhc3N3b3JkIjoiQ0xKZDJqcE1zVmM5enJBdVRGUG4iLCJhdXRoIjoiU2s1UVVpMUdhV1ZzWkZWelpYSXlNVE02UTB4S1pESnFjRTF6Vm1NNWVuSkJkVlJHVUc0PSJ9fX0=
+kind: Secret
+metadata:
+  creationTimestamp: 2019-08-14T05:58:48Z
+  name: secret-jnpr
+  namespace: ns-user-1
+  resourceVersion: "870370"
+  selfLink: /api/v1/namespaces/ns-user-1/secrets/secret-jnpr
+  uid: 9561cdc3-be58-11e9-9367-0050569e6cfc
+type: kubernetes.io/dockerconfigjson
+----
+
+==== decode the secret data
+
+----
+$ echo "eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2VjdXJpdHkiOnsidXNlcm5hbWUiOiJKTlBSLUZpZWxkVXNlcjIxMyIsInBhc3N3b3JkIjoiQ0xKZDJqcE1zVmM5enJBdVRGUG4iLCJhdXRoIjoiU2s1UVVpMUdhV1ZzWkZWelpYSXlNVE02UTB4S1pESnFjRTF6Vm1NNWVuSkJkVlJHVUc0PSJ9fX0" | base64 -d | python -mjson.tool
+{
+    "auths": {
+        "hub.juniper.net/security": {
+            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
+            "password": "CLJd2jpMsVc9zrAuTFPn",
+            "username": "JNPR-FieldUser213"
+        }
+    }
+}
+----
+
+----
+$ kubectl get secret secret-jnpr \
+    --output="jsonpath={.data.\.dockerconfigjson}" \
+    | base64 --decode | python -mjson.tool
+{
+    "auths": {
+        "hub.juniper.net/security": {
+            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
+            "password": "CLJd2jpMsVc9zrAuTFPn",
+            "username": "JNPR-FieldUser213"
+        }
+    }
+}
+----
+
+==== generate docker credential info
+
+to view the docker credential info:
+
+----
+$ cat .docker/config.json
+{
+        "auths": {},
+        "HttpHeaders": {
+                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
+        },
+        "detachKeys": "ctrl-@"
+----
+
+to generate docker credential info:
+
+----
+$ docker login hub.juniper.net --username JNPR-FieldUser213 --password CLJd2jpMsVc9zrAuTFPn
+WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+Login Succeeded
+----
+
+now the docker credential info is generated:
+
+----
+[2019-08-15 03:19:38]root@cent111:~
+$ cat .docker/config.json
+{
+        "auths": {
+                "hub.juniper.net": {    #<---
+                        "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+                }
+        },
+        "HttpHeaders": {
+                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
+        },
+        "detachKeys": "ctrl-@"
+----
+
+==== create secret from existing docker credential file (`~/.docker/config.json`)
+
+----
+$ kubectl create secret generic secret-jnpr2 \
+    --from-file=.dockerconfigjson=/root/.docker/config.json \
+    --type=kubernetes.io/dockerconfigjson
+secret/secret-jnpr2 created
+
+$ kubectl get secrets
+NAME                  TYPE                                  DATA   AGE
+secret-jnpr2          kubernetes.io/dockerconfigjson        1      8s   #<---
+default-token-hkkzr   kubernetes.io/service-account-token   3      63d
+secret-jnpr           kubernetes.io/dockerconfigjson        1      26m
+----
+
+----
+$ kubectl get secrets secret-jnpr2 -o yaml
+apiVersion: v1
+data:
+  .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJodWIuanVuaXBlci5uZXQiOiB7CgkJCSJhdXRoIjogIlNrNVFVaTFHYVdWc1pGVnpaWEl5TVRNNlEweEtaREpxY0UxelZtTTVlbkpCZFZSR1VHND0iCgkJfQoJfSwKCSJIdHRwSGVhZGVycyI6IHsKCQkiVXNlci1BZ2VudCI6ICJEb2NrZXItQ2xpZW50LzE4LjAzLjEtY2UgKGxpbnV4KSIKCX0sCgkiZGV0YWNoS2V5cyI6ICJjdHJsLUAiCn0=
+kind: Secret
+metadata:
+  creationTimestamp: 2019-08-15T07:35:25Z
+  name: csrx-secret-dr2
+  namespace: ns-user-1
+  resourceVersion: "878490"
+  selfLink: /api/v1/namespaces/ns-user-1/secrets/secret-jnpr2
+  uid: 3efc3bd8-bf2f-11e9-bb2a-0050569e6cfc
+type: kubernetes.io/dockerconfigjson
+
+$ kubectl get secret secret-jnpr2 --output="jsonpath={.data.\.dockerconfigjson}" | base64 --decode
+{
+        "auths": {
+                "hub.juniper.net": {
+                        "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+                }
+        },
+        "HttpHeaders": {
+                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
+        },
+        "detachKeys": "ctrl-@"
+----
+
+=== refer the secrets: `imagePullSecrets`
+
+create pod from private repository:
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csrx
+  labels:
+    app: csrx
+  annotations:
+   k8s.v1.cni.cncf.io/networks: '[
+       { "name": "vn-left-1" },
+       { "name": "vn-right-1" }
+   ]'
+spec:
+  containers:
+  #- name: csrx
+  #  image: csrx
+  - name: csrx
+    image: hub.juniper.net/security/csrx:18.1R1.9
+    ports:
+    - containerPort: 22
+    #imagePullPolicy: Never
+    imagePullPolicy: IfNotPresent
+    stdin: true
+    tty: true
+    securityContext:
+      privileged: true
+  imagePullSecrets:
+  - name: secret-jnpr
+----
+
+----
+$ kubectl apply -f csrx/csrx-with-secret.yaml
+pod/csrx created
+$ kubectl get pod
+NAME                   READY   STATUS    RESTARTS   AGE
+csrx                   1/1     Running   0          20h
+----
+
+----
+$ kubectl describe pod csrx
+......
+Events:
+19h         Normal    Scheduled                Pod    Successfully assigned ns-user-1/csrx to cent333
+19h         Normal    Pulling                  Pod    pulling image "hub.juniper.net/security/csrx:18.1R1.9"
+19h         Normal    Pulled                   Pod    Successfully pulled image "hub.juniper.net/security/csrx:18.1R1.9"
+19h         Normal    Created                  Pod    Created container
+19h         Normal    Started                  Pod    Started container
+----
+
+=== secret vs configMap
+
+.common:
+* key/value
+* namespace
+* environmental var
+* mount from folder/file
+
+.diff
+
+* secret has different types
+* secret store register authentication info, used in `imagePullSecrets`, to pull
+* image
+* secret support base64
+* secret is stored in tmpfs FS system, gone with the pod deletion
+
 == kubernetes networking
 
 //TODO
