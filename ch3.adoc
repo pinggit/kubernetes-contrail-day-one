@@ -1635,38 +1635,72 @@ Ingress configuration.
 
 == secret
 
-//https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+////
+https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+https://kubernetes.io/docs/concepts/containers/images/
+https://feisky.gitbooks.io/kubernetes/content/concepts/secret.html
+////
 
 === secret introduction
 
+in any modern network system, user or administrator need to deal with sensitive
+information, such as username/passwords/ssh keys/etc, in the platfrom. same
+thing applies to the pods in kubernetes environment.  However, exposing these
+information in your pod specs as cleartext may introduce security concerns and
+you need a tool/method to resolve the issue - at least to avoid the cleartext
+credentials as much as possible.
+
+Kubernetes `Secrets` object is designed specifically for this purpose. it
+encodes all sensitive data and expose it into pods in a "controlled way".
+//enabling encapsulating secrets by specific containers or sharing them.
+
+this is the offical definition of kubernetes secrets:
+
+____
 A Secret is an object that contains a small amount of sensitive data such as a
 password, a token, or a key. Such information might otherwise be put in a Pod
 specification or in an image; putting it in a Secret object allows for more
 control over how it is used, and reduces the risk of accidental exposure.
 
 Users can create secrets, and the system also creates some secrets.
+To use a secret, a pod needs to reference the secret. 
+////
+A secret can be used with a pod in two ways: 
 
-To use a secret, a pod needs to reference the secret. A secret can be used with
-a pod in two ways: as files in a volume mounted on one or more of its
-containers, or used by kubelet when pulling images for the pod.
+- as files in a volume mounted on one or more of its containers, or 
+- used by kubelet when pulling images for the pod.
+////
+____
 
-=== secret types
+there are different types of secrets each serving a specific usage case. there
+are also many methods to create a secret and different ways to refer it in a
+pod. a complete discussion of all type of secrets is out of the scope of this
+book. the offical document is where you can read all details and track all
+up-to-date changes. In this section, we'll focus on a specific type of secrets
+called `kubernetes.io/dockerconfigjson`. you will learn different methods to
+create this type of secret and how to use it in your pods. in the end, we will
+summarize the main benefits of kubernetes secrets object to understand how it
+will help to improve the sytem security.
 
+=== `ubernetes.io/dockerconfigjson` secrets
+
+////
 * Opaque：base64
 * kubernetes.io/dockerconfigjson
 * kubernetes.io/service-account-token
+////
 
-=== `ubernetes.io/dockerconfigjson` type of secrets
+
 
 * private registry (juniper hub)
 * private repository in public registry (docker hub)
 
-==== create secret from CLI
+=== create secret from CLI
 
 ----
-$ kubectl create secret docker-registry secret-jnpr
-    --docker-server=hub.juniper.net
-    --docker-username=JNPR-FieldUser213
+$ kubectl create secret docker-registry secret-jnpr \
+    --docker-server=hub.juniper.net                 \
+    --docker-username=JNPR-FieldUser213             \
     --docker-password=CLJd2jpMsVc9zrAuTFPn
 secret/secret-jnpr created
 ----
@@ -1730,6 +1764,8 @@ $ kubectl get secret secret-jnpr \
 }
 ----
 
+=== create secret from existing docker credential file (`~/.docker/config.json`)
+
 ==== generate docker credential info
 
 to view the docker credential info:
@@ -1769,7 +1805,7 @@ $ cat .docker/config.json
         "detachKeys": "ctrl-@"
 ----
 
-==== create secret from existing docker credential file (`~/.docker/config.json`)
+==== create secret
 
 ----
 $ kubectl create secret generic secret-jnpr2 \
@@ -1812,7 +1848,40 @@ $ kubectl get secret secret-jnpr2 --output="jsonpath={.data.\.dockerconfigjson}"
         "detachKeys": "ctrl-@"
 ----
 
-=== refer the secrets: `imagePullSecrets`
+
+=== create secrets from yaml file
+
+----
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: secret-jnpr3
+  namespace: ns-user-1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJodWIuanVuaXBlci......
+----
+
+----
+$ kubectl apply -f secret-jnpr.yaml
+secret/secret-jnpr3 created
+
+$ kubectl get secrets
+NAME                  TYPE                                  DATA   AGE
+default-token-hkkzr   kubernetes.io/service-account-token   3      64d
+secret-jnpr           kubernetes.io/dockerconfigjson        1      9s
+secret-jnpr2          kubernetes.io/dockerconfigjson        1      6m12s
+secret-jnpr3          kubernetes.io/dockerconfigjson        1      78s
+----
+
+=== refer the secrets
+
+there are many ways to refer the secrets from a pod, RC or deployment.
+
+* environment variable
+* volumn
+
+==== `imagePullSecrets`
 
 create pod from private repository:
 
@@ -1865,6 +1934,27 @@ Events:
 19h         Normal    Started                  Pod    Started container
 ----
 
+=== secret benefit
+
+Since Secret objects can be created independently of the pods that use them,
+there is less risk of your Secret being viewed if somebody gets access to your
+pod spec.  
+
+Secrets are not written to disk (they are stored in a tmpfs ), and
+they are sent only to nodes that need them. Also, Secrets are deleted when the
+pod that is dependent on them is deleted.  
+
+On most native Kubernetes distributions, communication between users and the
+apiserver is protected by SSL/TLS. Therefore, Secrets transmitted over these
+channels are properly protected.  
+
+Any given pod does not have access to the Secrets used by another pod, which
+facilitates encapsulation of sensitive data across different pods.  Each
+container in a pod has to request a Secret volume in its volumeMounts  for it to
+be visible inside the container. This feature can be used to construct security
+partitions at the pod level.
+
+////
 === secret vs configMap
 
 .common:
@@ -1880,6 +1970,7 @@ Events:
 * image
 * secret support base64
 * secret is stored in tmpfs FS system, gone with the pod deletion
+////
 
 == kubernetes networking
 
