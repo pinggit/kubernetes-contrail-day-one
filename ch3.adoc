@@ -1674,15 +1674,15 @@ ____
 
 there are different types of secrets each serving a specific usage case. there
 are also many methods to create a secret and different ways to refer it in a
-pod. a complete discussion of all type of secrets is out of the scope of this
-book. the offical document is where you can read all details and track all
-up-to-date changes. In this section, we'll focus on a specific type of secrets
-called `kubernetes.io/dockerconfigjson`. you will learn different methods to
-create this type of secret and how to use it in your pods. in the end, we will
-summarize the main benefits of kubernetes secrets object to understand how it
-will help to improve the sytem security.
+pod. a complete discussion of secrets is out of the scope of this book. refer to
+the offical document to get all details and track all up-to-date changes. In
+this section, we'll focus on a specific type of secrets called
+`kubernetes.io/dockerconfigjson`. you will learn different methods to create a
+secret and how to use it in your pods. in the end, we will summarize the main
+benefits of kubernetes secrets object to understand how it will help to improve
+the sytem security.
 
-=== `ubernetes.io/dockerconfigjson` secrets
+=== `kubernetes.io/dockerconfigjson` secrets
 
 ////
 * Opaque：base64
@@ -1690,39 +1690,83 @@ will help to improve the sytem security.
 * kubernetes.io/service-account-token
 ////
 
+.secret types:
 
+`opaque`:
+this type ofthe Secret can contain arbitrary key-value pairs, so it is treated
+as "unstructured" data from kubernetes's perspective.
 
-* private registry (juniper hub)
-* private repository in public registry (docker hub)
+`kubernetes.io/dockerconfigjson`:
+use this type of secret to authenticate with a private container registry (e.g.
+a juniper server) to pull your own private image.
 
-=== create secret from CLI
+* `kubernetes.io/service-account-token`:
+when processes running in containers of a pod access the apiserver, they has to
+be authenticated as a particular Account (e.g., account `default` by default).
+this account that is associated with a pod is called a service-account.
+`kubernetes.io/service-account-token` type of secret contains information about
+kubernetes `service-account`. 
+
+later in this book we'll need to create a pod with Juniper's proprietary CSRX
+image, to do that we need to provide authentication information to kubernetes so
+it can authenticate itself when pulling images during pod creation. therefore in
+this section we'll focus on `kubernetes.io/dockerconfigjson` type of secret.
+
+////
+* private registry (juniper hub) private repository in public docker registry
+* (docker hub)
+////
+
+.methods to create a secret
+
+just like many other kubernetes objects, there are many ways to create a secret.
+in this section we'll demonstrate how to create a secret from:
+
+* kubectl CLI with docker credential information
+* kubectl CLI with docker credential file: `.docker/config.json`
+* yaml file
+
+////
+* literal
+* operator
+* serviceAccount
+////
+
+=== create secret from CLI with docker credential data
+
+to most straightforward method to create a `kubernetes.io/service-account-token`
+type of secret is to provide login information directly to `kubectl` command and
+let it to generate the secret:
 
 ----
-$ kubectl create secret docker-registry secret-jnpr \
+$ kubectl create secret docker-registry secret-jnpr1 \
     --docker-server=hub.juniper.net                 \
     --docker-username=JNPR-FieldUser213             \
     --docker-password=CLJd2jpMsVc9zrAuTFPn
 secret/secret-jnpr created
 ----
 
-==== verify the secret
+.verify the secret creation
 
 ----
 $ kubectl get secrets
 NAME                  TYPE                                  DATA   AGE
-secret-jnpr           kubernetes.io/dockerconfigjson        1      6s
+secret-jnpr           kubernetes.io/dockerconfigjson        1      6s   #<---
 default-token-hkkzr   kubernetes.io/service-account-token   3      62d
 ----
 
-----
-$ kubectl get secrets secret-jnpr -o wide
-NAME             TYPE                             DATA   AGE
-secret-jnpr      kubernetes.io/dockerconfigjson   1      2m15s
+please note that only the first line in the output is the secret we just
+created. the second one is a `kubernetes.io/service-account-token` type of
+secret that was created by kubernetes system automatically when the contrail
+setup is up and running.
 
+now inspect the details of the secret:
+
+----
 $ kubectl get secrets secret-jnpr -o yaml
 apiVersion: v1
 data:
-  .dockerconfigjson: eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2VjdXJpdHkiOnsidXNlcm5hbWUiOiJKTlBSLUZpZWxkVXNlcjIxMyIsInBhc3N3b3JkIjoiQ0xKZDJqcE1zVmM5enJBdVRGUG4iLCJhdXRoIjoiU2s1UVVpMUdhV1ZzWkZWelpYSXlNVE02UTB4S1pESnFjRTF6Vm1NNWVuSkJkVlJHVUc0PSJ9fX0=
+  .dockerconfigjson: eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2...<snipped>...
 kind: Secret
 metadata:
   creationTimestamp: 2019-08-14T05:58:48Z
@@ -1734,13 +1778,24 @@ metadata:
 type: kubernetes.io/dockerconfigjson
 ----
 
-==== decode the secret data
+not surprisingly, we don't see any sensitive information in the form of
+cleartext, there is a `data` portion of the output where we see a very long
+string as the value of key `.dockerconfigjson`. it seems to has a transformed
+look from the original data, but at least it does not that "sensitive" anymore
+now - overall one purpose of using secret is to improve the system security.
+
+however, the transformation is done by "encoding", not "encryption", so there is
+still a way to manually retrieve the original "sensitive" information back: just
+pipe the value of key `.dockerconfigjson` into `base64` tool, the original
+`username` and `password` information is printed again:
+
+.decode the secret data
 
 ----
-$ echo "eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2VjdXJpdHkiOnsidXNlcm5hbWUiOiJKTlBSLUZpZWxkVXNlcjIxMyIsInBhc3N3b3JkIjoiQ0xKZDJqcE1zVmM5enJBdVRGUG4iLCJhdXRoIjoiU2s1UVVpMUdhV1ZzWkZWelpYSXlNVE02UTB4S1pESnFjRTF6Vm1NNWVuSkJkVlJHVUc0PSJ9fX0" | base64 -d | python -mjson.tool
+$ echo "eyJhdXRocyI6eyJodWIuanVua..." | base64 -d | python -mjson.tool
 {
     "auths": {
-        "hub.juniper.net/security": {
+        "hub.juniper.net": {
             "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
             "password": "CLJd2jpMsVc9zrAuTFPn",
             "username": "JNPR-FieldUser213"
@@ -1749,8 +1804,24 @@ $ echo "eyJhdXRocyI6eyJodWIuanVuaXBlci5uZXQvc2VjdXJpdHkiOnsidXNlcm5hbWUiOiJKTlBS
 }
 ----
 
+some highlights in the above output:
+
+* `python -mjson.tool` is used to format the decoded json data before printing
+  to the terminal.
+
+* there is an `auth` key-value pair.  it is the token generated based on the
+  authentication information you gave (`username` and `password`).
+
+* later on when equiped with this secret, a pod will use this token, instead of
+  the `username` and `password` to authenticate itself towards the private
+  docker registry `hub.juniper.net` in order to pull an docker image
+
+[TIP]
+====
+here is another way to decode the data directly from the secret object:
+
 ----
-$ kubectl get secret secret-jnpr \
+$ kubectl get secret secret-jnpr1 \
     --output="jsonpath={.data.\.dockerconfigjson}" \
     | base64 --decode | python -mjson.tool
 {
@@ -1764,48 +1835,84 @@ $ kubectl get secret secret-jnpr \
 }
 ----
 
-=== create secret from existing docker credential file (`~/.docker/config.json`)
+the `--output=xxxx` option filters the `kubectl get` output so only value of
+`.dockerconfigjson` under `data` is printed. the value is then piped into base64
+with option `--decode` (alias of `-d`) to get it decoded. 
+====
 
-==== generate docker credential info
+a `docker-registry` Secret created manually like this will only work with a
+single private registry. to support multiple private container registries we
+can create a secret from docker credential file.
 
-to view the docker credential info:
+=== create secret from CLI with docker credential file (`~/.docker/config.json`)
+
+as the name of key `.dockerconfigjson` in the secret we created indicates, it
+serves similar role as the docker config file: `.docker/config.json`. actually
+you can generate the secret directly from the docker config file.
+
+.generate docker credential info
+
+first let's check the docker config file:
 
 ----
 $ cat .docker/config.json
 {
-        "auths": {},
-        "HttpHeaders": {
-                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
-        },
-        "detachKeys": "ctrl-@"
+    ......
+    "auths": {},
+    ......
+}
 ----
 
-to generate docker credential info:
+nothing really. depending on the usage of the setups you may see different
+output here. but the point is that this docker config file will be updated
+automatically each time when you `docker login` a new registry.
+
+let's test it out.
 
 ----
-$ docker login hub.juniper.net --username JNPR-FieldUser213 --password CLJd2jpMsVc9zrAuTFPn
-WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+$ cat mydockerpass.txt | \
+    docker login hub.juniper.net \
+        --username JNPR-FieldUser213 \
+        --password-stdin
 Login Succeeded
 ----
 
-now the docker credential info is generated:
+in file `mydockerpass.txt` is login password for my username
+`JNPR-FieldUser213`. saving the password in a file and then piping it to the
+`docker login` command with `--password-stdin` option has an advantage of not
+exposing the password cleartext in the shell history. 
+
+[TIP]
+====
+if you want you can give
+the password directly, and you will get a friendly warn that this is "insecure".
 
 ----
-[2019-08-15 03:19:38]root@cent111:~
+$ docker login hub.juniper.net --username JNPR-FieldUser213 --password MYPASS
+WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+Login Succeeded
+----
+====
+
+now the docker credential info is generated in the updated config.json file:
+
+----
 $ cat .docker/config.json
 {
-        "auths": {
-                "hub.juniper.net": {    #<---
-                        "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
-                }
-        },
-        "HttpHeaders": {
-                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
-        },
-        "detachKeys": "ctrl-@"
+    ......
+    "auths": {    #<---
+        "hub.juniper.net": {
+            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+        }
+    },
+    ......
+}
 ----
 
-==== create secret
+The login process creates or updates a config.json file that holds an
+authorization token.
+
+.create secret from .docker/config.json file
 
 ----
 $ kubectl create secret generic secret-jnpr2 \
@@ -1837,19 +1944,34 @@ type: kubernetes.io/dockerconfigjson
 
 $ kubectl get secret secret-jnpr2 --output="jsonpath={.data.\.dockerconfigjson}" | base64 --decode
 {
-        "auths": {
-                "hub.juniper.net": {
-                        "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
-                }
-        },
-        "HttpHeaders": {
-                "User-Agent": "Docker-Client/18.03.1-ce (linux)"
-        },
-        "detachKeys": "ctrl-@"
+    ......
+    "auths": {
+        "hub.juniper.net": {
+            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+        }
+    },
+    ......
+}
 ----
 
 
-=== create secrets from yaml file
+=== create secret from yaml file
+
+you can also create a secret directly from a yaml file, just the same way you
+create other objects like service or Ingress.
+
+manually encode the content of .docker/config.json file:
+
+----
+$ cat .docker/config.json | base64
+ewoJImF1dGhzIjogewoJCSJodWIuanVuaXBlci5uZXQiOiB7CgkJCSJhdXRoIjogIlNrNVFVaTFH
+YVdWc1pGVnpaWEl5TVRNNlEweEtaREpxY0UxelZtTTVlbkpCZFZSR1VHND0iCgkJfQoJfSwKCSJI
+dHRwSGVhZGVycyI6IHsKCQkiVXNlci1BZ2VudCI6ICJEb2NrZXItQ2xpZW50LzE4LjAzLjEtY2Ug
+KGxpbnV4KSIKCX0sCgkiZGV0YWNoS2V5cyI6ICJjdHJsLUAiCn0=
+----
+
+then put the base64 encoded value of .docker/config.json file as `data` in below
+yaml file:
 
 ----
 apiVersion: v1
@@ -1859,7 +1981,7 @@ metadata:
   name: secret-jnpr3
   namespace: ns-user-1
 data:
-  .dockerconfigjson: eyJhdXRocyI6eyJodWIuanVuaXBlci......
+  .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJodW......
 ----
 
 ----
@@ -1869,27 +1991,62 @@ secret/secret-jnpr3 created
 $ kubectl get secrets
 NAME                  TYPE                                  DATA   AGE
 default-token-hkkzr   kubernetes.io/service-account-token   3      64d
-secret-jnpr           kubernetes.io/dockerconfigjson        1      9s
+secret-jnpr1          kubernetes.io/dockerconfigjson        1      9s
 secret-jnpr2          kubernetes.io/dockerconfigjson        1      6m12s
 secret-jnpr3          kubernetes.io/dockerconfigjson        1      78s
 ----
 
+////
+stringData: not working yet
+----
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: secret-jnpr32
+  namespace: ns-user-1
+stringData:
+  .dockerconfigjson: |-
+
+    auths:
+      hub.juniper.net:
+        auth: Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=
+----
+////
+
+keep in mind that Base64 is all about "encoding" instead of "encryption",
+it is considered the same as plain text. so sharing this file compromised
+secret.
+
 === refer the secrets
 
-there are many ways to refer the secrets from a pod, RC or deployment.
+after a secret is created, it can be referred by a pod/RC or deployment
+in order to pull an image from the private registry.
+there are many ways to refer the secrets. in this section we'll look at
+using `imagePullSecrets` under pod `spec` to refer the secret.
 
+////
+* files 
 * environment variable
 * volumn
+* imagePullSecrets
+////
 
-==== `imagePullSecrets`
+.`imagePullSecrets`
 
-create pod from private repository:
+____
+An `imagePullSecret` is a way to pass a secret that contains a Docker (or other)
+image registry password to the Kubelet so it can pull a private image on behalf
+of your Pod.
+____
+
+create a pod pulling Juniper CSRX container from private repository:
 
 ----
 apiVersion: v1
 kind: Pod
 metadata:
-  name: csrx
+  name: csrx-jnpr
   labels:
     app: csrx
   annotations:
@@ -1915,34 +2072,44 @@ spec:
   - name: secret-jnpr
 ----
 
+generate the pod:
+
 ----
 $ kubectl apply -f csrx/csrx-with-secret.yaml
-pod/csrx created
+pod/csrx-jnpr created
+----
+
+the csrx is up and running:
+
+----
 $ kubectl get pod
 NAME                   READY   STATUS    RESTARTS   AGE
-csrx                   1/1     Running   0          20h
+csrx-jnpr              1/1     Running   0          20h
 ----
+
+behind the scene, the pod authenticates itself towards the private registry,
+pulls the image, and launchs the CSRX container.
 
 ----
 $ kubectl describe pod csrx
 ......
 Events:
-19h         Normal    Scheduled                Pod    Successfully assigned ns-user-1/csrx to cent333
-19h         Normal    Pulling                  Pod    pulling image "hub.juniper.net/security/csrx:18.1R1.9"
-19h         Normal    Pulled                   Pod    Successfully pulled image "hub.juniper.net/security/csrx:18.1R1.9"
-19h         Normal    Created                  Pod    Created container
-19h         Normal    Started                  Pod    Started container
+19h  Normal  Scheduled  Pod   Successfully assigned ns-user-1/csrx to cent333
+19h  Normal  Pulling    Pod   pulling image "hub.juniper.net/security/csrx:18.1R1.9"
+19h  Normal  Pulled     Pod   Successfully pulled image "hub.juniper.net/security/csrx:18.1R1.9"
+19h  Normal  Created    Pod   Created container
+19h  Normal  Started    Pod   Started container
 ----
 
 === secret benefit
 
-Since Secret objects can be created independently of the pods that use them,
-there is less risk of your Secret being viewed if somebody gets access to your
-pod spec.  
+as you can see from our test, the Secret objects is created independently of the
+pods, and inspecting the object `spec` does not print the sensitive information
+directly on the screen.
 
-Secrets are not written to disk (they are stored in a tmpfs ), and
-they are sent only to nodes that need them. Also, Secrets are deleted when the
-pod that is dependent on them is deleted.  
+Secrets are not written to the disk, but instead it is stored in a `tmpfs` FS
+only on nodes that need them. Also, Secrets are deleted when the pod that is
+dependent on them is deleted.  
 
 On most native Kubernetes distributions, communication between users and the
 apiserver is protected by SSL/TLS. Therefore, Secrets transmitted over these
@@ -1953,6 +2120,31 @@ facilitates encapsulation of sensitive data across different pods.  Each
 container in a pod has to request a Secret volume in its volumeMounts  for it to
 be visible inside the container. This feature can be used to construct security
 partitions at the pod level.
+
+////
+----
+[2019-08-17 09:02:55]root@cent333:/var/lib/kubelet/pods/39489341-be84-11e9-bb66-0050569e6cfc
+$ tree
+.
+├── containers
+│   └── csrx
+│       └── 2dc63754
+├── etc-hosts
+├── plugins
+│   └── kubernetes.io~empty-dir
+│       └── wrapped_default-token-hkkzr
+│           └── ready
+└── volumes
+    └── kubernetes.io~secret
+        └── default-token-hkkzr
+            ├── ca.crt -> ..data/ca.crt
+            ├── namespace -> ..data/namespace
+            └── token -> ..data/token
+
+8 directories, 6 files
+----
+////
+
 
 ////
 === secret vs configMap
