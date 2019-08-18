@@ -54,11 +54,11 @@ this tells a few important facts about kubernetes:
 
 kubernetes was created by a group of engineers in google in 2014, with a design
 and development model influenced by Google's internal system named "Borg" .
-Kubernetes defines a set of "building objects" (e.g. "pod", "service") which
-collectively provides mechanisms that orchestrates containerized applications
-across a distributed cluster of nodes, based on system resources (CPU, memory
-or other custom metrics).  Kubernetes hides the complexity of managing a group
-of containers by providing REST APIs for the required functionalities. 
+Kubernetes defines a set of "building objects" which collectively provides
+mechanisms that orchestrates containerized applications across a distributed
+cluster of nodes, based on system resources (CPU, memory or other custom metrics).
+Kubernetes hides the complexity of managing a group of containers by providing
+REST APIs for the required functionalities. 
 
 In simple words, container technologies like docker provides you the capability
 of packaging and distributing containerized applications, while an
@@ -144,7 +144,7 @@ well-defined set of processes:
 
 * head node: called "master", or "master node", the head and brian that does
   all thinking and decisions, all of intelligence are located here.
-* worker node: called "node", or "union" in old document, the arms and feet
+* worker node: called "node", or "minion", the arms and feet
   that conduct the workforce.
 
 The "nodes" are controlled by the "master" and in most of the time you will
@@ -162,9 +162,8 @@ kubernetes objects. For now just remember: Whenever you are working with
 NOTE: the term "node" may sound semantically ambiguous - it could mean two
 things in the context of this book. Usually a "node" refers to a logical unit
 in a cluster - something we call a "server", which can be either physical
-server (.e.g.: HP server) or virtual machine(e.g.: kvm-qemu based). in context
-of kubernetes clusters, a "node" often specifically refers to a "worker node"
-that runs containerized applications, in contrast with a "master".
+server or virtual machine. in context of kubernetes clusters, a "node" often
+specifically refers to a "worker node".
 
 NOTE: you rarely need to "bypass" the master and work with nodes directly.
 but you can login to node and run all docker command to check running status of
@@ -183,7 +182,7 @@ called "scheduling".
 master is also responsible for maintaining the desired state for the cluster.
 when you give an order "for this web server make sure there are always 2
 containers backing up each other!", the master will keep monitor the running
-status and starting up a container anytime when it sees the number of the web
+status and spawning new container anytime when the number of the web
 server containers in "running" status becomes less than 2 due to any failures. 
 
 The master is also responsible for other many jobs. 
@@ -236,15 +235,13 @@ the designed scales. nodes are the real workforce under the hood provided by a
 cluter. usually all of the containers and workloads are running in nodes. 
 A "node" runs following processes:
 
-* *Kubelet*: the Kubernetes agent process that runs on all the nodes. it
-  interacts with master (through kube-apiserver process) and manage the
+* *Kubelet*: the Kubernetes agent process that runs on master and all the nodes.
+  it interacts with master (through kube-apiserver process) and manage the
   containers in local host.
 * *kube-proxy*: process that implements "kubernetes service" (will introduce
   in chapter three) using linux iptable in the node
 * *container-runtime*: local container - mostly 'docker' in today's market,
   holding all of the running "dockerized" applications.
-
-NOTE: *kubelet* is running on both master and node.
 
 NOTE: the name "proxy" may sound confusing for kubernetes beginners. it's not
 really a "proxy" in current kubernetes architecture. kube-proxy is a system
@@ -483,7 +480,7 @@ the kubernetes website describe a "pod" as:
 this brings 2 facts:
 
 * basically pod is nothing but a group of containers
-* all containers in a pod shares resources like storage and network 
+* all containers in a pod shares storage and network resources.
 
 what is the benefit of using "pod" comparing with the old way of dealing with
 each individual containers? considering a simple usage case that you are
@@ -654,10 +651,9 @@ of the pod:
     5eea48f7ba8f  k8s.gcr.io/pause:3.1              "/pause"                 40s ago  Up 40s        k8s_POD_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
 
 the third container with image name "k8s.gcr.io/pause" is a special container
-that was created by the kubernetes system to "hold" the network namespace for
-the pod. for every pod, Kubernetes creates a `pause` container to acquire the
-respective pod’s IP address and set up the network namespace for all other
-containers in that pod.
+that was created by the kubernetes system for each pod.
+The 'pause' container is created to manage the network resources for the pod
+which would be shared by all the containers of that pod.
 
 below figure shows a pod including a few user containers and a `pause` container.
 
@@ -669,6 +665,12 @@ image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-
 //TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
 
+if you ever played with docker you will immediately realized that this is pretty
+neat.  remember the containers were launched at one of the "node", with docker
+you will have to first login to the correct remote node, and then use a similiar
+`docker exec` command to login to each container. kubernetes hides these details
+and allow you to do everything from one node - the master.
+
     #login to pod-1's container apache 
     root@test1:~# kubectl exec -it pod-1 -c apache bash
     root@pod-1:/var/www/html#
@@ -677,11 +679,6 @@ in kubernetes master, to login to a container:
     root@test1:~# kubectl exec -it pod-1 -c db bash
     [ root@pod-1:/data ]$ 
 
-if you ever played with docker you will immediately realized that this is pretty
-neat.  remember the containers were launched at one of the "node", with docker
-you will have to first login to the correct remote node, and then use a similiar
-`docker exec` command to login to each container. kubernetes hides these details
-and allow you to do everything from one node - the master.
 
 .check processes running in container
 
