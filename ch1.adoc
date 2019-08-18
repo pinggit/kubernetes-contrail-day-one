@@ -23,11 +23,11 @@ While many small organizations are thinking of containers as something too early
 
 But what is Container and how is it comparable to VM?
 
-From technical prospect container is rooted in the Cgroups and namespaces concept in Linux but the name might be inspired by the Actual metal cargo shipping containers that you see on ships 
+From technical prospect container is rooted in the Namespaces and Cgroups concept in Linux but the name might be inspired by the Actual metal cargo shipping containers that you see on ships 
 As both share the ideas of isolating contents , carrier independence , easy movement , …,etc 
 
 Container is a logical packaging mechanism, you can think of it as Lightweight virtualization that runs an application and its dependencies in the same operating system but in different context which remove the need to replicate an entire operating system as shown in the figure 1.1
-By doing so Application would be confined in a lightweight package that could be developed/tested individually then implemented and scaled much faster than the tradition VM as Developer just need to build/configure this light piece of software. Currently most of the application has been containerized and publicly available. And finally there is no need to manage/support one OS per application
+By doing so Application would be confined in a lightweight package that could be developed/tested individually then implemented and scaled much faster than the tradition VM as Developer just need to build/configure this light piece of software. Currently most of the application has been containerized and publicly available. And finally there is no need to manage/support the application per OS
 
 
 image::https://user-images.githubusercontent.com/2038044/56472464-b59fd400-642c-11e9-8642-b67cd0a9577e.png[]
@@ -35,7 +35,7 @@ Figure 1.1 Container vs. VM
 
 Many developers would call the Container Runtime in figure 1.1 “the Hypervisor of Containers” Although this is not a technically correct term, but it may be useful only to visualize the hierarchy.
 
-As in the VM technologies, the most common Hypervisors are VMware ESX/ESXi and KVM. In the Container technologies Rkt and Docker are the most known with Docker being the most widely deployed one. 
+As in the VM technologies, the most common Hypervisors are KVM and VMware ESX/ESXi. In the Container technologies Docker and Rkt are the most known with Docker being the most widely deployed one. 
 Before we give an overview of Docker let’s see some useful numbers in comparing VM vs Container 
  
 === Juniper VSRX vs CSRX 
@@ -64,7 +64,7 @@ Table 1.1 showing a comparison between CSRX vs. VSRX which will you can see the 
 
 Table 1.1 CSRX vs. VSRX 
 
-NOTE: containerizing network functions comes at a cost as there are some features won’t exist in containerized based NFV (the lack of IPSEC VPN in the CSRX is one example).This is not a major drawback in the micro-services technique where we split the application into different smaller services each part (container in that case) is doing a specific job hence not all the functionality is needed  in a containerized firewall 
+NOTE: In micro services techinque the application would be split into smaller services each part(container in that case) is doing specific job. 
 
 === Understanding Docker
 
@@ -93,14 +93,12 @@ Let’s start first lay the basics foundation of contrail
 
 == Contrail overview 
 
-Contrail Networking:
-
-Contrail Networking provides dynamic end-to-end networking policy and control for any cloud, any workload, and any deployment, from a single user interface by translating abstract workflows into specific policies.
+Contrail provides dynamic end-to-end networking, networking policy and control for any cloud, any workload, and any deployment, from a single user interface.
 
 Although our focus in this book would be building a secure container network orchestrated by Kubernetes but contrail can build Virtual networks that integrate container, VM and BMS
 
-Virtual Networks (VNs) are a key concept in the Contrail System. Virtual networks are logical constructs implemented on top of the physical networks. Virtual networks are used to replace VLAN-based isolation and provide multi-tenancy in a virtualized data center. Each tenant or an application can have one or more virtual networks. Each virtual network is isolated from all the other virtual networks unless explicitly allowed by security policy.
-Virtual networks can be extended to physical networks using a gateway.Finally, Virtual networks are used to connect Network Function Virtualization (NFV) as well service chaining.
+Virtual Networks (VNs) are a key concept in the Contrail System. Virtual networks are logical constructs implemented on top of the physical networks. Virtual networks are used to replace VLAN-based isolation and provide multi-tenancy in a virtualized data center. Each tenant or an application can have one or more virtual networks. Each virtual network is isolated from all the other virtual networks unless explicitly allowed by network policy.
+Virtual networks can be extended to physical networks using a gateway. Finally, Virtual networks are used to build service-chaining.
 
 as shown in the figure 1.3, the Network operate only deal with the logical abstraction of the network then contrail do the heavy lifting which include but not limited to 
 building polices, exchanging routes, building tunnels on the physical topology. 
@@ -116,9 +114,9 @@ Contrail vrouter is the Forwarding plane that Provides Layer 2/3 services , Dist
 
 Contrail integrates with many orchestrator such as OpenStack , VMware , Kubernetes , OpenShift and Mesos and use multiple protocols to provide SDN to these orchestrators as shown in figure 1.4 where 
 
-XMPP : Extensible Messaging and Presence Protocol (XMPP) is an open XML technology for real-time communication defined in RFC 6120, in Contrail it offers two main functionality, distributing routing information and pushing configuration, which are similar to what IBGP do in MPLS VPNs model plus NETCONF in device management. XMPP is also used to exchange operational state, statistics, logs and events 
+XMPP : Extensible Messaging and Presence Protocol (XMPP) is an open XML technology for real-time communication defined in RFC 6120, in Contrail it offers two main functionality, distributing routing information and pushing configuration, which are similar to what IBGP do in MPLS VPNs model plus NETCONF in device management. 
 
-BGP: is used to exchange router with physical router and in same case Contrail device manager can use Netconf to configure this Gateway
+BGP: is used to exchange route with physical router and in same case Contrail device manager can use Netconf to configure this Gateway
 
 EVPN: Ethernet VPN is a standards-based technology RFC 7432 that provides virtual multipoint bridged connectivity between different Layer 2 domains over an IP network.
 Contrail controller exchange EVPN routes with TOR switches (acting as L2 VXLAN GW) to offer faster recovery with active-active VXLAN forwarding 
@@ -143,7 +141,7 @@ for a compute node in the default docker setup, containers on the same host comm
 but with contrail networking, on each compute the vrouter creates VRF per virtual network 
 offering long list of feature as will discuss 
  
-From the prospective of control plane the vrouter relay on XMPP to 
+From the prospective of control plane the vrouter would
 
 * Receive low-level configuration (routing instances and forwarding policy) 
 * Exchange routes
@@ -154,7 +152,7 @@ From the prospective of data plan the vrouter would
 
 * Assign received packet from the overlay network to a routing instance based on the MPLS label or Virtual Network Identifier (VNI).
 * Proxy DHCP, ARP, and DNS.
-* Apply forwarding policy for the first packet of each new flow then install a flow entry in the flow table of the forwarding plan.
+* Apply forwarding policy for the first packet of each new flow then program the action to the flow entry in the flow table of the forwarding plan.
 * Forwarding the packer after a Destination address lookup (IP or MAC) in the Forwarding Information Base (FIB) 
 * Encapsulating/decapsulating packets sent to or received from the overlay network.
 
