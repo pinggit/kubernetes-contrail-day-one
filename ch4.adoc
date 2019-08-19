@@ -159,7 +159,7 @@ a new `namespace` object is created, `contrail-kube-manager` (KM) gets noticed
 about the object creation event and it will create the corresponding `project`
 in contrail api database. to differentiate between multiple kubernetes NS
 project in contrail, a kubernetes cluster name will be added to the kubernetes
-NS or project name. the default kubernetes cluster name is 'k8s'.  so if you
+NS or project name. the default kubernetes cluster name is `k8s`.  so if you
 create a kubernetes NS `ns-user-1`, what you will end up to see in contrail GUI
 will be: `k8s-ns-user-1`:
 
@@ -167,13 +167,25 @@ will be: `k8s-ns-user-1`:
 image::https://user-images.githubusercontent.com/2038044/60316467-8fb91300-9938-11e9-9de6-429b56429868.png[]
 
 ****
-the kubernetes `cluster name` is configurable, during deployment process. if you
-don't configure it `k8s` will be the default. once the cluster is created, the
-name can not be changed anymore. to view the `cluster name`, go to
-`contrail-kube-manager` (KM) and it can be found in the configuration file.
+the kubernetes `cluster name` is configurable, during deployment process only.
+if you don't configure it `k8s` will be the default. once the cluster is
+created, the name can not be changed anymore. to view the `cluster name`, go to
+`contrail-kube-manager` (KM) docker and check its the configuration file.
 
+.to locate the `KM` docker container
 ----
-$ docker exec -it kubemanager_kubemanager_1 grep cluster /etc/contrail/contrail-kubernetes.conf
+$ docker ps -a | grep  kubemanager
+2260c7845964  ...snipped...  ago  Up  2  minutes  kubemanager_kubemanager_1
+----
+
+.to login to the `KM` container
+----
+$ docker exec -it kubemanager_kubemanager_1 bash
+----
+
+.find the `cluster_name` option
+----
+$ grep cluster /etc/contrail/contrail-kubernetes.conf
 cluster_name=k8s        #<---
 cluster_project={}
 cluster_network={}
@@ -186,12 +198,10 @@ NOTE: in the rest part of this book we will refer all these terms `namespace`,
 
 === Non-isolated NS
 
-
-after previous section now you are aware that kubernetes basic networking
-requirement is a "flat"/"NATless" network - any pod can talk to any pod in any
-namespace, any cni providers should ensure that. consequently in kubernetes by
-default all namespaces are simply **not** isolated. It is just like a "shared
-tenant" in openstack.
+you are aware that kubernetes basic networking requirement is a "flat"/"NATless"
+network - any pod can talk to any pod in any namespace, any cni providers should
+ensure that. consequently in kubernetes by default all namespaces are **not**
+isolated. It is just like a "shared tenant" in openstack.
 
 .k8s-default-pod-network and k8s-default-service-network
 
@@ -199,13 +209,14 @@ To provide networking for all non-isolated namespace, there should be a
 **common** VRF (virtual routing and forwarding table) or RI (routing instance).
 in contrail kubernetes environment, two "default" VNs are pre-configured in k8s
 default NS project, for pod and service respectively. correspondingly there are
-2 VRFs each with same names as their correspondingly VN. 
+2 VRFs each with same name as their correspondingly VN. 
 
 the name of the two VNs/VRFs are in this format:
 
-    <k8s-cluster-name>-<namespace name>-<pod-network|service-network>
+    <k8s-cluster-name>-<namespace name>-[pod|service]-network
 
-so for default NS the name will become:
+so for `default` NS with a default cluster name `k8s`, the two VN/VRF names will
+become:
 
 * `k8s-default-pod-network`: pod VN/VRF, with the default subnet `10.32.0.0/12`
 * `k8s-default-service-network`: service VN/VRF, with a default subnet `10.96.0.0/12`
@@ -216,7 +227,7 @@ it is important to know that these 2 default VNs are **shared** between all of
 the "non-isolated" namespaces. what that means is, they will be available for
 any new non-isolated NS that you create, implicitly.  that is why in any
 non-isolated NS and `default` NS, the communication between pods in the default
-pod network works fine. 
+pod network works just fine. 
 
 NOTE: this only applies to the "default" VNs. all new VNs that you create will
 be isolated with other VNs, regardless of same or different NS. additional
@@ -232,23 +243,45 @@ service-network, accordingly two new VRFs are also created for each "isolated"
 namspace. The same flat-subnets `10.32.0.0/12` and `10.96.0.0/12` are shared by
 the pod and service networks in the isolated namespaces. however since the
 networks are with a different VRF, by default it is isolated with other NS.
-therefore, by default pods launched in isolated NS can only talk to service and
-pods on the same namespace. Additional configurations, e.g. policy, is required
-to make the pod being able to reach the network outside of current namespace.
+pods launched in isolated NS can only talk to service and pods on the same
+namespace. Additional configurations, e.g. policy, is required to make the pod
+being able to reach the network outside of current namespace.
+
+to illustrate this concept let's take an example. suppose you have 3 namespaces,
+the `default` NS and two user NS: `ns-non-isolated` and `ns-isolated`.
+in each NS you create one user VN: `vn-left-1`. you will end up to have
+following VN/VRFs:
+
+.NS default
+
+* default-domain:k8s-default:k8s-default-pod-network
+* default-domain:k8s-default:k8s-default-service-network
+* default-domain:k8s-default:k8s-vn-left-1-pod-network
+
+.NS ns-non-isolated
+
+* default-domain:k8s-ns-non-isolated:k8s-vn-left-1-pod-network
+
+.NS ns-isolated
+
+* default-domain:k8s-ns-isolated:k8s-ns-isolated-pod-network
+* default-domain:k8s-ns-isolated:k8s-ns-isolated-service-network
+* default-domain:k8s-ns-isolated:k8s-vn-left-1-pod-network
 
 ////
-TODO: give a diagram, otherwise confusing
-
-default-domain:k8s-default:k8s-default-pod-network:k8s-default-pod-network
-default-domain:k8s-default:k8s-default-service-network:k8s-default-service-network
-default-domain:k8s-default:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
-
-default-domain:k8s-ns-non-isolated:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
-
-default-domain:k8s-ns-user-1:k8s-ns-user-1-pod-network:k8s-ns-user-1-pod-network
-default-domain:k8s-ns-user-1:k8s-ns-user-1-service-network:k8s-ns-user-1-service-network
-default-domain:k8s-ns-user-1:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+* default-domain:k8s-default:k8s-default-pod-network:k8s-default-pod-network
+* default-domain:k8s-default:k8s-default-service-network:k8s-default-service-network
+* default-domain:k8s-default:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+* default-domain:k8s-ns-non-isolated:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
+* default-domain:k8s-ns-isolated:k8s-ns-isolated-pod-network:k8s-ns-isolated-pod-network
+* default-domain:k8s-ns-isolated:k8s-ns-isolated-service-network:k8s-ns-isolated-service-network
+* default-domain:k8s-ns-isolated:k8s-vn-left-1-pod-network:k8s-vn-left-1-pod-network
 ////
+
+this can be illustrated in below diagram:
+
+.NS and VN
+image::https://user-images.githubusercontent.com/2038044/63223271-13e18700-c181-11e9-8fe4-987cf935a05b.png[]
 
 here is the yaml file to create an isolated namespace:
 
@@ -271,7 +304,6 @@ $ kubectl get ns
 NAME          STATUS    AGE
 contrail      Active    8d
 default       Active    8d
-development   Active    2d
 ns-isolated   Active    1d  #<---
 kube-public   Active    8d
 kube-system   Active    8d
@@ -284,8 +316,8 @@ NS:
   annotations:
     "opencontrail.org/isolation" : "true"
 
-this part of the definition is Juniper's extension. `contrail-kube-manager`, or
-KM in brief, reads the namespace `metadata` from `kube-apiserver`, parses the
+this part of the definition is Juniper's extension. `contrail-kube-manager`
+(`KM`) , reads the namespace `metadata` from `kube-apiserver`, parses the
 information defined in the `annotations` object, and sees that the `isolation`
 flag is set to `true`. it then creates the tenant with the correponding routing
 instances(one for pod and one for service) instead of using the default ns
@@ -394,16 +426,38 @@ PING 10.47.255.238 (10.47.255.238): 56 data bytes
 round-trip min/avg/max = 1.470/1.470/1.470 ms
 ----
 
-the ping packet passes through now. the isolation is between isolated NS and all
-other tenant in the cluster, but not between pods in same NS!
+the ping packet passes through now. to summarize the test results: 
+
+* traffic is isolated between an isolated NS and all other tenant in the cluster
+* traffic is not isolated in same NS 
 
 NOTE: pod-level isolation can be achieved via kubernetes network policy, or
-security groups in contrail. this is covered later in this chapter.
+security groups in contrail. 
+this will be covered later in this chapter.
 
 == contrail floating IP
 
+//(with type of loadBalancer or nodePort) 
+
 === overlay Internet access
 
+we've discussed and tested the communication between pods in the same or
+different NS. so far we've only tested it **inside** of the same cluster. what
+about communication with devices **outside** of the cluster? you may already
+know that in traditional (openstack) contrail environment, there are many ways
+for the overlay entities (typically a VM) to access the Internet, the 3
+frequently used methods among them are:
+
+* floating IP
+* SNAT
+* logical router
+
+however, the offical kubernetes solution is via `service` and `Ingress` objects.
+which you've read about and got the idea in chapter 3. in contrail kubernetes
+environment, floating IP is used in the service and Ingress implementation to
+expose them to outside of the cluster.  later in this chapter we'll have a very
+detail discussion for each of these two objects. befor that, in this section,
+we'll review the "floating IP" basis and look at how it works with kubernetes.
 
 === floating IP introduction
 
@@ -425,9 +479,9 @@ the figure below illustrates the basic work flow of FIP:
 
 .Floating IP
 //image::https://user-images.githubusercontent.com/2038044/60388331-be8cd180-9a7d-11e9-8ff7-c202ed9f7349.png[]
-image::https://user-images.githubusercontent.com/2038044/60556767-b8faea00-9d10-11e9-84bb-0e40e3edcc3d.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/60556767-b8faea00-9d10-11e9-84bb-0e40e3edcc3d.png[]
 //image::https://user-images.githubusercontent.com/2038044/60357106-b448d580-99a0-11e9-8ad2-31e15102b6bd.png[]
+image::https://user-images.githubusercontent.com/2038044/63227026-0ee7fc00-c1b0-11e9-8e59-d247ec8d7b2e.png[]
 
 here are some highlights regarding FIP and FIP pool configuration:
 
@@ -441,27 +495,26 @@ here are some highlights regarding FIP and FIP pool configuration:
   it will load the route into its VRF table. all remote clients connected to
   the VRF will be able to communicate with the FIP.
 
-Regarding the FIP concept and role, there is nothing new in contrail
-kubernetes environment. But the usage of floating IP has been extended in
-`service` and `ingress` implementation, and it plays an important role for
-access toward kubernetes `service` and `ingress` from external. in later
-sections you will learn more details about how kubernetes `service` and
-`ingress` works in contrail kubernetes setup.
+Regarding the FIP concept and role, there is nothing new in contrail kubernetes
+environment. But the usage of floating IP has been extended in kubernetes
+`service` and `ingress` object implementation, and it plays an important role
+for accessing toward kubernetes `service` and `ingress` from external. 
+you can check later sections in this chapter for more details on this.
 
 === creating FIP pool
 
 creating a FIP pool is a 3 steps process:
 
-* create a public VN, 
+* create a public FIP-VN, 
 * set `RT` (route-target) for the VN so it can be advertised and imported into
   the gateway router's VRF.
-* create a FIP pool based on the public VN
+* create a FIP pool based on the public FIP-VN
 
 again this is nothing new but the same steps as with other contrail environment
 without kubernetes. however, as you've learned in previous section, with
-kubernetes integration a VN can now be created in a "kubernetes style":
+kubernetes integration a FIP-VN can now be created in a "kubernetes style":
 
-.create a public VN named `vn-ns-default`
+.create a public FIP-VN named `vn-ns-default`
 
 ----
 $ cat vn-ns-default.yaml
@@ -497,15 +550,39 @@ router's VRF table. this step is necessary whenever Internet access is required.
 image::https://user-images.githubusercontent.com/2038044/60751261-b43c6d00-9f80-11e9-93c5-b06aeb642eb0.png[]
 
 NOTE: the UI navigation path to set RT is:
-CC: main-menu > Overlay > "Virtual Networks" > k8s-vn-ns-default-pod-network >
-Edit > "Routing, Bridging and Policies"
+contrail command(CC): main-menu > Overlay > "Virtual Networks" >
+k8s-vn-ns-default-pod-network > Edit > "Routing, Bridging and Policies"
 
+****
+.what is "CC"?
+contrail command (CC) is the new user interface (UI) coming with the
+contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
+most of lab studies. just keep in mind that in the future CC will be the only UI
+and the "legacy" one will be deprecated. 
+
+.what is CC's "main-menu"?
+in CC, the functions and settings are groups in a a "main menu". it is also the
+entry point from where you can navigate through different functions. 
+
+.where to find CC's "main-menu"?
+image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
+
+in order to get this menu, click on group name right next to the "contrail
+command" logo on the upper left of the UI. in the above screen capture that
+group is "Infrastructure", but regardless it can be any group, just click it and
+you will get the main menu, then from there you can select and jump into all
+other settings.
+****
+
+////
 NOTE: in the later lab demo of `service` or `ingress`, you always need to set the
 RT to the public VN whenever they need to be accessed from Internet host, 
+////
 
 .create a FIP pool based on the public VN
 
-from contrail command UI, Create a floating IP pool based on the public VN:
+this is the final step. from contrail command UI, Create a floating IP pool
+based on the public VN:
 
 .contrail command: create a FIP pool
 image::https://user-images.githubusercontent.com/2038044/60357727-6d5bdf80-99a2-11e9-90c1-98b037cb0c98.png[]
@@ -518,9 +595,9 @@ options so that a FIP pool named "public" will automatically be created.
 
 === FIP pool scope
 
-there are different ways you can define an floating IP pool in kubernetes in contrail,
-and correspondingly the scope of the pools will also be different. here are 3 possible
-levels with priroity
+there are different ways you can refer an floating IP pool in contrail
+kubernetes environment, and correspondingly the scope of the pools will also be
+different. here are 3 possible levels with descending priority:
 
 * object specific
 * Namespace level
@@ -528,19 +605,20 @@ levels with priroity
 
 .object specific
 
-this is the most specific level of scope. object sepecific FIP pool binds itself
-only to the object that you specified, it does not affact any other objects in
-the same NS or the cluster. E.g. you can specify a service `web` to get FIP from
-FIP pool `pool1`, a service `dns` to get FIP from another FIP pool `pool2`, etc.
-This give the most granular control of where the FIP comes from for an object,
-the cost is you need to explicitly specify it in your yaml file for every object
+this is the most specific level of scope. object specific FIP pool binds itself
+only to the object that you specified, it does not affect any other objects in
+the same NS or the cluster. E.g. you can specify a service object `web` to get
+FIP from FIP pool `pool1`, a service object `dns` to get FIP from another FIP
+pool `pool2`, etc.  This gives the most granular control of where the FIP will
+be allocated from for an object, the cost is that you need to explicitly specify
+it in your yaml file for every object.
 
 .NS level
 
 in a NS, a "lazy" way to give FIP is to define a "NS level" FIP pool, so that
 all objects created in that NS will get FIP assignment from that pool. 
 with NS level pool defined (e.g. `pool-ns-default`), there is no need to
-specify the same pool name in each object's yaml file any more. you can still
+specify the FIP-pool name in each object's yaml file any more. you can still
 give a different pool name, say `my-webservie-pool` in an object `webservice` ,
 in that case object `webservice` will get the FIP from `my-webservice-pool`
 instead of from the NS level pool `pool-ns-default`, because the former is more
@@ -555,31 +633,27 @@ you can combine all 3 methods to take advantages of the flexibility. here is a
 practical example:
 
 * define a global pool `pool-global-default`, so any objects in a NS that has no
-  NS-level or object-level pool defined, will still get a FIP from this pool
-* for NS `dev`, define a FIP pool `pool-dev`, so all objects in `dev`
+  NS-level or object-level pool defined, will get a FIP from this pool
+* for NS `dev`, define a FIP pool `pool-dev`, so all objects created in NS `dev`
   will by default get FIP from `poo-dev`
-* for NS `sales`, define a FIP pool `pool-sales`, so all objects in `sales` 
-  will by default get FIP from `poo-dev`
-* for NS `test-only`, do NOT define any NS level pool, so by default all objects
-  in it will get FIP from the `pool-global-default`
-* when a service `dev-websevice` in `dev` needs a FIP from `pool-sales`, specify
-  `pool-sales` in `dev-webservice` object will achieve this goal.
+* for NS `sales`, define a FIP pool `pool-sales`, so all objects created in NS
+  `sales` will by default get FIP from `poo-dev`
+* for NS `test-only`, do NOT define any NS level pool, so by default objects
+  created in it will get FIP from the `pool-global-default`
+* when a service `dev-websevice` in NS `dev` needs a FIP from `pool-sales`
+  instead of `pool-dev`, specify `pool-sales` in `dev-webservice` object yaml
+  file will achieve this goal.
 
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
 === global level FIP pool
 
-to define the global level FIP pool, you need to specify the full
-qualified pool name (domain > project > network) in configuration file of
-`contrail-kube-manager` docker container. 
+to specify a global level FIP pool, you need to give the full
+qualified pool name (domain > project > network) in configuration file for the
+`contrail-kube-manager` (`KM`) docker container. 
 
-----
-$ docker ps -a | grep  kubemanager
-2260c7845964  ...snipped...  ago  Up  2  minutes  kubemanager_kubemanager_1
-----
-
-the configuration file is `/etc/contrail/common_kubemanager.env`:
+the configuration file is `/etc/contrail/common_kubemanager.env` in master node:
 
 ----
 $ cat /etc/contrail/common_kubemanager.env
@@ -608,7 +682,7 @@ KUBERNETES_PUBLIC_FIP_POOL={'domain': 'default-domain','name': 'pool-global-defa
 
 it reads: the global FIP pool is called `pool-global-default`, and it
 is defined based on a VN `vn-global-default` under project `k8s-ns-user-1`.
-the project name indicates the corresponding kubernetes namespace is `ns-user-1`.
+which indicates that the corresponding kubernetes namespace is `ns-user-1`.
 
 now with that piece of configuration placed, you can "re-compose" the
 `contrail-kube-manager` docker container to make the change take effect.
@@ -624,7 +698,7 @@ Creating kubemanager_node-init_1 ... done
 Creating kubemanager_kubemanager_1 ... done
 ----
 
-now the global FIP pool is defined.
+now the global FIP pool is specified for the cluster.
 
 === NS level FIP pool
 
@@ -703,12 +777,11 @@ in some cases a FIP will be created automatically. later in this book, you will
 see examples when contrail automatically assign a FIP and associate it to
 kubernetes objects:
 
-* LoadBalancer service
-* Ingress objects
+* LoadBalancer service object
+* Ingress object
 
-in fact, `ClusterIP` by itself is also implemented by FIP. we'll check out more
-details later.
-
+in fact, `ClusterIP` service by itself is also implemented by FIP. we'll check
+out more details later.
 
 === advertising FIP
 
@@ -719,27 +792,6 @@ following screenshot shows how to add/edit a BGP peer.
 
 .contrail command: select "main-menu" > INFRASTRUCTURE: "Cluster" > "Advanced Options"
 image::https://user-images.githubusercontent.com/2038044/61074698-4c55ae80-a3e6-11e9-81d5-5efa962cbdb5.png[]
-
-****
-.CC
-contrail command (CC) is the new user interface (UI) coming with the
-contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
-most of lab studies. just keep in mind that in the future CC will be the only UI
-and the "legacy" one will be deprecated. 
-
-.CC "main-menu":
-in CC, the functions and settings are groups in a a "main menu". it is also the
-entry point from where you can navigate through different functions. 
-
-.CC "main-menu":
-image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
-
-in order to get this menu, click on group name right next to the "contrail
-command" logo on the upper left of the UI. in the above screen capture that
-group is "Infrastructure", but regardless it can be any group, just click it and
-you will get the main menu, then from there you can select and jump into all
-other settings.
-****
 
 
 .contrail command: select "BGP router" > "create"
@@ -836,14 +888,16 @@ node" `10.169.25.20`, in this case it's actually a contrail compute node
 
 service is the core object in kubernetes. in chapter 3 you've learned what is
 kubernetes service and how to create a `service` object with yaml file.
-functional-wise, a service is running as a layer 4 (transport layer) load balancer that is
-sitting between clients and servers. client can be anything "requesting" a
-service. server in our context is the backend pods "providing" the
-response. the client only sees the "frontend" - a service IP and service port
-exposed by a service, it does not (and no need to) care about which backend
-pods (and with what "pod IP") actually responds the service request. inside of
-the cluster, that `service IP` is a kind of virtual IP (`VIP`) that is also
-called a `cluster IP`.
+functional-wise, a service is running as a layer 4 (transport layer) load
+balancer that is sitting between clients and servers. client can be anything
+"requesting" a service. server in our context is the backend pods "responding"
+the request. the client only sees the "frontend" - a service IP and service port
+exposed by a service, it does not (and no need to) care about which backend pods
+(and with what "pod IP") actually responds the service request. inside of the
+cluster, that `service IP`, also called `cluster IP`, is a kind of virtual IP
+(`VIP`). 
+
+NOTE: in contrail environment it is implemented through floating IP.
 
 This design model is very powerful and efficient in one sense that, it covers
 the fragility of the possible single point failure that may be caused by
@@ -868,16 +922,16 @@ supported:
 * nodePort
 * loadbalancer
 
-in contrail all services is implemented by contrail's `loadbalancer` (`LB`).
+in contrail, all services is implemented by contrail's `loadbalancer` (`LB`).
 before we dive into the details of a service loadbalancer, it will be good to
 review the legacy neutron based loadbalancer concept in contrail. for brevity
 we'll sometimes also refer `loadbalancer` as `LB`.
 
+==== contrail neutron loadbalancer
+
 contrail LB is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
 virtual-ip (`VIP`) as the frontend IP towards clients.
-
-==== contrail neutron loadbalancer
 
 .contrail neutron loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60641740-1f5c3700-9dfb-11e9-962f-ed67836d8115.png[]
@@ -907,9 +961,9 @@ concept:
 in fact, contrail re-uses a good part of this model in kubernetes service
 implementation. to support service loadbalancing, contrail extends the
 loadbalancer with a new driver, with it service will be implemented as "equal
-cost multiple path" (ECMP) loadbalancer working in layer 4(transport layer) . this is the primary
-difference comparing with the "proxy" mode that the old neutron loadbalancer
-type does.
+cost multiple path"(ECMP) loadbalancer working in layer 4(transport layer) .
+this is the primary difference comparing with the "proxy" mode that the old
+neutron loadbalancer type does.
 
 NOTE: ingress, on the other hand, is conceptually even closer with the old
 neutron loadbalancer in the sense that both are layer 7 (application
