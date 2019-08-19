@@ -291,6 +291,16 @@ container with all provided parameters.
 . This job and its specification will be recorded in a centralized database
 `etcd`. its job is to preserve and provide access to all data of the cluster. 
 
+NOTE: actually a `master` can be also a fully-featured `node` and carry pods
+workforce just like a node does. therefore, `kubelet` and `kubec proxy`
+components existing in node also exists in master. in the figure above we didn't
+include these components in master, just to give a simplified conceptual
+seperation of master and node. in your setup you can use command `kubectl get
+pod --all-namespaces -o wide` to list all pods with their location.  pods
+spawned in master is usually running as part of the kubernetes system itself -
+typically within `kube-system` namespace. kubernetes `namespace` will be
+discussed in chapter 3.
+
 Of course This is just a very simplified work flow, but you get the basic idea.
 In fact with the power of kubernetes you rarely need to work with containers
 directly.  you will work with some higher level objects which, hide most of the
@@ -523,7 +533,7 @@ learning process.
 .POD configuration file in YAML format
 
 ----
-$ cat pod.yaml
+$ cat pod-2containers.yaml
 apiVersion: v1          <1>
 kind: Pod               <2>
 metadata:               <3>
@@ -532,11 +542,11 @@ metadata:               <3>
       name: pod-1       <6>
 spec:                   <7>
   containers:           <8>
-  - name: frontend      <9>
+  - name: apach         <9>
     image: pingdocker/apache-frontend <10>
     ports:              <11>
     - containerPort: 80 <12>
-  - name: redis         <13>
+  - name: db            <13>
     image: pingdocker/redis-db  <14>
     ports:                      <15>
     - containerPort: 6379       <16>
@@ -579,24 +589,24 @@ in this example you are also seeing "nested" YAML data structure:
 before we dive into more details of the yaml file, let's finish the pod
 creation:
 
-    $ kubectl create -f pod.yaml
+    $ kubectl create -f pod-2containers.yaml
     pod/pod-1 created
 
-    root@test1:~# kubectl get pod -o wide
-    NAME        READY     STATUS              RESTARTS   AGE       IP        NODE      NOMINATED NODE
-    pod-1       0/2       ContainerCreating   0          15s       <none>    test2     <none>
+    $ kubectl get pod -o wide
+    NAME   READY  STATUS             RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+    pod-1  0/2    ContainerCreating  0         18s  10.47.255.233  cent222  <none>
 
-    root@test1:~# kubectl get pod -o wide
-    NAME        READY     STATUS    RESTARTS   AGE       IP              NODE      NOMINATED NODE
-    pod-1       2/2       Running   0          27s       192.168.215.1   test2     <none>
+    $ kubectl get pod -o wide
+    NAME    READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+    pod-1   2/2     Running   0          18s   10.47.255.233   cent222   <none>
 
 we created our first kubernetes "object" - a pod named `pod-1`. but where are
 the containers? the above output tells the clues. it reads:
 
-a pod `pod-1` (NAME), containing 2 containers(READY /2), has been launched in
-kubernetes worker node `test2` with an IP address `192.168.215.1` assigned.
-both containers in the pod is up (READY 2/) and has been in running STATUS for
-27s without any RESTARTS.
+a pod `pod-1` (`NAME`), containing 2 containers(`READY /2`), has been launched
+in kubernetes worker node `cent222` with an IP address `10.47.255.233` assigned.
+both containers in the pod is up (`READY 2/`) and has been in running `STATUS`
+for 27s without any `RESTARTS`.
 
 here is a brief line-by-line comments about what the yaml config says:
 
@@ -610,66 +620,77 @@ here is a brief line-by-line comments about what the yaml config says:
     to be created, another important meta data is "labels". you will read more
     about it in chapter3.
   - spec: gives the specification about the pod behavior.
-* line 9-17: the pod specification here is just about the 2 containers. the
+* line 9-16: the pod specification here is just about the 2 containers. the
   system downloads the images, launches each container with a name and expose
   the specified ports respectively.
 
 to get more details of what is running inside of the pod:
 
-    root@test1:~# kubectl describe pod pod-1 | grep -iC1 container
-    IP:                 192.168.215.28
-    Containers:
-      apache:
-        Container ID:   docker://fc18adacd48672c056693f8af48741f0d1a58c2f698b1ba7d18168c091e4108e
-        Image:          pingdocker/apache-frontend
-    --
-      db:
-        Container ID:   docker://028f6619f0519ce74fe2703beedc236d05896565cfedf9b5b0d041571dcbbdb8
-        Image:          pingdocker/redis-db
-    --
-      Ready             True
-      ContainersReady   True
-      PodScheduled      True
+----
+$ kubectl describe pod pod-1 | grep -iC1 container
+IP:                 10.47.255.233
+Containers:
+  apache:
+    Container ID:   docker://489e67aec14890092378a1e47b27d40b26c1e051b93958db037091212f7db76e
+    Image:          pingdocker/apache-frontend
+--
+  db:
+    Container ID:   docker://b5492678744548f7c394e89e26af185f576273d23ab7ee91161340fad417ca60
+    Image:          pingdocker/redis-db
+--
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+--
+  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "pingdocker/apache-frontend"
+  Normal  Created    <invalid>  kubelet, cent222   Created container
+  Normal  Started    <invalid>  kubelet, cent222   Started container
+  Normal  Pulling    <invalid>  kubelet, cent222   pulling image "pingdocker/redis-db"
+  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "pingdocker/redis-db"
+  Normal  Created    <invalid>  kubelet, cent222   Created container
+  Normal  Started    <invalid>  kubelet, cent222   Started container
+----
 
-not surprisingly, our pod `pod-1` is composed of 2 containers declared in
-the YAML file, with an IP address assigned by kubernetes cluster and shared
-between all containers as shown in following figure.
+not surprisingly, our pod `pod-1` is composed of 2 containers declared in the
+YAML file, `apache` and `db` respectively, with an IP address assigned by
+kubernetes cluster and shared between all containers as shown in following
+figure:
 
-.pod and containers
-image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
-//Figure 2.3 two container in a POD  
+.node, pod and containers
+//image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
+//image::https://user-images.githubusercontent.com/2038044/63235131-51d4be80-c206-11e9-85c5-cd62e40270a8.png[]
+//image::https://user-images.githubusercontent.com/2038044/63236257-07a20c00-c20b-11e9-9e0f-9389716d4437.png[]
+image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-11e9-837b-6a9bce620efa.png[]
 
 === `pause` container
 
-if you login to node `test2`, you will see the docker containers running inside
+if you login to node `cent222`, you will see the docker containers running inside
 of the pod:
 
-    root@test2:~# docker ps | grep -E "ID|pod-1"
-    CONTAINER ID  IMAGE                             COMMAND                  CREATED  STATUS PORTS  NAMES
-    028f6619f051  kubeguide/redis-master            "redis-server /etc/r…"   40s ago  Up 40s        k8s_db_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
-    fc18adacd486  kubeguide/guestbook-php-frontend  "apache2-foreground"     40s ago  Up 40s        k8s_apache_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
-    5eea48f7ba8f  k8s.gcr.io/pause:3.1              "/pause"                 40s ago  Up 40s        k8s_POD_pod-1_default_052f5d51-6ad5-11e9-9005-005056928847_0
+----
+$ docker ps | grep -E "ID|pod-1"
+CONTAINER ID  IMAGE                       COMMAND                  CREATED             STATUS             PORTS NAMES
+e2d76084a1d5  pingdocker/redis-db         "redis-server /etc/r…"   About a minute ago  Up About a minute        k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+694f5eb781e7  pingdocker/apache-frontend  "apache2-foreground"     About a minute ago  Up About a minute        k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+7abae4273cfd  k8s.gcr.io/pause:3.1        "/pause"                 About a minute ago  Up About a minute        k8s_POD_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+----
 
-the third container with image name "k8s.gcr.io/pause" is a special container
+the third container with image name `k8s.gcr.io/pause` is a special container
 that was created by the kubernetes system for each pod.
-The 'pause' container is created to manage the network resources for the pod
+The `pause` container is created to manage the network resources for the pod
 which would be shared by all the containers of that pod.
 
 below figure shows a pod including a few user containers and a `pause` container.
 
 .pod, user containers and the special `pause` container
-image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-11e8-87aa-daacaf24909f.png[]
+//image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-11e8-87aa-daacaf24909f.png[]
+//image::https://user-images.githubusercontent.com/2038044/63236197-d7f30400-c20a-11e9-9404-bb77dcdb3e72.png[]
+image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-11e9-838f-f3d8c76468fa.png[]
 
 === intra-pod communication
 
 //TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
-
-if you ever played with docker you will immediately realized that this is pretty
-neat.  remember the containers were launched at one of the "node", with docker
-you will have to first login to the correct remote node, and then use a similiar
-`docker exec` command to login to each container. kubernetes hides these details
-and allow you to do everything from one node - the master.
 
     #login to pod-1's container apache 
     root@test1:~# kubectl exec -it pod-1 -c apache bash
@@ -679,20 +700,26 @@ and allow you to do everything from one node - the master.
     root@test1:~# kubectl exec -it pod-1 -c db bash
     [ root@pod-1:/data ]$ 
 
+NOTE: if you ever played with docker you will immediately realized that this is
+pretty neat. remember the containers were launched at one of the "node", with
+docker you will have to first login to the correct remote node, and then use a
+similiar `docker exec` command to login to each container. kubernetes hides
+these details and allow you to do everything from one node - the master.
 
-.check processes running in container
+now check processes running in the container:
 
+.apache container
 ----
 root@pod-1:/var/www/html# ps aux
-USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-root         1  0.5  0.2 166260 19176 ?        Ss   17:08   0:00 apache2 -DFOREGROUND
-www-data    13  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-www-data    14  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-www-data    15  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-www-data    16  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-www-data    17  0.0  0.0 166284  7136 ?        S    17:08   0:00 apache2 -DFOREGROUND
-root        18  0.0  0.0  20244  3072 pts/0    Ss   17:08   0:00 bash
-root        25  0.0  0.0  17492  1964 pts/0    R+   17:08   0:00 ps aux
+USER      PID  %CPU  %MEM  VSZ     RSS    TTY    STAT  START  TIME  COMMAND
+root      1    0.5   0.2   166260  19176  ?      Ss    17:08  0:00  apache2  -DFOREGROUND
+www-data  13   0.0   0.0   166284  7136   ?      S     17:08  0:00  apache2  -DFOREGROUND
+www-data  14   0.0   0.0   166284  7136   ?      S     17:08  0:00  apache2  -DFOREGROUND
+www-data  15   0.0   0.0   166284  7136   ?      S     17:08  0:00  apache2  -DFOREGROUND
+www-data  16   0.0   0.0   166284  7136   ?      S     17:08  0:00  apache2  -DFOREGROUND
+www-data  17   0.0   0.0   166284  7136   ?      S     17:08  0:00  apache2  -DFOREGROUND
+root      18   0.0   0.0   20244   3072   pts/0  Ss    17:08  0:00  bash
+root      25   0.0   0.0   17492   1964   pts/0  R+    17:08  0:00  ps       aux
 
 root@pod-1:/var/www/html# ss -at
 State   Recv-Q  Send-Q  Local    Address:Port  Peer  Address:Port
@@ -700,6 +727,19 @@ LISTEN  0       128     *:6379   *:*
 LISTEN  0       128     *:http   *:*
 LISTEN  0       128     :::6379  :::*
 
+root@pod-1:/var/www/html# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+28: eth0@if29: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 02:c8:7a:0b:22:c2 brd ff:ff:ff:ff:ff:ff
+    inet 10.47.255.233/12 scope global eth0
+       valid_lft forever preferred_lft forever
+----
+
+.db container
+----
 [ root@pod-1:/data ]$ ps aux
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root         1  0.0  0.0  35200  3776 ?        Ssl  17:08   0:00 redis-server *:6379
@@ -711,26 +751,49 @@ State   Recv-Q  Send-Q  Local    Address:Port  Peer  Address:Port
 LISTEN  0       128     *:6379   *:*
 LISTEN  0       128     *:http   *:*
 LISTEN  0       128     :::6379  :::*
+
+[ root@pod-1:/data ]$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+28: eth0@if29: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 02:c8:7a:0b:22:c2 brd ff:ff:ff:ff:ff:ff
+    inet 10.47.255.233/12 scope global eth0
+       valid_lft forever preferred_lft forever
 ----
 
-each container is running its own process, however, they both share the same
-exact network environment so both see the port exposed by each other. Therefore,
-communication between containers in a pod can happen simply by using
-`localhost`:
+the `ps` command output shows that each container is running its own process.
+however, th `ss` and `ip` command output indicate that both container share the
+same exact network environment so both see the port exposed by each other.
+Therefore, communication between containers in a pod can happen simply by using
+`localhost`. we can test this out by starting a tcp connection using `curl`
+command:
 
-    root@pod-1:/var/www/html# curl localhost:6379
-    ^Z
-    [1]+  Stopped                 curl localhost:6379
-    root@pod-1:/var/www/html# bg
-    [1]+ curl localhost:6379 &
-    root@pod-1:/var/www/html# ss -at
-    State      Recv-Q Send-Q    Local Address:Port    Peer Address:Port
-    LISTEN     0      128                   *:6379               *:*
-    LISTEN     0      128                   *:http               *:*
-    ESTAB      0      0             127.0.0.1:46378      127.0.0.1:6379         #<---
-    ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<---
-    LISTEN     0      128                  :::6379              :::*
+from container `apache`, start a TCP connection toward redis port that container
+`db` is listening, using `localhost` IP address:
 
+----
+root@pod-1:/var/www/html# curl localhost:6379
+^Z
+[1]+  Stopped                 curl localhost:6379
+
+root@pod-1:/var/www/html# bg
+[1]+ curl localhost:6379 &
+----
+
+now monitor the TCP connection state: the connection is established
+successfully.
+
+----
+root@pod-1:/var/www/html# ss -at
+State      Recv-Q Send-Q    Local Address:Port    Peer Address:Port
+LISTEN     0      128                   *:6379               *:*
+LISTEN     0      128                   *:http               *:*
+ESTAB      0      0             127.0.0.1:46378      127.0.0.1:6379         #<---
+ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<---
+LISTEN     0      128                  :::6379              :::*
+----
 
 === Kubectl tool 
 
@@ -760,6 +823,4 @@ help of `completion` option: `kubectl completion -h`
 //don't panic! the most commonly used options - the ones you can reply on to get
 //80% of your work done, are just a few of them.
 
-you will see and learn the usage of these options in the rest part of this
-book.
-
+you will see and learn the some of these options in the rest part of this book.
