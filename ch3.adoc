@@ -20,13 +20,14 @@ specifications ( SSD HD, physical location , processing power , ..,etc )
 OR imagine you want to search or group your PODs for easier administration 
 what would you do ?
 then label is your way to go, in Kubernetes Label is a Key/value pairs attached to an object  
-let’s see how can we use label with node selector to make a POD is lunched on a certain machine 
+let’s see how can we use label to make a POD is lunched on a certain machine
 
 [NOTE]
 ====
+* In kubernetes, any objects can be identified using a label.
 * You can assign multiple labels per object but avoid using too much label or
   too little, too much would get you confused and too little won’t give the real
-  benefits of grouping, selecting and searching 
+  benefits of grouping, selecting and searching. 
 * Best practice is to assign labels to indicate
     - application/program ID use this POD
     - owner (who manage this POD/application)
@@ -36,7 +37,7 @@ let’s see how can we use label with node selector to make a POD is lunched on 
 ====
 
 Let’s assign label (stage: testing) & (zone: production) to two nodes
-respectively then try to lunch a POD with label (zone: testing) 
+respectively then try to lunch a POD in a node which has the label (stage: testing) 
  
     kubectl get nodes --show-labels
 
@@ -57,7 +58,17 @@ respectively then try to lunch a POD with label (zone: testing)
     cent333  Ready     <none>  2h   v1.9.2   stage=testing
 
 now let’s lunch a basic Nginx POD tagged with stage=testing in the nodeSelector
-and confirm it will land on a node tagged with stage=testing
+and confirm it will land on a node tagged with stage=testing. kube-scheduler uses
+labels mentioned in the nodeSelector section of the pod yaml to select the node to
+launch the pod.
+
+[NOTE]
+====
+kube-scheduler picks the node based on various factors like individual and collective
+resource requirements, hardware/software/policy constraints, affinity and anti-affinity
+specifications, data locality, inter-workload interference and deadlines.
+====
+
 
     [root@cent111]# cat > web-server.yaml
     apiVersion: v1
@@ -85,11 +96,6 @@ and confirm it will land on a node tagged with stage=testing
 ====
 You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
-
-In kubernetes, any objects can be identified using a label. You will see how
-labels are linking are PODs to Replica-set ,Deployment , services …,etc  and
-that’s what we will see next with services and label selector 
-
 ====
 
 == NameSpace
