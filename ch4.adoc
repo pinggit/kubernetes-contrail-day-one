@@ -481,7 +481,8 @@ the figure below illustrates the basic work flow of FIP:
 //image::https://user-images.githubusercontent.com/2038044/60388331-be8cd180-9a7d-11e9-8ff7-c202ed9f7349.png[]
 //image::https://user-images.githubusercontent.com/2038044/60556767-b8faea00-9d10-11e9-84bb-0e40e3edcc3d.png[]
 //image::https://user-images.githubusercontent.com/2038044/60357106-b448d580-99a0-11e9-8ad2-31e15102b6bd.png[]
-image::https://user-images.githubusercontent.com/2038044/63227026-0ee7fc00-c1b0-11e9-8e59-d247ec8d7b2e.png[]
+//image::https://user-images.githubusercontent.com/2038044/63227026-0ee7fc00-c1b0-11e9-8e59-d247ec8d7b2e.png[]
+image::https://user-images.githubusercontent.com/2038044/63263460-a4d66200-c256-11e9-8d83-012ae4a8ab26.png[]
 
 here are some highlights regarding FIP and FIP pool configuration:
 
@@ -587,8 +588,8 @@ based on the public VN:
 .contrail command: create a FIP pool
 image::https://user-images.githubusercontent.com/2038044/60357727-6d5bdf80-99a2-11e9-90c1-98b037cb0c98.png[]
 
-NOTE: the UI navigation path for this setting is: CC: main-menu > Overlay >
-Floating IP > Create
+NOTE: the UI navigation path for this setting is: contrail-command: main-menu >
+Overlay > Floating IP > Create
 
 TIP: in contrail UI, you can also set the "external" flag in VN "Advanced"
 options so that a FIP pool named "public" will automatically be created.
@@ -774,14 +775,14 @@ created.
 .automatically assignment
 
 in some cases a FIP will be created automatically. later in this book, you will
-see examples when contrail automatically assign a FIP and associate it to
-kubernetes objects:
+see examples when contrail automatically assigns a FIP and associate it to
+some kubernetes objects, for example:
 
 * LoadBalancer service object
 * Ingress object
 
-in fact, `ClusterIP` service by itself is also implemented by FIP. we'll check
-out more details later.
+in fact, `ClusterIP` by itself is also implemented by FIP. we'll check out more
+details later.
 
 === advertising FIP
 
@@ -793,14 +794,16 @@ following screenshot shows how to add/edit a BGP peer.
 .contrail command: select "main-menu" > INFRASTRUCTURE: "Cluster" > "Advanced Options"
 image::https://user-images.githubusercontent.com/2038044/61074698-4c55ae80-a3e6-11e9-81d5-5efa962cbdb5.png[]
 
-
 .contrail command: select "BGP router" > "create"
+image::https://user-images.githubusercontent.com/2038044/63260144-2bd30c80-c24e-11e9-973a-aa911e7d2ae1.png[]
+
+.edit BGP peer parameters
 image::https://user-images.githubusercontent.com/2038044/61074999-0cdb9200-a3e7-11e9-80a3-b180d6454267.png[]
 
 input all the BGP peer information, don't forget to associate the controller(s),
 which is shown next:
 
-.change ASN
+.associate the peer to a controller
 image::https://user-images.githubusercontent.com/2038044/61075110-4d3b1000-a3e7-11e9-8eec-ece0304ce4d8.png[]
 
 from the dropdown of `peer` under `Associated Peers`, select the controller(s)
@@ -811,10 +814,11 @@ done. a new BGP peer with ROUTER TYPE "router" will pop up.
 //image::https://user-images.githubusercontent.com/2038044/61074880-be2df800-a3e6-11e9-82af-7e58ccd7e710.png[]
 image::https://user-images.githubusercontent.com/2038044/61079058-1289a580-a3f0-11e9-93a7-85eb53397a32.png[]
 
-now we've added a peer BGP router. we just need to click `edit` to double check
-the local BGP speaker's parameters, in our test we want to build MP-IBGP
-neighborship between contrail controller and gateway router. so we make sure the
-ASN is same on both end.
+now we've added a peer BGP router as type "router". for local BGP speaker which
+is with type "control-node", we just need to double check the parameters by
+clicking `edit` button. in our test we want to build MP-IBGP neighborship
+between contrail controller and gateway router, so we make sure the ASN and
+"Address Families" matches on both end.
 
 .contrail controller BGP parameters: ASN
 image::https://user-images.githubusercontent.com/2038044/61075264-94c19c00-a3e7-11e9-90bd-6006dad35ef0.png[]
@@ -827,7 +831,8 @@ labroot@camaro> show bgp summary | match 10.169.25.19
 ----
 
 once the neighborship is "Established", BGP routes will be exchanged between the
-two speakers, that is the time we'll see that the FIP learned in the gateway
+two speakers, that is the time we'll see that the FIP assigned to the kubernetes
+object is advertised by master node (`10.169.25.19`) and learned in the gateway
 router.
 
 ----
@@ -843,8 +848,10 @@ k8s-test.inet.0: 8 destinations, 8 routes (8 active, 0 holddown, 0 hidden)
                     validation-state: unverified, > via gr-2/3/0.32771, Push 47
 ----
 
-the FIP route is reflected from the contrail controller, with a "next hop" being
-the compute node where the associated pod is running.
+the `detail` version of same command tells more: the FIP route is reflected from
+the contrail controller, but "Protocol next hop" being the compute node
+(`10.169.25.20`) indicates that the FIP is assigned to a compute node. 
+one entity currently running in that compute node own the FIP.
 
 ----
 labroot@camaro> show route table k8s-test.inet.0 101.101.101.2 detail | match "next hop"
@@ -856,9 +863,9 @@ Jul 11 01:19:18
                 Indirect next hop: 0x900e640 1048601 INH Session ID: 0x70f
 ----
 
-in this capture the next hop is on `10.169.25.20`, node `cent222`. the dynamic
-soft GRE configuration make the gateway router automatically create a soft GRE
-tunnel interface:
+//in this capture the next hop is on `10.169.25.20`, node `cent222`. 
+the dynamic soft GRE configuration make the gateway router automatically create
+a soft GRE tunnel interface:
 
 ----
 labroot@camaro> show interfaces gr-2/3/0.32771
@@ -878,9 +885,14 @@ Jul 11 01:19:53
 ----
 
 the `IP-Header` indicates GRE outer IP header, so the "tunnel" is built from
-current gateway router whose BGP local address is `192.168.0.204`, to remote "PE
-node" `10.169.25.20`, in this case it's actually a contrail compute node
-`cent222`.
+current gateway router whose BGP local address is `192.168.0.204`, to remote 
+node `10.169.25.20`, in this case it's one of the contrail compute nodes.
+
+the FIP advertisement process is illustrated in this figure below:
+
+.FIP advertisement
+//image::https://user-images.githubusercontent.com/2038044/63262377-c5e98380-c253-11e9-996f-27eecb0df931.png[]
+image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
 
 == contrail services
 
