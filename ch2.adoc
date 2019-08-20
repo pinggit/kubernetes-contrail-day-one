@@ -361,6 +361,7 @@ the most oftenly used objects are:
     - Volume
     - Namespace
 * higher-level objects (Controllers): 
+    - ReplicationController
     - ReplicaSet
     - Deployment
     - StatefulSet
@@ -589,16 +590,18 @@ in this example you are also seeing "nested" YAML data structure:
 before we dive into more details of the yaml file, let's finish the pod
 creation:
 
-    $ kubectl create -f pod-2containers.yaml
-    pod/pod-1 created
+----
+$ kubectl create -f pod-2containers.yaml
+pod/pod-1 created
 
-    $ kubectl get pod -o wide
-    NAME   READY  STATUS             RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-    pod-1  0/2    ContainerCreating  0         18s  10.47.255.233  cent222  <none>
+$ kubectl get pod -o wide
+NAME   READY  STATUS             RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+pod-1  0/2    ContainerCreating  0         18s  10.47.255.233  cent222  <none>
 
-    $ kubectl get pod -o wide
-    NAME    READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-    pod-1   2/2     Running   0          18s   10.47.255.233   cent222   <none>
+$ kubectl get pod -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+pod-1   2/2     Running   0          18s   10.47.255.233   cent222   <none>
+----
 
 we created our first kubernetes "object" - a pod named `pod-1`. but where are
 the containers? the above output tells the clues. it reads:

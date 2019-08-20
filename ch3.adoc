@@ -39,23 +39,25 @@ let’s see how can we use label to make a POD is lunched on a certain machine
 Let’s assign label (stage: testing) & (zone: production) to two nodes
 respectively then try to lunch a POD in a node which has the label (stage: testing) 
  
-    kubectl get nodes --show-labels
+----
+kubectl get nodes --show-labels
 
-    NAME      STATUS     ROLES     AGE       VERSION   LABELS
-    cent222   Ready      <none>    2h        v1.9.2    <none>
-    cent111   NotReady   <none>    2h        v1.9.2    <none>
-    cent333   Ready      <none>    2h        v1.9.2    <none>
+NAME      STATUS     ROLES     AGE       VERSION   LABELS
+cent222   Ready      <none>    2h        v1.9.2    <none>
+cent111   NotReady   <none>    2h        v1.9.2    <none>
+cent333   Ready      <none>    2h        v1.9.2    <none>
 
 
-    kubectl label nodes cent333 stage=testing
-    kubectl label nodes cent222 stage=production
+kubectl label nodes cent333 stage=testing
+kubectl label nodes cent222 stage=production
 
-    kubectl get nodes --show-labels
+kubectl get nodes --show-labels
 
-    NAME         STATUS    ROLES   AGE  VERSION  LABELS
-    cent222  Ready     <none>  2h   v1.9.2   stage=production
-    cent111  NotReady  <none>  2h   v1.9.2   <none>
-    cent333  Ready     <none>  2h   v1.9.2   stage=testing
+NAME         STATUS    ROLES   AGE  VERSION  LABELS
+cent222  Ready     <none>  2h   v1.9.2   stage=production
+cent111  NotReady  <none>  2h   v1.9.2   <none>
+cent333  Ready     <none>  2h   v1.9.2   stage=testing
+----
 
 now let’s lunch a basic Nginx POD tagged with stage=testing in the nodeSelector
 and confirm it will land on a node tagged with stage=testing. kube-scheduler uses
@@ -69,34 +71,32 @@ resource requirements, hardware/software/policy constraints, affinity and anti-a
 specifications, data locality, inter-workload interference and deadlines.
 ====
 
+----
+[root@cent111]# cat > web-server.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: webserver
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  nodeSelector:
+    stage: testing
 
-    [root@cent111]# cat > web-server.yaml
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: nginx
-      labels:
-        app: webserver
-    spec:
-      containers:
-      - name: nginx
-        image: nginx
-      nodeSelector:
-        stage: testing
+[root@cent111]# kubectl create -f web-server.yaml
+pod "wordpress" created
 
-    [root@cent111]# kubectl create -f web-server.yaml
-    pod "wordpress" created
-
-    [root@cent111]# kubectl get pods --output=wide
-    NAME        READY     STATUS    RESTARTS   AGE       IP              NODE
-    wordpress   1/1       Running   0          48s       10.47.255.238   cent333
+[root@cent111]# kubectl get pods --output=wide
+NAME        READY     STATUS    RESTARTS   AGE       IP              NODE
+wordpress   1/1       Running   0          48s       10.47.255.238   cent333
+----
 
 
-[NOTE]
-====
-You can assign POD to certain node without label by adding the argument
+NOTE: You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
-====
 
 == NameSpace
 
@@ -108,13 +108,13 @@ department, when 'sales' department attempts to launch a pod with the same name,
 the system will give an error:
 
 ----
-Error from server (AlreadyExists): error when creating "webserver1.yaml":
-pods "webserver1" already exists
+Error from server (AlreadyExists): error when creating "webserver1.yaml": pods "webserver1" already exists
 ----
 
-Kubernetes wont allow the same name for the kubernetes resources in the same scope.
+Kubernetes won't allow the same object name for the kubernetes resources appear
+more than once in the same scope.
 
-'Namespaces' or 'NS' for short provides the scopes for the kubernetes resources
+'Namespaces' (or 'NS' for short) provides the scopes for the kubernetes resources
 like project/tenant in openstack. Names of resources need to be unique within a
 namespace, but not across namespaces. it is a nature way to divide cluster resources
 between multiple users.
@@ -123,17 +123,18 @@ Kubernetes starts with three initial namespaces:
 
 * default: The default namespace for objects with no other namespace.
 * kube-system: The namespace for objects created by the Kubernetes system.
-* kube-public: This namespace is created automatically and is readable by all
-users (including those not authenticated). This namespace is mostly reserved
-for cluster usage, in case that some resources should be visible and readable
-publicly throughout the whole cluster. The public aspect of this namespace is
-only a convention, not a requirement.
-
+* kube-public: initially created by `kubeadm` tool when deploying a cluster. by
+convention the purpose of this NS is to make some resources readable by all
+users without authentication. it exists mostly in kubernetes clusters
+bootstapped with `kubeadm` tool only.
 
 === create a NS
-It is pretty simple. just kubectl command does the magic. you dont need to have a yaml file.
+
+creating a NS is pretty simple. just kubectl command does the magic. you dont
+need to have a yaml file.
 
     root@test3:~# kubectl create ns dev
+    namespace/dev created
     
 ////
 to create a NS is pretty simple, you can avoid the need to give a yaml file by
@@ -152,7 +153,6 @@ now the kubectl will wait for you to manually input the definition of NS from
 when done, press ctr-d to submit the stdin buffer content into kubectl.
 ////
 
-    namespace/dev created
 
 new namespace dev is now created
 
@@ -161,17 +161,14 @@ new namespace dev is now created
     default       Active    15d
     dev           Active    5s  #<-----
     
-now 'dev' 'webserver1' in 'dev' NS won't conflict with 'webserver1' in 'sales'
+now `webserver1` pod in `dev` NS won't conflict with `webserver1` pod in `sales`
 NS.
 
 ----
 $ kubectl get pod --all-namespaces -o wide
-NAMESPACE  NAME  READY  STATUS   RESTARTS  AGE   IP             NODE     NOMINATED  NODE
-......
+NAMESPACE  NAME        READY  STATUS   RESTARTS  AGE   IP             NODE     NOMINATED  NODE
 dev        webserver1  1/1    Running  4         2d4h  10.47.255.249  cent222  <none>
-......
 sales      webserver1  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
-......
 ----
 
 === quota
@@ -182,15 +179,15 @@ objects that can be created in a namespace, total amount of compute resources
 that may be consumed by resources, etc. the constraint in k8s is called 'quota'.
 here is an example:
 
-    kubectl -n ns-user-2 create quota foobar --hard pods=1
+    kubectl -n dev create quota quota-onepod --hard pods=1
 
-we just created a quota 'foobar', and the constraint we gave is 'pods=1' - only
+we just created a quota 'quota-onepod', and the constraint we gave is 'pods=1' - only
 one pod is allowed to be created in this NS.
 
 ----
-$ kubectl get quota -n ns-user-2
-NAME     CREATED AT
-foobar   2019-06-14T04:25:37Z
+$ kubectl get quota -n dev
+NAME            CREATED AT
+quota-onepod    2019-06-14T04:25:37Z
 
 $ kubectl get quota -o yaml
 apiVersion: v1
@@ -200,9 +197,9 @@ items:
   metadata:
     creationTimestamp: 2019-06-14T04:25:37Z
     name: foobar
-    namespace: ns-user-2
+    namespace: quota-onepod
     resourceVersion: "823606"
-    selfLink: /api/v1/namespaces/ns-user-2/resourcequotas/foobar
+    selfLink: /api/v1/namespaces/dev/resourcequotas/quota-onepod
     uid: 76052368-8e5c-11e9-87fb-0050569e6cfc
   spec:
     hard:
@@ -218,6 +215,33 @@ metadata:
   selfLink: ""
 ----
 
+now create a pod in it:
+
+----
+$ kubectl create -f pod-nginx.yaml -n dev
+pod/nginx created
+----
+
+it works fine. now create a second pod in it:
+
+----
+$ kubectl create -f pod-2containers.yaml -n dev
+Error from server (Forbidden): error when creating "pod/pod-2containers.yaml": pods "pod-1" is forbidden: exceeded quota: quota-onepod, requested: pods=1, used: pods=1, limited: pods=1
+----
+
+immediately we run into an error saying "exceeded quota".
+
+this new pod will be created after the quota is removed:
+
+----
+$ kubectl delete quota quota-onepod -n dev
+resourcequota "quota-onepod" deleted
+$ kubectl create -f pod/pod-2containers.yaml -n dev
+pod/pod-1 created
+----
+
+////
+//RC (not introduced yet) examples:
 now create a rc with replica=2
 
 ----
@@ -297,6 +321,7 @@ rc-ubuntuapp-2j84g   1/1     Running   0          8m4s
 rc-ubuntuapp-rssl9   1/1     Running   0          16s
 rc-ubuntuapp-z6cmn   1/1     Running   0          16s
 ----
+////
 
 == Replication Controller
 
@@ -2237,7 +2262,7 @@ policyTypes:
     - ipBlock:
         cidr: 10.0.0.0/24
 ----
-	
+        
 In the above example:
 
 . The ingress network points are 
@@ -2352,7 +2377,7 @@ kubectl create -f mydb-netpol.yaml
 
 kubectl get netpol
 NAME   POD-SELECTOR   AGE
-mydb    role=db        	     3m5s
+mydb    role=db              3m5s
 
 kubectl describe netpol mydb
 Name:         mydb
@@ -2687,7 +2712,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: annotations-demo
-  annotations:	#<--- 
+  annotations:  #<--- 
     imageregistry: "https://hub.docker.com/"
 spec:
   containers:
@@ -2757,4 +2782,5 @@ we attached one POD interface to a specific network, this POD would have two
 interfaces one attached to the cluster-wide default network and the other
 interface is attached to the network specified in the annotation argument (net-a
 in this case) 
+
 
