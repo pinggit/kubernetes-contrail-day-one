@@ -326,12 +326,12 @@ rc-ubuntuapp-z6cmn   1/1     Running   0          16s
 == Replication Controller
 
 you have learned how to launch a pod that representing your containers from its
-yaml file in chapter 2. one question will rise in your mind: what if I need 3
+yaml file in chapter 2. one question will rise in your mind: what if we need 3
 exactly the same pods (each runs a apache container) to make sure the web
-service appears more robust? shall I change the name in yaml file then repeat the
+service appears more robust? shall we change the name in yaml file then repeat the
 same commands to create required pods? or maybe with a shell script? kubernetes
-already has the objects to address this exact demand and the right answer are RC -
-replication controller or RS - ReplicaSet
+already has the objects to address this exact demand and the right answer are `RC` -
+`replicationController` or `RS` - `ReplicaSet`
 
 > A ReplicationController ensures that a specified number of pod replicas are
 > running at any one time. In other words, a ReplicationController makes sure
@@ -342,25 +342,27 @@ replication controller or RS - ReplicaSet
 let's look at how it works with an example. first create a yaml file for a RC
 object named `myweb`.
 
-    #myweb-rc.yaml
-    apiVersion: v1
-    kind: ReplicationController
+----
+#myweb-rc.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: myweb
+spec:
+  replicas: 3
+  selector:
+    app: myweb
+  template:
     metadata:
-      name: myweb
-    spec:
-      replicas: 3
-      selector:
+      labels:
         app: myweb
-      template:
-        metadata:
-          labels:
-            app: myweb
-        spec:
-          containers:
-          - name: myweb
-            image: kubeguide/tomcat-app:v1
-            ports:
-            - containerPort: 8080
+    spec:
+      containers:
+      - name: myweb
+        image: kubeguide/tomcat-app:v1
+        ports:
+        - containerPort: 8080
+----
 
 again, `kind` indicates the object type that this yaml file is to define, here
 it is a RC instead of a pod. in `metadata` it is showing the RC's `name` as
@@ -407,7 +409,8 @@ better when you learn kubernetes `service`.
 
 === test RC
 
-you can test rc's impact by deleting one of the pod:
+you can test rc's impact by deleting one of the pod. to delete a resource with
+`kubectl`, use `kubectl delete` sub-command:
 
     $ kubectl delete pod myweb-5ggv6
     pod "myweb-5ggv6" deleted
@@ -415,7 +418,7 @@ you can test rc's impact by deleting one of the pod:
     $ kubectl get pod
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5ggv6   0/1       Terminating   0          22m        #<---
-    myweb-5v9w6   1/1       Running       0          2s
+    myweb-5v9w6   1/1       Running       0          2s         #<---
     myweb-lbj89   1/1       Running       0          22m
     myweb-m6nrx   1/1       Running       0          22m
 
@@ -425,7 +428,12 @@ you can test rc's impact by deleting one of the pod:
     myweb-lbj89   1/1       Running       0          22m
     myweb-m6nrx   1/1       Running       0          22m
 
-you can scale up/down replicas in rc.
+as you can see, when one pod is being "Terminating", immediately a new pod is
+spawned. eventually the old pod will go away and new pod will be up and running.
+total number of running pod remains unchanged.
+
+you can also scale up/down replicas with `rc`. for example to scale "up" from
+number of 3 to 5:
 
     $ kubectl scale rc myweb --replica=5
     replicationcontroller/myweb scaled
@@ -448,48 +456,50 @@ you can scale up/down replicas in rc.
 
 there are other benefits with RC. actually since this abstraction is so popular
 and heavily used in practice that, two very similar objects `RS` - `ReplicaSet`
-and `Deploy` - `Deployment` have been designed with more powerful features
-introduced.  roughly, you can call them "next generation of RC". let's stop
-exploring more RC features for now and move our focus to these 2 objects.
+and `Deploy` - `Deployment` have been developped with more powerful features
+introduced. Roughly, you can call them "next generation of RC". let's stop
+exploring more RC features for now and move our focus to these 2 new objects.
 
 == ReplicaSet
 
 `ReplicaSet`, or `RS` object, is pretty much the same thing as a `RC` object,
 with just one major exception - the looks of `selector`.
 
-    $ cat myweb-rs.yaml
-    apiVersion: extensions/v1beta1
-    kind: ReplicaSet
+----
+$ cat myweb-rs.yaml
+apiVersion: v1
+kind: ReplicaSet
+metadata:
+  name: myweb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:                                    #<---
+      app: myweb                                    #<---
+    matchExpressions:                               #<---
+      - {key: app, operator: In, values: [myweb]}   #<---
+  template:
     metadata:
-      name: myweb
+      labels:
+        app: myweb
     spec:
-      replicas: 1
-      selector:
-        matchLabels:                                    #<---
-          app: myweb                                    #<---
-        matchExpressions:                               #<---
-          - {key: app, operator: In, values: [myweb]}   #<---
-      template:
-        metadata:
-          labels:
-            app: myweb
-        spec:
-          containers:
-          - name: myweb
-            image: kubeguide/tomcat-app:v1
-            ports:
-            - containerPort: 8080
-            env:
-            - name: MYSQL_SERVICE_HOST
-              value: 'mysql'
-            - name: MYSQL_SERVICE_PORT
-              value: '3306'
-            - name: MYSQL_ROOT_PASSWORD
-              value: "123456"
+      containers:
+      - name: myweb
+        image: kubeguide/tomcat-app:v1
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MYSQL_SERVICE_HOST
+          value: 'mysql'
+        - name: MYSQL_SERVICE_PORT
+          value: '3306'
+        - name: MYSQL_ROOT_PASSWORD
+          value: "123456"
+----
 
-RC uses "Equality-based" selector while RS uses "set-based". function-wise the
-two forms of selector do the same job - to "select" the pod with a matching
-"label".
+RC uses "Equality-based" selector only while RS support extra selector format -
+"set-based". function-wise the two forms of selector do the same job - to
+"select" the pod with a matching "label".
 
     #RS:
     selector:
@@ -514,7 +524,7 @@ if you compare the `kubectl describe` on the 2 objects:
 
     $ kubectl describe rs myweb                                        
     ......
-    Selector:     app=myweb,app in (myweb)                             
+    Selector:     app=myweb,app in (myweb)      #<---
     ......
       Type    Reason            Age   From                   Message   
       ----    ------            ----  ----                   -------   
@@ -522,7 +532,7 @@ if you compare the `kubectl describe` on the 2 objects:
 
     $ kubectl describe rc myweb
     ......
-    Selector:     app=myweb
+    Selector:     app=myweb                     #<---
     ......
       Type    Reason            Age   From                    Message
       ----    ------            ----  ----                    -------
@@ -556,7 +566,7 @@ simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
 yaml file of a deployment object:
 
     $ cat myweb-deployment.yaml
-    apiVersion: extensions/v1beta1
+    apiVersion: v1
     kind: Deployment    #<---
     metadata:
       name: myweb
