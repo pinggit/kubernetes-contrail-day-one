@@ -396,10 +396,7 @@ eventually you will see 3 pods launched:
     myweb-5ggv6   1/1       Running   0          21m
     myweb-lbj89   1/1       Running   0          21m
     myweb-m6nrx   1/1       Running   0          21m
-
-
-=== test RC
-
+ 
 with `replicas` parameter specified in RC object yaml file, the kubernetes
 `replication controller`, running as part of `kube-controller-manager` process in
 the `master node`, will keep monitoring the number of running pods spawned by
@@ -408,7 +405,9 @@ the key to learn is, individual pod may die any time, but the "pool" as a whole
 is always up and running, making a robust service. you will understand this
 better when you learn kubernetes `service`.
 
-you can test this out by deleting one of the pod:
+=== test RC
+
+you can test rc's impact by deleting one of the pod:
 
     $ kubectl delete pod myweb-5ggv6
     pod "myweb-5ggv6" deleted
