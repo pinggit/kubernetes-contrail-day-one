@@ -326,10 +326,10 @@ rc-ubuntuapp-z6cmn   1/1     Running   0          16s
 == Replication Controller
 
 you have learned how to launch a pod that representing your containers from its
-yaml file in chapter 2. one question will rise in your mind: what if I need 5
+yaml file in chapter 2. one question will rise in your mind: what if I need 3
 exactly the same pods (each runs a apache container) to make sure the web
 service appears more robust? shall I change the name in yaml file then repeat the
-same commands to create 5 more pods? or maybe with a shell script? kubernetes
+same commands to create required pods? or maybe with a shell script? kubernetes
 already has the objects to address this exact demand and the right answer are RC -
 replication controller or RS - ReplicaSet
 
@@ -364,9 +364,9 @@ object named `myweb`.
 
 again, `kind` indicates the object type that this yaml file is to define, here
 it is a RC instead of a pod. in `metadata` it is showing the RC's `name` as
-`myweb`.  in `spec` is the detail specification of this RC object. `replicas` 5
-indicates a same pod will be cloned 4 times to make sure the total number of
-pods created by the RC is always 5. `template` gives information about
+`myweb`.  in `spec` is the detail specification of this RC object. `replicas` 3
+indicates a same pod will be cloned to make sure the total number of
+pods created by the RC is always 3. `template` gives information about
 the containers that will run in the pod, same as what you saw in a `pod` yaml
 file.
 
@@ -381,24 +381,22 @@ pods are being created:
     $ kubectl get pod
     NAME          READY     STATUS              RESTARTS   AGE
     myweb-5ggv6   1/1       Running             0          9s
-    myweb-5ww92   1/1       Running             0          50s
     myweb-lbj89   0/1       ContainerCreating   0          9s
     myweb-m6nrx   0/1       ContainerCreating   0          9s
-    myweb-q5gv4   1/1       Running             0          50s
+   
 
-eventually you will see 5 pods launched:
+eventually you will see 3 pods launched:
 
     $ kubectl get rc
     NAME            DESIRED   CURRENT   READY   AGE
-    myweb           5         5         5       3m29s
+    myweb           3         3         3       3m29s
 
     $ kubectl get pod
     NAME          READY     STATUS    RESTARTS   AGE
     myweb-5ggv6   1/1       Running   0          21m
-    myweb-5ww92   1/1       Running   0          22m
     myweb-lbj89   1/1       Running   0          21m
     myweb-m6nrx   1/1       Running   0          21m
-    myweb-q5gv4   1/1       Running   0          22m
+
 
 === test RC
 
@@ -419,14 +417,14 @@ you can test this out by deleting one of the pod:
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5ggv6   0/1       Terminating   0          22m        #<---
     myweb-5v9w6   1/1       Running       0          2s
-    myweb-5ww92   1/1       Running       0          23m
     myweb-lbj89   1/1       Running       0          22m
+    myweb-m6nrx   1/1       Running       0          22m
 
     $ kubectl get pod
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5v9w6   1/1       Running       0          5s
-    myweb-5ww92   1/1       Running       0          23m
     myweb-lbj89   1/1       Running       0          22m
+    myweb-m6nrx   1/1       Running       0          22m
 
 you can scale up/down replicas in rc.
 
@@ -436,18 +434,18 @@ you can scale up/down replicas in rc.
     $ kubectl get pod
     NAME          READY     STATUS              RESTARTS   AGE
     myweb-5v9w6   1/1       Running             0          8s
-    myweb-5ww92   1/1       Running             0          23m
     myweb-lbj89   1/1       Running             0          22m
-    myweb-m6nrx   0/1       ContainerCreating   0          2s
-    myweb-q5gv4   1/1       ContainerCreating   0          2s
+    myweb-m6nrx   1/1       Running             0          22m
+    myweb-hnnlj   0/1       ContainerCreating   0          2s
+    myweb-kbgwm   1/1       ContainerCreating   0          2s
     
     $ kubectl get pod
     NAME          READY     STATUS        RESTARTS   AGE
     myweb-5v9w6   1/1       Running       0          10s
-    myweb-5ww92   1/1       Running       0          23m
     myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          5s
-    myweb-q5gv4   1/1       Running       0          5s
+    myweb-m6nrx   1/1       Running       0          22m
+    myweb-hnnlj   1/1       Running       0          5s
+    myweb-kbgwm   1/1       Running       0          5s
 
 there are other benefits with RC. actually since this abstraction is so popular
 and heavily used in practice that, two very similar objects `RS` - `ReplicaSet`
