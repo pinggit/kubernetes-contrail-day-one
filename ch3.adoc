@@ -2642,8 +2642,10 @@ application Liveness alone isn’t enough. some application need to load large
 files before it start. you might think if we set a higher “initialDelaySeconds”
 value then problem solve. but this not an efficient way. Readiness probe is
 solution in here specially with Kubernetes services, as the POD will not receive
-a traffic until it report ready. Readiness Probe is configured the same way as
-liveness prob 
+a traffic until it is ready. Whenever the readiness probe fails, the endpoint for
+the pod would be removed from the service and it would be added back when the
+readiness probe succeeds. Readiness Probe is configured the same way as
+liveness probe
 
 ----
 apiVersion: v1
@@ -2683,7 +2685,8 @@ NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
 
-Probes have a number of fields that you can use to more precisely control the
+=== Probe Parameters
+Probes have a number of parameters that you can use to more precisely control the
 behavior of liveness and readiness checks.
 
 1. `initialDelaySeconds`: Number of seconds after the container has started before
@@ -2700,7 +2703,7 @@ behavior of liveness and readiness checks.
    means restarting the Pod. In case of readiness probe the Pod will be marked
    Unready.  Defaults to 3. Minimum value is 1.
 
-HTTP probes have additional fields that can be set on httpGet.
+HTTP probes have additional parameters that can be set on httpGet.
 
 1. host: Host name to connect to, defaults to the pod IP. You probably want to
    set “Host” in httpHeaders instead.
