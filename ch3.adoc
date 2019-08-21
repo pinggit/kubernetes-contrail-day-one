@@ -910,10 +910,12 @@ so let’s understand different type of services:
 === ClusterIP service
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
-the `ServiceType` is not given. the kubernetes official website gives this
+the `ServiceType` is not specified. the kubernetes official website gives this
 diagram to illustrate how clusterIP service works:
 
+////
 image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
+////
 
 ClusterIP service is exposed on a `clusterIP` and a service port. when client
 pods need to access the service it sends request toward this `clusterIP` and
@@ -924,8 +926,7 @@ from external.
 
 ==== create clusterIP service
 
-let's create our first service in contrail environment, with service type
-`clusterIP`. 
+let's create our first service, with service type `clusterIP`. 
 
 ----
 $ cat service-web-clusterip.yaml
@@ -1142,8 +1143,9 @@ this services
 [NOTE]
 ====
 * Kubernetes by default allocate node port from (30000-32767) range if it is not
-  mentioned in the spec and the specified port should be in the configured range.
-  it could be changed using the flag --service-node-port-range.
+  mentioned in the spec. it could be changed using the flag --service-node-port-range.
+  nodePort value also can be set. but it should be in the configurad range.
+  
 * The default service type is ClusterIP 
 * Be aware with the change of the Node ip address as it could effect your services 
 ====
@@ -1261,6 +1263,12 @@ from Internet host's perspective, when it requests service, it refers this
 public external VIP and service port and the request will reaches the backend
 pod.  the external VIP is acting as a "gateway" between service inside of the cluster
 and outside world.
+
+Some cloud providers allow you to specify the loadBalancerIP. In those cases,
+the load-balancer is created with the user-specified loadBalancerIP. If the
+loadBalancerIP field is not specified, the loadBalancer is set up with an
+ephemeral IP address. If you specify a loadBalancerIP but your cloud provider
+does not support the feature, the loadbalancerIP field that you set is ignored.
 
 how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
 a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
