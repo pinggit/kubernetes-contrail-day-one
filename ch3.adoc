@@ -914,7 +914,7 @@ the `ServiceType` is not specified. the kubernetes official website gives this
 diagram to illustrate how clusterIP service works:
 
 //image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
-image::https://user-images.githubusercontent.com/2038044/63462626-54fbc480-c429-11e9-8b31-a9bb04c76679.png[]
+image::https://user-images.githubusercontent.com/2038044/63464025-5ed2f700-c42c-11e9-8cc1-18d5ef827719.png[]
 
 ClusterIP service is exposed on a `clusterIP` and a service port. when client
 pods need to access the service it sends request toward this `clusterIP` and
