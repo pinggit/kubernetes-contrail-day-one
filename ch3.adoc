@@ -1431,6 +1431,12 @@ in service section, we understand that `service` works in transport layer.
 in reality, you access all services via URLs. 
 
 ////
+the "raw" IP is rarely used today - typically you access all services via URLs. 
+In the background there is "mapping" or "resolution" from URL to IP and that is
+normally when DNS comes into picture.  when user input a URL to access a
+service, DNS resolves the `host` in it to an IP address which `service` can
+accept and process. 
+
 TIP: in practice, to ensures the availability, uptime and performance, a public
 domain name is typically bound to a group of public IP addresses and load
 sharing happens between them.  that is why DNS sometimes is also used to do
