@@ -1318,7 +1318,9 @@ The IP and port information of the "matching" pods are maintained in the 'endpoi
 object.  The pods may die and spawn anytime, the "mortal" nature of the pod will
 most possibly make the new pods be respawned with new IP address. during this dynamic
 process the 'endpoints' will always be updated accordingly to reflect the current
-backend pod IPs, so the service traffic redirection will act properly. 
+backend pod IPs, so the service traffic redirection will act properly. [CNI providers
+who has their own service implementation update the backends of the service based on
+the endpoints objects]
 
 here is an example to demonstrate some quick steps to verify the service,
 corresponding endpoint and the pod with matching labels
