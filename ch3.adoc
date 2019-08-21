@@ -399,6 +399,14 @@ eventually you will see 3 pods launched:
     myweb-lbj89   1/1       Running   0          21m
     myweb-m6nrx   1/1       Running   0          21m
  
+RC works with pod directly. the workflows are shown in this diagram:
+
+                             |=> pod
+                             |
+    RC =============>========|=> pod
+                             |
+                             |=> pod
+
 with `replicas` parameter specified in RC object yaml file, the kubernetes
 `replication controller`, running as part of `kube-controller-manager` process in
 the `master node`, will keep monitoring the number of running pods spawned by
@@ -556,9 +564,9 @@ selector format. you can also scale the RS same way as you do with RC:
 
 now you may start to wonder why kubernetes has different objects to do the
 almost same job. as mentioned earlier the features of RC has been extended
-through the other new objects. we've seen the `RS` , which has done the same
-job of `RC` only with a different selector format, now we'll check out
-the other new object `DEPLOY - deployment` and explore the features coming from it.
+through the RS and deployment. we've seen the `RS` , which has done the same job
+of `RC` only with a different selector format, now we'll check out the other new
+object `DEPLOY - deployment` and explore the features coming from it.
 
 === create a deployment
 
@@ -627,18 +635,6 @@ what happens is when you create a Deployment, a replica set is created
 automatically. The pods defined in a Deployment object are created and supervised
 by the Deployment's replicaset.
 
-////
-RC on the other hand, works with pod directly. the workflows differences are shown
-in this diagram:
-
-                             |=> pod
-                             |
-    RC =============>========|=> pod
-                             |
-                             |=> pod
-////
-
-
 the workflow is shown in the below diagram:
 
                              |=> pod
@@ -648,8 +644,8 @@ the workflow is shown in the below diagram:
                              |=> pod
 
  
-You might still be wondering why you need RS as one more layer sitting between
-deployment and pod. rolling update is the reason. next section covers it.
+You might still be wondering why you need `RS` as one more layer sitting between
+`deployment` and `pod`. you will find the answer in the next section.
 
 === rolling update
 
@@ -804,15 +800,14 @@ original RS's pods are terminated. this process is depicted in this diagram:
     deployment ==|==> RS ====|=> pod-v2
                  |   (v2)    |=> pod-v2
                   
-now coming back to the question that why deployment is invented given that RS is
-already designed and works fine. This whole process of creating a new RS,
+as you can see in this figure, this whole process of creating a new RS,
 scaling up the new RS and scaling down the old one simultaneously, is fully
 automated and taken care of by the deployment object. it is `deployment` who is
 `deploying` and driving `ReplicaSet` object, which, in this sense working as
 merely a backend of it. 
 
 this is why `deployment` is considered a higher layer object in kubernetes, also
-the reason why it is officially recommended to never use `ReplicaSet` along
+the reason why it is officially recommended to never use `ReplicaSet` alone
 without `deployment`.
 
 ==== record
@@ -870,9 +865,23 @@ Events:
 
 Typically you do this when something is broken in your deployment. comparing
 with how much work it takes to prepare for the software upgrade during maintenance
-window in the old days, this is going to be a killing feature to have! keep in mind
-that RC is going to be deprecated, and it is rather unlikely that you will ever need
-to create Pods directly in production environment, so deployment is the future.   
+window in the old days, this is going to be a killing feature to have! 
+
+TIP: This is pretty much similar as the junos's `rollback` magic command that you
+probably use everyday when you need to quickly revert the changes you make to
+your router. 
+
+////
+
+=== RC vs deployment (TODO)
+
+keep in mind that RC is going to be deprecated, and it is rather unlikely that
+you will ever need to create Pods directly in production environment, so
+deployment is the future. 
+
+later throughout this book we may still use pod/RC to demonstrate different
+usage case with labs
+////
 
 == Service
 
