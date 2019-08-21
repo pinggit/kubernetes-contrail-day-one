@@ -1422,31 +1422,28 @@ request traffic exactly the same way as if all backend is pod.
 
 == Ingress 
 
-You’ve now seen ways of exposing a service to clients outside the cluster:
-`NodePort` service and `LoadBalancer service`. another method is `Ingress`
+You’ve now seen ways of exposing a service to clients outside the cluster.
+another method is `Ingress`
 
 === kubernetes Ingress introduction
 
-in service section, we understand that `service` works in transport layter so
-sees only IP and ports.  in reality, however, the "raw" IP is rarely used today
-- typically you access all services via URLs. In the background there is
-"mapping" or "resolution" from URL to IP and that is normally when DNS comes
-into picture.  when user input a URL to access a service, DNS resolves the
-`host` in it to an IP address which `service` can accept and process. 
+in service section, we understand that `service` works in transport layer.
+in reality, you access all services via URLs. 
 
+////
 TIP: in practice, to ensures the availability, uptime and performance, a public
 domain name is typically bound to a group of public IP addresses and load
 sharing happens between them.  that is why DNS sometimes is also used to do
 loadbalancing.
+////
 
-kubernetes Ingress, works in a similar-looking but essentially different way
-than DNS. `Ingress`, or `ing` for short, is another "core" concept of
-Kubernetes. it allows simple, rule-based HTTP routing that does not exist in
-service. Ingress is built on top of service. with Ingress, you can define
-URL-based rules to distribute HTTP/HTTPS access requests to multiple different
-"backend services".  we've learned a lot about kubernetes `service` so far, so
-you understand what will happen after that - the requests will be forwarded to
-each service's corresponding backend pods.
+'Ingress' or 'ing' for short is another core concept of kubernetes allows
+HTTP/HTTPS routing that does not exist in service. Ingress is built on top of
+service. with Ingress, you can define URL-based rules to distribute HTTP/HTTPS
+routes to multiple different "backend services" ie ingress exposes services via
+HTTP/HTTPS routes.  we've learned a lot about kubernetes `service` so far,
+so you understand what will happen after that - the requests will be forwarded
+to each service's corresponding backend pods.
 
 === Ingress vs service
 
@@ -1458,6 +1455,8 @@ expose service to outside of the cluster. but there are some main differences.
 `service` operates at transport layer only. `Ingress` understand the HTTP/HTTPS
 protocol, service only does forwarding based on IP and port, which means it does
 not care about the application layer protocol (HTTP/HTTPS) details.
+Ingress can operate at transport layer. Operating ingress at transoport layer does
+not make sense since service does the same unless there is a special reason to do.
 
 ////
 Ingress provides "Layer 7" (application layer) load-balancing whereas the
@@ -1468,7 +1467,6 @@ in contrast with `service`, Ingress is aware of the HTTP/HTTPS protocols.
 .forwarding mode
 Ingress does the application layer "proxy", in pretty much the same way a
 traditional web loadbalancer does.
-
 //the implementation uses open sourced haproxy to do the "proxy" job, which is
 //typically an application layer forwarding. 
 a typical web loadbalancer proxy sitting between machine A (client) and B
