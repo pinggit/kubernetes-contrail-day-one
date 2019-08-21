@@ -475,7 +475,7 @@ with just one major exception - the looks of `selector`.
 
 ----
 $ cat myweb-rs.yaml
-apiVersion: v1
+apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
   name: myweb
@@ -574,7 +574,7 @@ simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
 yaml file of a deployment object:
 
     $ cat myweb-deployment.yaml
-    apiVersion: v1
+    apiVersion: apps/v1
     kind: Deployment    #<---
     metadata:
       name: myweb
@@ -910,10 +910,11 @@ so let’s understand different type of services:
 === ClusterIP service
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
-the `ServiceType` is not given. the kubernetes official website gives this
+the `ServiceType` is not specified. the kubernetes official website gives this
 diagram to illustrate how clusterIP service works:
 
-image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
+//image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
+image::https://user-images.githubusercontent.com/2038044/63462626-54fbc480-c429-11e9-8b31-a9bb04c76679.png[]
 
 ClusterIP service is exposed on a `clusterIP` and a service port. when client
 pods need to access the service it sends request toward this `clusterIP` and
@@ -924,8 +925,7 @@ from external.
 
 ==== create clusterIP service
 
-let's create our first service in contrail environment, with service type
-`clusterIP`. 
+let's create our first service, with service type `clusterIP`. 
 
 ----
 $ cat service-web-clusterip.yaml
@@ -1126,97 +1126,105 @@ selector is the label selector which determine which set of pods targeted by
 this services, in here any POD with label app: FRONT-END will be serviced by
 this services
 
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: web-app
-    spec:
-      selector:
-        app: webserver
-      type: NodePort
-      ports:
-      - targetPort: 80
-        port: 80
-        nodePort: 32001 #<--- (optional)
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app
+spec:
+  selector:
+    app: webserver
+  type: NodePort
+  ports:
+  - targetPort: 80
+    port: 80
+    nodePort: 32001 #<--- (optional)
+----
 
 [NOTE]
 ====
 * Kubernetes by default allocate node port from (30000-32767) range if it is not
-  mentioned in the spec and the specified port should be in the configured range.
-  it could be changed using the flag --service-node-port-range.
+  mentioned in the spec. it could be changed using the flag --service-node-port-range.
+  nodePort value also can be set. but it should be in the configurad range.
+  
 * The default service type is ClusterIP 
 * Be aware with the change of the Node ip address as it could effect your services 
 ====
 
 now let’s expose a nginx pod with the services shown above
 
-    [root@cent11]# cat nginx.yaml 
-        apiVersion: v1
-        kind: Pod
-        metadata:
-          name: nginx-pod
-          labels:
-            app: webserver
-        spec:
-          containers:
-            - name: nginx-c
-              image: nginx
+----
+[root@cent11]# cat nginx.yaml 
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: nginx-pod
+      labels:
+        app: webserver
+    spec:
+      containers:
+        - name: nginx-c
+          image: nginx
 
-    [root@cent11]# kubectl create -f web-app.yaml
-    service "web-app" created
+[root@cent11]# kubectl create -f web-app.yaml
+service "web-app" created
 
-    [root@cent11]# kubectl describe service web-app
-    Name:                     web-app
-    Namespace:                default
-    Labels:                   <none>
-    Annotations:              <none>
-    Selector:                 app=webserver
-    Type:                     NodePort
-    IP:                       10.98.108.168
-    Port:                     <unset>  80/TCP
-    TargetPort:               80/TCP
-    NodePort:                 <unset>  32001/TCP
-    Endpoints:                10.47.255.252:80
-    Session Affinity:         None
-    External Traffic Policy:  Cluster
-    Events:                   <none>
+[root@cent11]# kubectl describe service web-app
+Name:                     web-app
+Namespace:                default
+Labels:                   <none>
+Annotations:              <none>
+Selector:                 app=webserver
+Type:                     NodePort
+IP:                       10.98.108.168
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  32001/TCP
+Endpoints:                10.47.255.252:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+----
 
-Now we can test that by send CURL -i which is a http request using the CLI toward the (any)node IP address
+Now we can test that by send CURL -i which is a http request using the CLI
+toward the (any)node IP address
 
-    [root@cent11 ~]# kubectl get pod -o wide
-    
-    NAME        READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-    nginx-pod   1/1     Running   0          20m   10.47.255.252   cent222   <none>
+----
+[root@cent11 ~]# kubectl get pod -o wide
 
-    [root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
-  InternalIP:  10.85.188.17
+NAME        READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+nginx-pod   1/1     Running   0          20m   10.47.255.252   cent222   <none>
 
-    [root@cent11 ]#curl 10.85.188.17:32001
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Welcome to nginx!</title>
-    <style>
-        body {
-            width: 35em;
-            margin: 0 auto;
-            font-family: Tahoma, Verdana, Arial, sans-serif;
-        }
-    </style>
-    </head>
-    <body>
-    <h1>Welcome to nginx!</h1>
-    <p>If you see this page, the nginx web server is successfully installed and
-    working. Further configuration is required.</p>
-    
-    <p>For online documentation and support please refer to
-    <a href="http://nginx.org/">nginx.org</a>.<br/>
-    Commercial support is available at
-    <a href="http://nginx.com/">nginx.com</a>.</p>
+[root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
+InternalIP:  10.85.188.17
 
-    <p><em>Thank you for using nginx.</em></p>
-    </body>
-    </html>
+[root@cent11 ]#curl 10.85.188.17:32001
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+----
 
 === loadbalancer service
 
@@ -1262,6 +1270,12 @@ public external VIP and service port and the request will reaches the backend
 pod.  the external VIP is acting as a "gateway" between service inside of the cluster
 and outside world.
 
+Some cloud providers allow you to specify the loadBalancerIP. In those cases,
+the load-balancer is created with the user-specified loadBalancerIP. If the
+loadBalancerIP field is not specified, the loadBalancer is set up with an
+ephemeral IP address. If you specify a loadBalancerIP but your cloud provider
+does not support the feature, the loadbalancerIP field that you set is ignored.
+
 how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
 a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
 we'll have a detail demonstration about how loadbalancer service works in
@@ -1294,11 +1308,33 @@ responsibility of the cluster administrator.
 
 === service implementation: kube-proxy
 
-By default kubernetes uses kube-proxy for services. kube-proxy can be deployed in
-user-space proxy-mode, iptables proxy-mode and ipvs. when the traffic hits the node,
-it would be forwarded to one of the back end pod via a depolyed kube-proxy forwarding
-plane. CNI providers can have there own implementations for services.
+By default kubernetes uses `kube-proxy` module for services, but CNI providers
+can have there own implementations for services.
 
+.kube-proxy deployment mode
+
+kube-proxy can be deployed in one of the 3 modes:
+
+* user-space proxy-mode
+* iptables proxy-mode
+* ipvs proxy-mode
+
+when the traffic hits the node, it would be forwarded to one of the back end pod
+via a depolyed kube-proxy forwarding plane. the detail explanations and
+comparison of these 3 modes will not be covered by this book, but you can check
+kubernetes official website for more informations. in chapter4 we'll illustrate
+how contrail as CNI provider implements the service.
+
+////
+https://supergiant.io/blog/understanding-kubernetes-kube-proxy/
+
+==== user-space proxy-mode
+
+==== iptables proxy-mode
+
+==== ipvs proxy-mode
+
+////
 
 == Endpoints
 
@@ -1310,7 +1346,9 @@ The IP and port information of the "matching" pods are maintained in the 'endpoi
 object.  The pods may die and spawn anytime, the "mortal" nature of the pod will
 most possibly make the new pods be respawned with new IP address. during this dynamic
 process the 'endpoints' will always be updated accordingly to reflect the current
-backend pod IPs, so the service traffic redirection will act properly. 
+backend pod IPs, so the service traffic redirection will act properly. (CNI providers
+who has their own service implementation update the backends of the service based on
+the endpoints objects)
 
 here is an example to demonstrate some quick steps to verify the service,
 corresponding endpoint and the pod with matching labels
@@ -2632,8 +2670,10 @@ application Liveness alone isn’t enough. some application need to load large
 files before it start. you might think if we set a higher “initialDelaySeconds”
 value then problem solve. but this not an efficient way. Readiness probe is
 solution in here specially with Kubernetes services, as the POD will not receive
-a traffic until it report ready. Readiness Probe is configured the same way as
-liveness prob 
+a traffic until it is ready. Whenever the readiness probe fails, the endpoint for
+the pod would be removed from the service and it would be added back when the
+readiness probe succeeds. Readiness Probe is configured the same way as
+liveness probe
 
 ----
 apiVersion: v1
@@ -2673,7 +2713,9 @@ NOTE: its recommended to use both Readiness Probe and Liveness Probe where
 Liveness probe restart the POD if it failed and Readiness Probe make sure the
 POD is ready before it gets the traffic 
 
-Probes have a number of fields that you can use to more precisely control the
+=== Probe Parameters
+
+Probes have a number of parameters that you can use to more precisely control the
 behavior of liveness and readiness checks.
 
 1. `initialDelaySeconds`: Number of seconds after the container has started before
@@ -2690,7 +2732,7 @@ behavior of liveness and readiness checks.
    means restarting the Pod. In case of readiness probe the Pod will be marked
    Unready.  Defaults to 3. Minimum value is 1.
 
-HTTP probes have additional fields that can be set on httpGet.
+HTTP probes have additional parameters that can be set on httpGet.
 
 1. host: Host name to connect to, defaults to the pod IP. You probably want to
    set “Host” in httpHeaders instead.
