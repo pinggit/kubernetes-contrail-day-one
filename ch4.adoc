@@ -896,6 +896,16 @@ image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-
 
 == contrail services
 
+in this section, we look at kubernetes `service` in contrail environment.
+specifically, we'll focus on `clusterIP` and `loadbalancer` type of services
+that is commonly used in practice. contrail uses its `loadbalancer` object to
+implement these two type of services. we'll first review the concept of legacy
+contrail neutron loadbalancer, then we'll look into the extended ECMP
+loadbalancer object which is the object that these two type of`service` are
+based on in contrail, for the rest part of this section we will explore how
+`clusterIP` and `loadbalancer` service works in detail, each with a test we
+build in our testbed.
+
 === kubernetes service introduction
 
 service is the core object in kubernetes. in chapter 3 you've learned what is
@@ -925,8 +935,6 @@ screw of a chair breaks for whatever reason, you won't bother to "repair" it but
 instead you just grab a new one.
 ////
 
-=== contrail service: ECMP loadbalancer
-
 in contrail kubernetes integration environment, all 3 types of services are
 supported:
 
@@ -934,12 +942,24 @@ supported:
 * nodePort
 * loadbalancer
 
-in contrail, all services is implemented by contrail's `loadbalancer` (`LB`).
-before we dive into the details of a service loadbalancer, it will be good to
-review the legacy neutron based loadbalancer concept in contrail. for brevity
-we'll sometimes also refer `loadbalancer` as `LB`.
+next we'll introduce how service is implemented in contrail environment.
 
-==== contrail neutron loadbalancer
+=== contrail service: ECMP loadbalancer
+
+in chapter 3 we've introduced kubernetes default implementation of service
+through `kube-proxy`. in there we mentioned CNI providers can have its own
+implementations.
+
+in contrail, `nodePort` service is still implemented by `kube-proxy` module.
+however, `clusterIP` and `loadbalancer` services are implemented by contrail's
+`loadbalancer` (`LB`).  
+
+before we dive into the details of a service loadbalancer, it will be good to
+review the legacy neutron based loadbalancer concept in contrail. 
+
+TIP: for brevity we'll sometimes also refer `loadbalancer` as `LB`.
+
+==== contrail neutron loadbalancer object
 
 contrail LB is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
@@ -955,6 +975,9 @@ some highlights of this figure:
 * all backend VMs, called a `pool`, is allocated an IP from subnet 30.1.1.0/24. 
 * each backend VM is called a `member` of the `pool`
 * a client only sees one frontend VIP representing the whole service
+
+how it works:
+
 * when LB sees a request coming, it does TCP connection proxying. what that
   means is it establishes the TCP connection with the client, extracts the
   clients' HTTP/HTTPS requests, creates a new TCP connection towards one of the
@@ -981,14 +1004,14 @@ NOTE: ingress, on the other hand, is conceptually even closer with the old
 neutron loadbalancer in the sense that both are layer 7 (application
 layer) "proxy" based. more about ingress will be discussed in later section.
 
-==== contrail sevice loadbalancer
+==== contrail sevice loadbalancer object
 
-let's use another figure to illustrate service loadbalancer and the related
-objects.
+let's look at service loadbalancer and the related objects.
 
 .service loadbalancer
 //image::https://user-images.githubusercontent.com/2038044/60640833-0f425880-9df7-11e9-91e1-9b0830394aaa.png[]
 //image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
+//TODO: redraw, add color
 image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
 
 highlights in this figure:
@@ -1002,9 +1025,11 @@ highlights in this figure:
 * the `pool` contains `members`, depending on number of backend pod one pool may
   has multiple `members`
 * each member object in the pool will map to one of pod backend
-* `contrail-kube-manager` listens `kube-apiserver` for any changes, based on
-  kubernetes `service` and `pod` label mapping it will knows the most current
-  backend pods, and update them as members in the pool .
+
+this is how service works in contrail:
+* when a `custerIP` or `loadbalancer` type of `service` is created, a
+  `loadbalancer` object with `loadbalancer_provider` property set to `native` is
+  created
 * `loadbalancer` will have a "virtual IP" `VIP`, which is same as the `service
   IP` 
 * The `service-ip`/`VIP` will be linked to each backend pod's interface
@@ -1012,13 +1037,15 @@ highlights in this figure:
   next-hop in contrail, traffic will be loadbalanced from the source pod towards
   one of the backend pod directly. later we'll show the ECMP prefix in the pod's
   VRF table
+* `contrail-kube-manager` listens `kube-apiserver` for any changes, based on
+  pod list in `Endpoints` it will knows the most current backend pods, and
+  update them as members in the pool .
 
 the most important thing to understand in this diagram, as we've mentioned, is
-that in contrast to the legancy neutron loadbalancer, and also the ingress
-loadbalancer which we'll discussed later, there is no application layer "proxy"
+that in contrast to the legancy neutron loadbalancer (and the ingress
+loadbalancer which we'll discussed later), there is no application layer "proxy"
 in this process. contrail service implementation is based on layer 4 (transport
-layer) ECMP based
-loadbalancing. 
+layer) ECMP based loadbalancing. 
 
 ////
 detail discussions of the LB and all surrounding objects are out
@@ -1069,22 +1096,24 @@ default the clusterIP is not reachable from external.
 
 ==== navigating the service loadbalancer objects
 
-we've talked a lot about it the contrail "loadbalancer object" and you may
-wonder what it looks like. now we'll dig a little big deeper to look at the
+we've talked a lot about the contrail "loadbalancer object" and you may wonder
+what exactly it looks like. now we'll dig a little big deeper to look at the
 loadbalancers and the supporting objects: listener, pool, members.
 
 in contrail setup you can pull the object data either from contrail UI, CLI
 (`curl`) or third party UI tools based on restapi. in production depending on
-which one is available and handy you can select your favorite. with curl you
+which one is available and handy you can select your favorite. 
+
+.explore loadbalancer object with `curl`
+
+with curl you
 just need a FQDN of the URL pointing to the object, e.g.: to find the
-loadbalancer object URL for the service `service-web-clusterip` from all
+loadbalancer object URL for the service `service-web-clusterip` from 
 loadbalancers list:
 
 ----
-$ curl http://10.85.188.19:8082/loadbalancers | python -mjson.tool | grep -C4 web
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   984  100   984    0     0   163k      0 --:--:-- --:--:-- --:--:--  192k
+$ curl http://10.85.188.19:8082/loadbalancers | \
+    python -mjson.tool | grep -C4 `service-web-clusterip`
         {
             "fq_name": [
                 "default-domain",
@@ -1099,11 +1128,9 @@ $ curl http://10.85.188.19:8082/loadbalancers | python -mjson.tool | grep -C4 we
 with the loadbalancer URL, you can pull the specific LB object details:
 
 ----
-curl http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc | python -mjson.tool
-
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  2439  100  2439    0     0   517k      0 --:--:-- --:--:-- --:--:--  595k
+$ curl \
+    http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc \
+    | python -mjson.tool
 {
     "loadbalancer": {
         "annotations": {
@@ -1192,14 +1219,16 @@ curl http://10.85.188.19:8082/loadbalancer/99fe8ce7-9e75-11e9-b485-0050569e6cfc 
 }
 ----
 
-the output is very extensive and includes a whole buntch of details that is not
-of our interests at this moment. but it does tell something interesting:
+the output is very extensive and includes a whole bunch of details that may not
+be of our interests at this moment. but it does tell something interesting:
 
-* LB use service IP as its VIP
-* LB is connected to a listener by a reference
+* in "loadbalancer_properties", the LB use service IP as its VIP
+* the LB is connected to a listener by a reference
 * `loadbalancer_provider` is `native`, this is a new extension to implement
-  layer 4 (transport layer)  ECMP for kubernetes service, different than the neutron LB
-  implemented by haproxy
+  layer 4 (transport layer)  ECMP for kubernetes service, different than the
+  neutron LB implemented by haproxy
+
+.explore LB from UI
 
 in the rest part of the exploration to LB and its related objects, we'll use the
 legacy contrail UI, but the same is also supported in the new contrail command
