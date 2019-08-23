@@ -1420,306 +1420,6 @@ endpoint with an "address" and "port" pointing to the web server. that's it! the
 `Service` does not care about the backend type, it just redirect the service
 request traffic exactly the same way as if all backend is pod.
 
-== Ingress 
-
-You’ve now seen ways of exposing a service to clients outside the cluster.
-another method is `Ingress`
-
-=== kubernetes Ingress introduction
-
-in service section, we understand that `service` works in transport layer.
-in reality, you access all services via URLs. 
-
-////
-the "raw" IP is rarely used today - typically you access all services via URLs. 
-In the background there is "mapping" or "resolution" from URL to IP and that is
-normally when DNS comes into picture.  when user input a URL to access a
-service, DNS resolves the `host` in it to an IP address which `service` can
-accept and process. 
-
-TIP: in practice, to ensures the availability, uptime and performance, a public
-domain name is typically bound to a group of public IP addresses and load
-sharing happens between them.  that is why DNS sometimes is also used to do
-loadbalancing.
-////
-
-'Ingress' or 'ing' for short is another core concept of kubernetes allows
-HTTP/HTTPS routing that does not exist in service. Ingress is built on top of
-service. with Ingress, you can define URL-based rules to distribute HTTP/HTTPS
-routes to multiple different "backend services" ie ingress exposes services via
-HTTP/HTTPS routes.  we've learned a lot about kubernetes `service` so far,
-so you understand what will happen after that - the requests will be forwarded
-to each service's corresponding backend pods.
-
-=== Ingress vs service
-
-there are similiarities between loadbalancer service and ingress. both can
-expose service to outside of the cluster. but there are some main differences.
-
-.operation layer/level
-`Ingress` operates at the application layer of the OSI network model, while
-`service` operates at transport layer only. `Ingress` understand the HTTP/HTTPS
-protocol, service only does forwarding based on IP and port, which means it does
-not care about the application layer protocol (HTTP/HTTPS) details.
-Ingress can operate at transport layer. Operating ingress at transoport layer does
-not make sense since service does the same unless there is a special reason to do.
-
-////
-Ingress provides "Layer 7" (application layer) load-balancing whereas the
-`service` provide "Layer 4" (transport layer) load-balancing. 
-in contrast with `service`, Ingress is aware of the HTTP/HTTPS protocols. 
-////
-
-.forwarding mode
-Ingress does the application layer "proxy", in pretty much the same way a
-traditional web loadbalancer does.
-//the implementation uses open sourced haproxy to do the "proxy" job, which is
-//typically an application layer forwarding. 
-a typical web loadbalancer proxy sitting between machine A (client) and B
-(server), works at the application layer. it is "aware of" the application layer
-protocols (HTTP/HTTPS) so the client-server intraction does NOT look
-"transparent" to the loadbalancer.  basically It creates two connections each
-with source (A) and destination (B) machine.  Machine A does not even know about
-the existence of machine B at all. For machine A, Proxy is the only thing it
-talks to and it does not care how and where the proxy gets its data.
-
-.number of public IPs
-each service of the ingress needs an public ip if it is exposed directly to
-outside of the cluster. when ingress is a front-end to all these services, one
-public ip would be sufficient which makes life easy for cloud-admin.
-
-=== Ingress object
-
-before we talk about Ingress object, the best way to get a feel of it is to look
-at the yaml definition:
-
-----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: ingress-sf
-spec:
-  rules:
-  - host: www.juniper.net
-    http:
-      paths:
-      - path: /dev
-        backend:
-          serviceName: webservice-1
-          servicePort: 8888
-      - path: /qa
-        backend:
-          serviceName: webservice-2
-          servicePort: 8888
-----
-
-it looks pretty simple. the `spec` defines only one item that is the `rules`.
-the rules says a `host`, which is "juniper" URL here, may have 2 possible `path`
-in the URL string. the `path` is whatever follows the `host` in the URL, in this
-case they are `/dev` and `/qa`. each `path` is then associated to a different
-service. when Ingress sees HTTP requests arrives, it proxies the traffic to each
-URL path's associated backend service. each service, as we've learned this in
-`service` section, will deliver the request to their corresponding backend path.
-that's it. 
-actually this is one of the 3 types of Ingress that kubernetes
-supports today - "simple fan-out Ingress".  later we'll introduce the other two
-types of Ingress.
-
-****
-.about URL, `host`, `path`
-term `host` and `path` are used frequently in kubernetes Ingress documentations.
-`host`:: is "fully qualified domain name" of a server. 
-`path`, or `url-path`:: is the rest part of the string after the `host` in a
-URL. in the case of having a `port` in the URL, then it is the strings after the
-port.
-
-let's take a look at the following URL:
-
-    http://www.juniper.net:1234/my/resource
-           --------------- ---- -----------
-           host            port path
-
-    http://www.juniper.net:/my/resource
-           --------------- ------------
-           host            path
-
-`host` is `www.juniper.net`, whatever follows port `1234` is called `path`,
-`my/resource` in this example. if a URL has no `port`, then the strings
-following `host` are `path`. 
-//one tip is that strictly speaking the `/` between
-//`host` and `path` are not part of either one. 
-for more details you can read
-rfc1738, but for the context of this book understanding what we introduce here
-would suffice.
-****
-
-if you now think kubernetes Ingress is nothing but to define some rules, and the
-rules are just to instruct the system to direct incoming request to different
-services, based on the URLs, you are basically right in the high level. the
-figure below shows the dependency between the 3 kubernetes object: `Ingress`,
-`service` and `pod`:
-
-.Ingress
-image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
-
-in practice there are other things you need to understand.  in reality to handle
-the ingress rules, you need at least another component called `ingress
-controller`
-
-=== ingress controller
-
-An ingress controller is responsible for reading the Ingress rules and program
-the rules into the proxy which does the real work - dispatching traffic based
-on `host` / URL.
-
-ingress controllers are tyically implemented by a third party vendors.
-Different Kubernetes environments have different ingress controller based on the need
-of the cluster. each ingress controllers have their own implementations to
-program the ingress rules. bottom line is, there has to be an Ingress controller
-running in the cluster.
-
-ingress controller providers:
-
-* nginx
-* gce
-* haproxy
-* avi
-* f5
-* istio
-* contour
-* etc
-
-You may deploy any number of ingress controllers within a cluster. When you
-create an ingress, you should annotate each ingress with the appropriate
-`ingress.class` to indicate which ingress controller should be used if more than
-one exists within your cluster. annotation for ingress objects will be explained
-in the annotation section.
-
-=== ingress examples
-
-there are basically 3 types of ingresses:
-
-* Single Service Ingress
-* Simple fanout Ingress
-* Name based virtual hosting Ingress
-
-we've looked at the "simple fanout Ingress". now let's also look at yaml file
-example for the other two type of Ingress.
-
-==== single service ingress
-
-----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: ingress-single-service
-spec:
-  backend:
-    serviceName: webservice
-    servicePort: 80
-----
-
-this is the simplest form of ingress. the ingress will get an external IP so the
-service will be exposed to the public, however, it has no `rules` defined, so it
-does not parse `host` or `path` in the URLs. all requests will goes to one same
-service.
-
-==== simple fanout ingress
-
-----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: ingress-sf
-spec:
-  rules:
-  - host: www.juniper.net
-    http:
-      paths:
-      - path: /dev
-        backend:
-          serviceName: webservice-1
-          servicePort: 8888
-      - path: /qa
-        backend:
-          serviceName: webservice-2
-          servicePort: 8888
-----
-
-we've checked this out in the beginning of this section.  comparing with `single
-service` ingress, `simple fanout` ingress is more practical. it is not only able
-to expose service via a public IP, but also able to do "URL routing" or "fan
-out" based on the `path`. this is a very common usage scenario when a company
-wants to direct traffic to each department's dedicated servers based on the
-"suffix" of URL after the domain name. 
-
-==== virtual host ingress
-
-----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: ingress-virutal-host
-spec:
-  rules:
-  - host: www.juniperhr.com
-    http:
-      paths:
-      - backend:
-          serviceName: webservice-1
-          servicePort: 80
-  - host: www.junipersales.com
-    http:
-      paths:
-      - backend:
-          serviceName: webservice-2
-          servicePort: 80
-----
-
-`name based virtual host` is similar to simple fanout ingress in that, it is
-able to do rule-based URL routing. the unique power of this type of Ingress is
-that it supports routing HTTP traffic to multiple host names at the same IP
-address. the example above may not be practical (unless one day the two domains
-merge!) but it is good enough to showcase the idea. in the yaml file 2 "hosts"
-are defined, the "juniperhr" and "junipersales" URL respectively.  even though
-ingress will be allocated with one public IP only, based on the `host` in URL,
-request toward that same public IP will still be routed to different backend
-services - that is why it is called a "virtual hosting Ingress". we'll have a
-very detail case study in chapter 4 about this example.
-
-NOTE: it is also possible to merge a "simple fanout" Ingress and a "virtual
-host" Ingress in one Ingress, in this book we won't cover this topic though.
-
-=== multiple ingress controller
-
-you can have multiple ingress controllers in one cluster. in that case the
-cluster needs to know which one to choose.  for example, later on in chapter 4
-we'll talk about contrail's built-in Ingress controller which, does not stop us
-from installing another third party Ingress controller like "nginx" Ingress
-controller. we will end up having 2 Ingress controllers in the same cluster with
-the names are:
-
-* `opencontrail` (default)
-* `nginx`
-
-contrail's implementation is the `default` one so you don't have to select it
-explicitly. to select nginx as Ingress controller, use this annotations
-`kubernetes.io/ingress.class`:
-
-----
-metadata:
-  name: foo
-  annotations:
-    kubernetes.io/ingress.class: "nginx"
-----
-
-this will make contrail's Ingress controller `opencontrail` to ignore the
-Ingress configuration.
-
-=== TLS support
-
-//TODO
-
 == secret
 
 ////
@@ -1779,21 +1479,21 @@ understand how it will help to improve the sytem security.
 
 .common secret types:
 
-.`opaque`
+`opaque`::
 this type of Secret can contain arbitrary key-value pairs, so it is treated as
 "unstructured" data from kubernetes's perspective. all other types of secret has
 constaint content.
 
-.`kubernetes.io/dockerconfigjson`
+`kubernetes.io/dockerconfigjson`::
 this type of secret is used to authenticate with a private container
 registry (e.g.  a juniper server) to pull your own private image.
 
-.`tls`
+`tls`::
 tls secret contains a TLS private key and certificate. it is used to secure an
 Ingress. 
 you will see an example of Ingress with tls secret in chapter 4.
 
-.`kubernetes.io/service-account-token`
+`kubernetes.io/service-account-token`::
 when processes running in containers of a pod access the apiserver, they has to
 be authenticated as a particular Account (e.g., account `default` by default).
 this account that is associated with a pod is called a service-account.
@@ -2401,6 +2101,306 @@ $ tree
 * secret support base64
 * secret is stored in tmpfs FS system, gone with the pod deletion
 ////
+
+== Ingress 
+
+You’ve now seen ways of exposing a service to clients outside the cluster.
+another method is `Ingress`
+
+=== kubernetes Ingress introduction
+
+in service section, we understand that `service` works in transport layer.
+in reality, you access all services via URLs. 
+
+////
+the "raw" IP is rarely used today - typically you access all services via URLs. 
+In the background there is "mapping" or "resolution" from URL to IP and that is
+normally when DNS comes into picture.  when user input a URL to access a
+service, DNS resolves the `host` in it to an IP address which `service` can
+accept and process. 
+
+TIP: in practice, to ensures the availability, uptime and performance, a public
+domain name is typically bound to a group of public IP addresses and load
+sharing happens between them.  that is why DNS sometimes is also used to do
+loadbalancing.
+////
+
+'Ingress' or 'ing' for short is another core concept of kubernetes allows
+HTTP/HTTPS routing that does not exist in service. Ingress is built on top of
+service. with Ingress, you can define URL-based rules to distribute HTTP/HTTPS
+routes to multiple different "backend services" ie ingress exposes services via
+HTTP/HTTPS routes.  we've learned a lot about kubernetes `service` so far,
+so you understand what will happen after that - the requests will be forwarded
+to each service's corresponding backend pods.
+
+=== Ingress vs service
+
+there are similiarities between loadbalancer service and ingress. both can
+expose service to outside of the cluster. but there are some main differences.
+
+.operation layer/level
+`Ingress` operates at the application layer of the OSI network model, while
+`service` operates at transport layer only. `Ingress` understand the HTTP/HTTPS
+protocol, service only does forwarding based on IP and port, which means it does
+not care about the application layer protocol (HTTP/HTTPS) details.
+Ingress can operate at transport layer. Operating ingress at transoport layer does
+not make sense since service does the same unless there is a special reason to do.
+
+////
+Ingress provides "Layer 7" (application layer) load-balancing whereas the
+`service` provide "Layer 4" (transport layer) load-balancing. 
+in contrast with `service`, Ingress is aware of the HTTP/HTTPS protocols. 
+////
+
+.forwarding mode
+Ingress does the application layer "proxy", in pretty much the same way a
+traditional web loadbalancer does.
+//the implementation uses open sourced haproxy to do the "proxy" job, which is
+//typically an application layer forwarding. 
+a typical web loadbalancer proxy sitting between machine A (client) and B
+(server), works at the application layer. it is "aware of" the application layer
+protocols (HTTP/HTTPS) so the client-server intraction does NOT look
+"transparent" to the loadbalancer.  basically It creates two connections each
+with source (A) and destination (B) machine.  Machine A does not even know about
+the existence of machine B at all. For machine A, Proxy is the only thing it
+talks to and it does not care how and where the proxy gets its data.
+
+.number of public IPs
+each service of the ingress needs an public ip if it is exposed directly to
+outside of the cluster. when ingress is a front-end to all these services, one
+public ip would be sufficient which makes life easy for cloud-admin.
+
+=== Ingress object
+
+before we talk about Ingress object, the best way to get a feel of it is to look
+at the yaml definition:
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-sf
+spec:
+  rules:
+  - host: www.juniper.net
+    http:
+      paths:
+      - path: /dev
+        backend:
+          serviceName: webservice-1
+          servicePort: 8888
+      - path: /qa
+        backend:
+          serviceName: webservice-2
+          servicePort: 8888
+----
+
+it looks pretty simple. the `spec` defines only one item that is the `rules`.
+the rules says a `host`, which is "juniper" URL here, may have 2 possible `path`
+in the URL string. the `path` is whatever follows the `host` in the URL, in this
+case they are `/dev` and `/qa`. each `path` is then associated to a different
+service. when Ingress sees HTTP requests arrives, it proxies the traffic to each
+URL path's associated backend service. each service, as we've learned this in
+`service` section, will deliver the request to their corresponding backend path.
+that's it. 
+actually this is one of the 3 types of Ingress that kubernetes
+supports today - "simple fan-out Ingress".  later we'll introduce the other two
+types of Ingress.
+
+****
+.about URL, `host`, `path`
+term `host` and `path` are used frequently in kubernetes Ingress documentations.
+`host`:: is "fully qualified domain name" of a server. 
+`path`, or `url-path`:: is the rest part of the string after the `host` in a
+URL. in the case of having a `port` in the URL, then it is the strings after the
+port.
+
+let's take a look at the following URL:
+
+    http://www.juniper.net:1234/my/resource
+           --------------- ---- -----------
+           host            port path
+
+    http://www.juniper.net:/my/resource
+           --------------- ------------
+           host            path
+
+`host` is `www.juniper.net`, whatever follows port `1234` is called `path`,
+`my/resource` in this example. if a URL has no `port`, then the strings
+following `host` are `path`. 
+//one tip is that strictly speaking the `/` between
+//`host` and `path` are not part of either one. 
+for more details you can read
+rfc1738, but for the context of this book understanding what we introduce here
+would suffice.
+****
+
+if you now think kubernetes Ingress is nothing but to define some rules, and the
+rules are just to instruct the system to direct incoming request to different
+services, based on the URLs, you are basically right in the high level. the
+figure below shows the dependency between the 3 kubernetes object: `Ingress`,
+`service` and `pod`:
+
+.Ingress
+image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
+
+in practice there are other things you need to understand.  in reality to handle
+the ingress rules, you need at least another component called `ingress
+controller`
+
+=== ingress controller
+
+An ingress controller is responsible for reading the Ingress rules and program
+the rules into the proxy which does the real work - dispatching traffic based
+on `host` / URL.
+
+ingress controllers are tyically implemented by a third party vendors.
+Different Kubernetes environments have different ingress controller based on the need
+of the cluster. each ingress controllers have their own implementations to
+program the ingress rules. bottom line is, there has to be an Ingress controller
+running in the cluster.
+
+ingress controller providers:
+
+* nginx
+* gce
+* haproxy
+* avi
+* f5
+* istio
+* contour
+* etc
+
+You may deploy any number of ingress controllers within a cluster. When you
+create an ingress, you should annotate each ingress with the appropriate
+`ingress.class` to indicate which ingress controller should be used if more than
+one exists within your cluster. annotation for ingress objects will be explained
+in the annotation section.
+
+=== ingress examples
+
+there are basically 3 types of ingresses:
+
+* Single Service Ingress
+* Simple fanout Ingress
+* Name based virtual hosting Ingress
+
+we've looked at the "simple fanout Ingress". now let's also look at yaml file
+example for the other two type of Ingress.
+
+==== single service ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-single-service
+spec:
+  backend:
+    serviceName: webservice
+    servicePort: 80
+----
+
+this is the simplest form of ingress. the ingress will get an external IP so the
+service will be exposed to the public, however, it has no `rules` defined, so it
+does not parse `host` or `path` in the URLs. all requests will goes to one same
+service.
+
+==== simple fanout ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-sf
+spec:
+  rules:
+  - host: www.juniper.net
+    http:
+      paths:
+      - path: /dev
+        backend:
+          serviceName: webservice-1
+          servicePort: 8888
+      - path: /qa
+        backend:
+          serviceName: webservice-2
+          servicePort: 8888
+----
+
+we've checked this out in the beginning of this section.  comparing with `single
+service` ingress, `simple fanout` ingress is more practical. it is not only able
+to expose service via a public IP, but also able to do "URL routing" or "fan
+out" based on the `path`. this is a very common usage scenario when a company
+wants to direct traffic to each department's dedicated servers based on the
+"suffix" of URL after the domain name. 
+
+==== virtual host ingress
+
+----
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-virutal-host
+spec:
+  rules:
+  - host: www.juniperhr.com
+    http:
+      paths:
+      - backend:
+          serviceName: webservice-1
+          servicePort: 80
+  - host: www.junipersales.com
+    http:
+      paths:
+      - backend:
+          serviceName: webservice-2
+          servicePort: 80
+----
+
+`name based virtual host` is similar to simple fanout ingress in that, it is
+able to do rule-based URL routing. the unique power of this type of Ingress is
+that it supports routing HTTP traffic to multiple host names at the same IP
+address. the example above may not be practical (unless one day the two domains
+merge!) but it is good enough to showcase the idea. in the yaml file 2 "hosts"
+are defined, the "juniperhr" and "junipersales" URL respectively.  even though
+ingress will be allocated with one public IP only, based on the `host` in URL,
+request toward that same public IP will still be routed to different backend
+services - that is why it is called a "virtual hosting Ingress". we'll have a
+very detail case study in chapter 4 about this example.
+
+NOTE: it is also possible to merge a "simple fanout" Ingress and a "virtual
+host" Ingress in one Ingress, in this book we won't cover this topic though.
+
+=== multiple ingress controller
+
+you can have multiple ingress controllers in one cluster. in that case the
+cluster needs to know which one to choose.  for example, later on in chapter 4
+we'll talk about contrail's built-in Ingress controller which, does not stop us
+from installing another third party Ingress controller like "nginx" Ingress
+controller. we will end up having 2 Ingress controllers in the same cluster with
+the names are:
+
+* `opencontrail` (default)
+* `nginx`
+
+contrail's implementation is the `default` one so you don't have to select it
+explicitly. to select nginx as Ingress controller, use this annotations
+`kubernetes.io/ingress.class`:
+
+----
+metadata:
+  name: foo
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+----
+
+this will make contrail's Ingress controller `opencontrail` to ignore the
+Ingress configuration.
+
+=== TLS support
+
+//TODO
 
 == kubernetes networking
 
