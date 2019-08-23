@@ -1731,7 +1731,7 @@ https://feisky.gitbooks.io/kubernetes/content/concepts/secret.html
 === secret introduction
 
 in any modern network system, user or administrator need to deal with sensitive
-information, such as username/passwords/ssh keys/etc, in the platfrom. same
+information, such as `username/passwords/ssh` keys/etc, in the platfrom. same
 thing applies to the pods in kubernetes environment.  However, exposing these
 information in your pod specs as cleartext may introduce security concerns and
 you need a tool/method to resolve the issue - at least to avoid the cleartext
@@ -1759,17 +1759,17 @@ A secret can be used with a pod in two ways:
 ////
 ____
 
-there are different types of secrets each serving a specific usage case. there
-are also many methods to create a secret and different ways to refer it in a
-pod. a complete discussion of secrets is out of the scope of this book. refer to
-the offical document to get all details and track all up-to-date changes. In
-this section, we'll focus on a specific type of secrets called
-`kubernetes.io/dockerconfigjson`. you will learn different methods to create a
-secret and how to use it in your pods. in the end, we will summarize the main
-benefits of kubernetes secrets object to understand how it will help to improve
-the sytem security.
+there are many different types of secrets each serving a specific usage case.
+there are also many methods to create a secret and a lot of different ways to
+refer it in a pod. a complete discussion of secrets is out of the scope of this
+book. refer to the offical document to get all details and track all up-to-date
+changes.
 
-=== `kubernetes.io/dockerconfigjson` secrets
+In this section, we'll look at some commonly used secret types.
+you will also learn several methods to create a secret and how to refer it in
+your pods. 
+in the end, we will summarize the main benefits of kubernetes secrets object to
+understand how it will help to improve the sytem security.
 
 ////
 * Opaque：base64
@@ -1777,32 +1777,37 @@ the sytem security.
 * kubernetes.io/service-account-token
 ////
 
-.secret types:
+.common secret types:
 
-`opaque`:
-this type ofthe Secret can contain arbitrary key-value pairs, so it is treated
-as "unstructured" data from kubernetes's perspective.
+.`opaque`
+this type of Secret can contain arbitrary key-value pairs, so it is treated as
+"unstructured" data from kubernetes's perspective. all other types of secret has
+constaint content.
 
-`kubernetes.io/dockerconfigjson`:
-use this type of secret to authenticate with a private container registry (e.g.
-a juniper server) to pull your own private image.
+.`kubernetes.io/dockerconfigjson`
+this type of secret is used to authenticate with a private container
+registry (e.g.  a juniper server) to pull your own private image.
 
-* `kubernetes.io/service-account-token`:
+.`tls`
+tls secret contains a TLS private key and certificate. it is used to secure an
+Ingress. 
+you will see an example of Ingress with tls secret in chapter 4.
+
+.`kubernetes.io/service-account-token`
 when processes running in containers of a pod access the apiserver, they has to
 be authenticated as a particular Account (e.g., account `default` by default).
 this account that is associated with a pod is called a service-account.
 `kubernetes.io/service-account-token` type of secret contains information about
-kubernetes `service-account`. 
-
-later in this book we'll need to create a pod with Juniper's proprietary CSRX
-image, to do that we need to provide authentication information to kubernetes so
-it can authenticate itself when pulling images during pod creation. therefore in
-this section we'll focus on `kubernetes.io/dockerconfigjson` type of secret.
+kubernetes `service-account`. we won't elaborate this type of secret and
+`service-account` in this book. 
 
 ////
-* private registry (juniper hub) private repository in public docker registry
-* (docker hub)
-////
+SecretType = "Opaque"                                 // Opaque (arbitrary data; default)
+SecretType = "kubernetes.io/service-account-token"    // Kubernetes auth token
+SecretType = "kubernetes.io/dockercfg"                // Docker registry auth
+SecretType = "kubernetes.io/dockerconfigjson"         // Latest Docker registry auth
+// FUTURE: other type values
+
 
 .methods to create a secret
 
@@ -1813,15 +1818,153 @@ in this section we'll demonstrate how to create a secret from:
 * kubectl CLI with docker credential file: `.docker/config.json`
 * yaml file
 
-////
 * literal
 * operator
 * serviceAccount
 ////
 
-=== create secret from CLI with docker credential data
+=== `opaque` secret
 
-to most straightforward method to create a `kubernetes.io/service-account-token`
+secret of type `opaque`, represents "arbitrary" user-owned data - usually you
+want to put in `secret` some kind of "sensitive" data, for example `username`,
+`password`, `security pin`, etc, just about anything you believe is sensitive
+and you want to carry into your pod. 
+
+==== define opaque secret
+
+first, to make our sensitive data looks "less sensitive", let's encode them with
+`base64` tool:
+
+----
+$ echo -n 'username1' | base64
+dXNlcm5hbWUx
+$ echo -n 'password1' | base64
+cGFzc3dvcmQx
+----
+
+then, we put the encoded version of the data in a secret definition yaml file:
+
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-opaque
+type: Opaque
+data:
+  username: dXNlcm5hbWUx
+  password: cGFzc3dvcmQx
+----
+
+alternatively, you can define the same secret from kubectl CLI directly, with
+`--from-literal` option:
+
+----
+kubectl create secret generic secret-opaque     \
+    --from-literal=username='username1'         \
+    --from-literal=password='password1'
+----
+
+either way, a `secret` will be generated:
+
+----
+$ kubectl get secrets
+NAME                  TYPE                                  DATA   AGE
+secret-opaque         Opaque                                2      8s
+
+$ kubectl get secrets secret-opaque -o yaml
+apiVersion: v1
+data:
+  password: cGFzc3dvcmQx
+  username: dXNlcm5hbWUx
+kind: Secret
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"password":"cGFzc3dvcmQx","username":"dXNlcm5hbWUx"},"kind":"Secret","metadata":{"annotations":{},"name":"secret-opaque","namespace":"ns-user-1"},"type":"Opaque"}
+  creationTimestamp: 2019-08-22T22:51:18Z
+  name: secret-opaque
+  namespace: ns-user-1
+  resourceVersion: "885702"
+  selfLink: /api/v1/namespaces/ns-user-1/secrets/secret-opaque
+  uid: 5a78d9d4-c52f-11e9-90a3-0050569e6cfc
+type: Opaque
+----
+
+==== refer opaque secret
+
+once created, next you will need to use the `secret` in a pod, and 
+the user information contained in `secret` will be carried into the pod.
+as mentioned there are different ways to refer the opaque `secret` in a
+pod and correspondingly the result will be different.
+
+typically, user information carried from `secret` can be in one of these forms
+in a container:
+
+* files
+* environmental variables
+
+here we'll demonstrate using secret to generate environmental variables in
+container:
+
+----
+#pod-cirros-secret.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cirros
+  labels:
+    app: cirros
+spec:
+  containers:
+  - name: cirros
+    image: cirros
+    imagePullPolicy: Always
+    #envFrom:
+    #- secretRef:
+    #    name: test-secret
+    env:
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: secret-opaque
+          key: username
+    - name: SECRET_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: secret-opaque
+          key: password
+  restartPolicy: Always
+----
+
+spawn the pod and container from this yaml file:
+
+----
+$ kubectl apply -f pod/pod-cirros-secret.yaml
+pod/cirros-secret created
+----
+
+login the container and verify the generated environmental variables:
+
+----
+$ kubectl exec -it cirros-secret -- printenv | grep SECRET
+SECRET_USERNAME=username1
+SECRET_PASSWORD=password1
+----
+
+the original "sensitive" data we encoded with `base64` is now present in the
+container!
+
+=== `dockerconfigjson` secret
+
+`dockerconfigjson` secret, as the name indicates, carries the docker account
+credential information that is typically stored in a `.docker/config.json` file.
+the `image` in kubernetes pod may point to a private container registry.  in
+that case, kubernetes need to authenticate with that registry in order to pull
+the image. `dockerconfigjson` type of secret is designed for this very purpose.
+
+==== docker credential data
+
+the most straightforward method to create a `kubernetes.io/dockerconfigjson`
 type of secret is to provide login information directly to `kubectl` command and
 let it to generate the secret:
 
@@ -1931,7 +2074,7 @@ a `docker-registry` Secret created manually like this will only work with a
 single private registry. to support multiple private container registries we
 can create a secret from docker credential file.
 
-=== create secret from CLI with docker credential file (`~/.docker/config.json`)
+==== docker credential file (`~/.docker/config.json`)
 
 as the name of key `.dockerconfigjson` in the secret we created indicates, it
 serves similar role as the docker config file: `.docker/config.json`. actually
@@ -2042,7 +2185,7 @@ $ kubectl get secret secret-jnpr2 --output="jsonpath={.data.\.dockerconfigjson}"
 ----
 
 
-=== create secret from yaml file
+==== yaml file
 
 you can also create a secret directly from a yaml file, just the same way you
 create other objects like service or Ingress.
@@ -2105,7 +2248,7 @@ keep in mind that Base64 is all about "encoding" instead of "encryption",
 it is considered the same as plain text. so sharing this file compromised
 secret.
 
-=== refer the secrets
+==== refer `dockerconfigjson` secret in pod: `imagePullSecrets`
 
 after a secret is created, it can be referred by a pod/RC or deployment
 in order to pull an image from the private registry.
@@ -2187,6 +2330,14 @@ Events:
 19h  Normal  Created    Pod   Created container
 19h  Normal  Started    Pod   Started container
 ----
+
+=== `tls` secret
+//https://software.danielwatrous.com/generate-tls-secret-for-kubernetes/
+//TODO
+
+==== create tls secret
+
+==== refer tls secret
 
 === secret benefit
 
