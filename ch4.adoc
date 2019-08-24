@@ -1320,7 +1320,7 @@ NOTE: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
 server. this is also the same testbed for ingress.
 
-in appendix you will find all of the details about the setup. the prerequisites,
+in appendix you will find all details about the setup. the prerequisites,
 software/hardware specifications, sample configuration files, and installation
 steps. following the steps you will be able to build a same setup in your lab.
 
@@ -1343,9 +1343,9 @@ service-web-clusterip  ClusterIP  10.105.139.153  <none>       8888/TCP  45m  ap
 
 ----
 $ kubectl get pod -o wide --show-labels
-NAME                READY STATUS   ... IP             NODE     ... LABELS
-cirros              1/1   Running  ... 10.47.255.237  cent222  ... app=cirros
-rc-webserver-g27kg  1/1   Running  ... 10.47.255.238  cent333  ... app=webserver
+NAME                        READY  STATUS   ...  IP             NODE     ...  LABELS
+cirros                      1/1    Running  ...  10.47.255.237  cent222  ...  app=cirros
+webserver-846c9ccb8b-g27kg  1/1    Running  ...  10.47.255.238  cent333  ...  app=webserver
 ----
 
 ////
@@ -1366,24 +1366,31 @@ details.
 in contrail, a `ClusterIP` is essentially implemented in the form of a FIP. once
 a service is created, a FIP will be allocated from the service subnet and
 associated to the backend pod VMI and its `fixed IP`. this FIP/clusterIP is also
-acting as a "VIP" to the client pods inside of the cluster. this holds true for
-all type of contrail kubernetes service. For LoadBalancer type of service
-contrail will allocate a second FIP - the "EXTERNAL-IP" as the VIP, and in that
-case the external VIP is advertised outside of the cluster through gateway
-router.  you will get more details about that later.
+acting as a "VIP" to the client pods inside of the cluster. 
+
+NOTE: this holds true also for loadbalancer type of service, in that case
+contrail will allocate a second FIP - the "EXTERNAL-IP" as the VIP, and the
+external VIP is advertised outside of the cluster through gateway router.  you
+will get more details about these later.
 
 from UI we'll see the automatically allocated FIP as ClusterIP.
 
 .ClusterIP as FIP
 image::https://user-images.githubusercontent.com/2038044/60973473-57c9ac80-a2f6-11e9-81a7-df74349e9877.png[]
 
-the FIP is also associated with the pod VMI and podIP, in the case the VMI is
+the FIP is also associated with the pod VMI and podIP, in this case the VMI is
 representing the pod interface.
 
 .pod interface
 image::https://user-images.githubusercontent.com/2038044/60975990-df191f00-a2fa-11e9-9f81-e635c141c7e6.png[]
 
-expand the `fip_list`, we'll see the `port_map` in it:
+the interface can be expanded to display more details:
+
+.pod interface detail
+//image::https://user-images.githubusercontent.com/2038044/63632000-c6d83780-c5fc-11e9-92a6-6bed7f09a944.png[]
+image::https://user-images.githubusercontent.com/2038044/63632051-87f6b180-c5fd-11e9-8695-9ec6fc7c88ca.png[]
+
+expand the `fip_list`, we'll see more information below:
 
 ----
 fip_list:  {
@@ -1409,9 +1416,10 @@ fip_list:  {
 }
 ----
 
-the `port_map` tells that port `8888` is a `nat_port`, `6` is the protocol
-number so it means protocol TCP. TCP port 8888 will be translated to container
-port `80` and vice versa.
+service/clusterIP/FIP 10.105.139.153 maps to podIP/fixed_ip 10.47.255.238.  the
+`port_map` tells that port `8888` is a `nat_port`, `6` is the protocol number so
+it means protocol TCP. overall, clusterIP:port `10.105.139.153:8888` will be
+translated to podIP:targetPort `10.47.255.238:80` and vice versa.
 
 now you understand with FIP representing ClusterIP, NAT will happen in service.
 later we'll examine NAT again in the flow table.
@@ -1423,26 +1431,26 @@ backend pod. this is a more realistic and rebost model: each pod will now be
 backing up each other to avoid a single point failure.
 
 instead of using yaml file to manually create a new webserver pod, with the
-"kubernetes spirit" in mind you should think of to `scale` a RC or deployment,
+"kubernetes spirit" in mind you should think of to `scale` a Deployment,
 as what you`ve seen earlier in this book. in our service example we`ve been
-using `RC` object to spawn our webserver pod on purpose:
+using `Deployment` object to spawn our webserver pod on purpose:
 
 ----
-$ kubectl scale rc rc-webserver --replicas=2
-replicationcontroller/rc-webserver scaled
+$ kubectl scale deployment webserver --replicas=2
+deployment.extensions/webserver scaled
 
 $ kubectl get pod -o wide --show-labels
-NAME                 READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE   LABELS
-cirros               1/1     Running   1          5d1h   10.47.255.237   cent222   <none>           app=cirros
-rc-webserver-7btnj   1/1     Running   0          27m    10.47.255.236   cent222   <none>           app=webserver
-rc-webserver-g27kg   1/1     Running   0          45m    10.47.255.238   cent333   <none>           app=webserver
+NAME                        READY  STATUS   ... IP             NODE     ... LABELS
+cirros                      1/1    Running  ... 10.47.255.237  cent222  ... app=cirros
+webserver-846c9ccb8b-7btnj  1/1    Running  ... 10.47.255.236  cent222  ... app=webserver
+webserver-846c9ccb8b-g27kg  1/1    Running  ... 10.47.255.238  cent333  ... app=webserver
 
 $ kubectl get svc -o wide
 NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE   SELECTOR
 service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45m   app=webserver
 ----
 
-immediately after you create a new webserver pod by scaling the RC with
+immediately after you create a new webserver pod by scaling the deployment with
 `replicas 2`, a new pod is launched.  we end up having 2 backend pods now, one
 is running in same node `cent222` as the client cirros pod, or a "local" node
 for cirros pod; the other one is running in the other node `cent333` - the
@@ -1462,7 +1470,8 @@ we go ahead and check the FIP again.
 .ClusterIP as FIP (ECMP)
 image::https://user-images.githubusercontent.com/2038044/60973157-b2163d80-a2f5-11e9-957a-438642355391.png[]
 
-we see the same FIP, but now it is associated with two podIP and VMIes. 
+we see the same FIP, but now it is associated with two podIP, each representing
+a seperate pod. 
 
 ==== ECMP routing table: control node perspective
 
@@ -1484,14 +1493,16 @@ other tables which is not of our interests right now.
 
 two routing entries with the same exact prefixes of the ClusterIP show up in the
 routing table, with two different next hops, each pointing to a different node.
-what happens is each node advertises the presence of the backend pods in itself
-to the control node via XMPP, which then reflect the routes to the other compute
-node.
+this gives a hint about the route propagation process: both nodes(compute) has
+advertised the same clusterIP toward the master(contrail controller), to
+indicate the presence of the running backend pods in itself. this route
+propagation is via XMPP. master(contrail controller) then reflect the routes to
+all other compute nodes.
 
 ==== ECMP routing table: compute node perspective
 
-next, on the client pod node `cent222`, we'll look at the the pod's VRF table to
-understand how the packets are forwarded towards the backend pods
+next, starting from the client pod node `cent222`, we'll look at the the pod's
+VRF table to understand how the packets are forwarded towards the backend pods
 
 .vrouter vrf table
 image::https://user-images.githubusercontent.com/2038044/60680116-18174680-9e58-11e9-9235-48c152959df7.png[]
@@ -1506,10 +1517,10 @@ prefix.
 .vrouter ECMP nexthop
 image::https://user-images.githubusercontent.com/2038044/60680345-ece12700-9e58-11e9-9793-2b609918e146.png[]
 
-we won't cover all additional outputs of it. the most important thing that is of
-our focus is `nh_index: 87`, which is the next hop ID (`NHID`) for the service
-IP prefix. from vrouter agent docker, we can further resolve the NHID to
-disclose more details:
+we won't cover all details in this outputs. the most important thing that is of
+our focus is `nh_index: 87`, which is the next hop ID (`NHID`) for the clusterIP
+prefix. from vrouter agent docker, we can further resolve the "Composite" NHID to 
+the sub-NHs (member nexthops):
 
 ----
 [2019-07-04 12:42:06]root@cent222:~
@@ -1560,9 +1571,13 @@ some important information to highlight from this capture:
   whose fabric IP is `10.169.25.21`. if you recall where our two backend pods
   are located, this is the path to the "remote" node.
 * nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
-  local backend pod's interface. the `vif --get 8` proves this.
+  local backend pod's interface. 
+* the `vif --get 8` give the corresponding pod interface name of vif 0/8.
 
-the loadbalancer ECMP workflow is illustrated in this figure:
+==== clusterIP service workflow
+
+the clusterIP service's loadbalancer ECMP workflow is illustrated in this
+figure:
 
 .contrail service loadbalancer ECMP
 //image::https://user-images.githubusercontent.com/2038044/60762382-97f60a00-a02c-11e9-81ad-b1f05d815571.png[]
@@ -1638,7 +1653,7 @@ $ kubectl exec -it cirros -- curl 10.101.102.27:8888 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.238
-                         Hostname = rc-webserver-g27kg
+                         Hostname = webserver-846c9ccb8b-g27kg
                                     [giphy]
 ----
 
@@ -1654,7 +1669,7 @@ the request towards port 9999 is rejected. reason is the `targetPort` is not
 running in pod container, so there is no way you will get a response from it.
 
 ----
-$ kubectl exec -it rc-webserver-g27kg -- netstat -lnap
+$ kubectl exec -it webserver-846c9ccb8b-g27kg -- netstat -lnap
 Active Internet connections (servers and established)
 Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
 tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      1/python
@@ -1672,7 +1687,7 @@ one of the easiest way today to start a HTTP server is to use the
 set the port to `90`
 
 ----
-$ kubectl exec -it rc-webserver-g27kg -- python -m SimpleHTTPServer 90 
+$ kubectl exec -it webserver-846c9ccb8b-g27kg -- python -m SimpleHTTPServer 90 
 Serving HTTP on 0.0.0.0 port 90 ...                                    
 ----
 
@@ -2056,7 +2071,7 @@ To simplify the test, you can also ssh into the Internet host and test it with
              Hello
 This page is served by a Contrail pod
   IP address = 10.47.255.238
-  Hostname = rc-webserver-vl6zs
+  Hostname = webserver-846c9ccb8b-vl6zs
    [giphy.gif]
 ----
 
@@ -2077,8 +2092,8 @@ replicationcontroller/rc-webserver scaled
 
 $ kubectl get pod -l app=webserver -o wide
 NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-rc-webserver-r9zdt  1/1    Running  0         25m  10.47.255.238  cent333  <none>
-rc-webserver-xkjpw  1/1    Running  0         23s  10.47.255.236  cent222  <none>
+webserver-846c9ccb8b-r9zdt  1/1    Running  0         25m  10.47.255.238  cent333  <none>
+webserver-846c9ccb8b-xkjpw  1/1    Running  0         23s  10.47.255.236  cent222  <none>
 ----
 
 here is the question: with 2 pods on different node as backend now, from the
@@ -2163,11 +2178,11 @@ turns out this never happens!
                                      Hello
 This page is served by a Contrail pod
   IP address = 10.47.255.236
-  Hostname = rc-webserver-xkjpw
+  Hostname = webserver-846c9ccb8b-xkjpw
 ----
 
 the only webpage we got is from the first backend pod `10.47.255.236`,
-`rc-webserver-xkjpw`, running in node `cent222`. the other one never show up.
+`webserver-846c9ccb8b-xkjpw`, running in node `cent222`. the other one never show up.
 so the expected ECMP does not happen yet. when we examine the route again with
 `detail` or `extensive` keyword we find the root cause:
 
@@ -2255,14 +2270,16 @@ responses back.
                                      Hello
 This page is served by a Contrail pod
   IP address = 10.47.255.236
-  Hostname = rc-webserver-xkjpw
+  Hostname = webserver-846c9ccb8b-xkjpw
 
 [root@cent-client ~]# curl http://101.101.101.252:8888 | lynx -stdin --dump
                                      Hello
 This page is served by a Contrail pod
   IP address = 10.47.255.238
-  Hostname = rc-webserver-r9zdt
+  Hostname = webserver-846c9ccb8b-r9zdt
 ----
+
+==== loadbalancer service workflow
 
 the end to end packet flow is illustrated here:
 
@@ -2776,7 +2793,7 @@ this before and it looks nothing special. now look at the pods:
 $ kubectl get pod -o wide --show-labels
 NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE           LABELS
 cirros              1/1    Running  0         18d  10.47.255.237  cent222  <none>     app=cirros
-rc-webserver-9nfdx  1/1    Running  0         33m  10.47.255.236  cent333  <none>     app=webserver
+webserver-846c9ccb8b-9nfdx  1/1    Running  0         33m  10.47.255.236  cent333  <none>     app=webserver
 ----
 
 everything looks fine. there is a backend pod running for the service. we have
@@ -3151,7 +3168,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-9nfdx
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -3159,7 +3176,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-9nfdx
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -3167,14 +3184,14 @@ curl -H 'Host:www.google.com' 10.47.255.238 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-9nfdx
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 $ kubectl exec -it cirros -- \
 curl 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-9nfdx
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 ----
 
@@ -3229,27 +3246,27 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = rc-webserver-2-m2272
+                        Hostname = webserver-846c9ccb8b-2-m2272
 
 $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 ----
 
@@ -3262,7 +3279,7 @@ the same all-in-one yaml file:
 $ kubectl delete -f ingress/ingress-single-service.yaml
 ingress.extensions "ingress-ss" deleted
 service "webservice-1" deleted
-replicationcontroller "rc-webserver-1" deleted
+replicationcontroller "webserver-846c9ccb8b-1" deleted
 ----
 
 === simple fan-out Ingress
@@ -3389,7 +3406,7 @@ this is the definition of the RCs.
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: rc-webserver-1
+  name: webserver-1
   labels:
     app: webserver-1
 spec:
@@ -3417,7 +3434,7 @@ spec:
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: rc-webserver-2
+  name: webserver-2
   labels:
     app: webserver-2
 spec:
@@ -3490,7 +3507,7 @@ spec:
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: rc-webserver-1
+  name: webserver-1
   labels:
     app: webserver-1
 spec:
@@ -3514,7 +3531,7 @@ spec:
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: rc-webserver-2
+  name: webserver-2
   labels:
     app: webserver-2
 spec:
@@ -3543,8 +3560,8 @@ $ kubectl apply -f ingress/ingress-simple-fanout.yaml
 ingress.extensions/ingress-sf created
 service/webservice-1 created
 service/webservice-2 created
-replicationcontroller/rc-webserver-1 created
-replicationcontroller/rc-webserver-2 created
+deployment.extensions/webserver-1 created
+deployment.extensions/webserver-2 created
 ----
 
 the Ingress, two services and two RC objects are now created.
@@ -3652,16 +3669,16 @@ webservice-2   ClusterIP   10.100.156.38   <none>        8888/TCP   85m   app=we
 $ kubectl get pod -o wide
 NAME                   READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
 cirros                 1/1     Running   1          44d   10.47.255.237   cent222   <none>
-rc-webserver-1-wns77   1/1     Running   0          13m   10.47.255.236   cent333   <none>
-rc-webserver-2-t75d8   1/1     Running   0          13m   10.47.255.235   cent333   <none>
+webserver-846c9ccb8b-1-wns77   1/1     Running   0          13m   10.47.255.236   cent333   <none>
+webserver-846c9ccb8b-2-t75d8   1/1     Running   0          13m   10.47.255.235   cent333   <none>
 
 $ kubectl get pod -o wide -l app=webserver-1
 NAME                   READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE
-rc-webserver-1-wns77   1/1     Running   0          156m   10.47.255.236   cent333   <none>
+webserver-846c9ccb8b-1-wns77   1/1     Running   0          156m   10.47.255.236   cent333   <none>
 
 $ kubectl get pod -o wide -l app=webserver-2
 NAME                   READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE
-rc-webserver-2-t75d8   1/1     Running   0          156m   10.47.255.235   cent333   <none>
+webserver-846c9ccb8b-2-t75d8   1/1     Running   0          156m   10.47.255.235   cent333   <none>
 ----
 
 two services are created, each with a different clusterIP allocated.
@@ -3849,10 +3866,10 @@ the reason is our webserver coming with the backend pods does not support the
 paths `dev` or `qa` in the URL. checking its code reveals this issue:
 
 ----
-$ kubectl exec -it rc-webserver-1-wns77 bash
-root@rc-webserver-1-wns77:/app# ls
+$ kubectl exec -it webserver-846c9ccb8b-1-wns77 bash
+root@webserver-846c9ccb8b-1-wns77:/app# ls
 Dockerfile  app.py  requirements.txt  static
-root@rc-webserver-1-wns77:/app# cat app.py
+root@webserver-846c9ccb8b-1-wns77:/app# cat app.py
 # Simple Web-Server
 from flask import Flask
 import subprocess
@@ -3918,7 +3935,7 @@ create some web pages with file names being same as the `path`: `dev`, `qa`,
 `abc` and etc. to make the test to return consistent output with the one
 returned by the old server, we simply use the same template for our web page.
 make sure to change the IP address and Hostname to the value of the pod that
-this file is going to be copied to. for example pod `rc-webserver-1-wns77` is
+this file is going to be copied to. for example pod `webserver-1-846c9ccb8b-wns77` is
 with IP `10.47.255.236`, so we generate a file `dev` for this pod:
 
 .generate a webpage `dev`
@@ -3936,7 +3953,7 @@ cat <<EOF > dev
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    rc-webserver-wns77</h3>
+    webserver-1-846c9ccb8b-wns77</h3>
     <img src="/static/giphy.gif">
   </body>
   </div>
@@ -3947,10 +3964,10 @@ EOF
 .copy the webpage into the backend pod
 
 ----
-$ kubectl cp dev rc-webserver-1-wns77:/app/dev
-$ kubectl cp dev rc-webserver-1-wns77:/app/qa
-$ kubectl cp dev rc-webserver-1-wns77:/app/abc
-$ kubectl exec -it rc-webserver-1-wns77 -- ls -lt
+$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/dev
+$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/qa
+$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/abc
+$ kubectl exec -it webserver-846c9ccb8b-1-wns77 -- ls -lt
 total 24
 -rw-r--r--. 1 root root 364 Aug 13 06:26 abc    #<---
 -rw-r--r--. 1 root root 364 Aug 13 06:26 dev    #<---
@@ -3964,12 +3981,15 @@ drwxr-xr-x. 2 root root  23 Apr 21  2017 static
 similarly, just change the IP and Hostname of this webpage to the vaule of the
 other backend pod and then copy into it:
 
+//$ sed 's/10.47.255.236/10.47.255.235/g; s/webserver-846c9ccb8b-wns77/webserver-846c9ccb8b-2-t75d8/g' dev > dev2
+
 ----
-$ sed 's/10.47.255.236/10.47.255.235/g; s/rc-webserver-wns77/rc-webserver-2-t75d8/g' dev > dev2
-$ kubectl cp dev2 rc-webserver-2-t75d8:/app/dev
-$ kubectl cp dev2 rc-webserver-2-t75d8:/app/qa
-$ kubectl cp dev2 rc-webserver-2-t75d8:/app/abc
-$ kubectl exec -it rc-webserver-2-t75d8 -- ls -lt
+$ sed 's/10.47.255.236/10.47.255.235/g' dev > temp
+$ sed 's/webserver-1-846c9ccb8b-wns77/webserver-2-846c9ccb8b-t75d8/g' temp > dev2
+$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/dev
+$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/qa
+$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/abc
+$ kubectl exec -it webserver-846c9ccb8b-2-t75d8 -- ls -lt
 total 24
 -rw-r--r--. 1 root root 366 Aug 13 06:39 abc    #<---
 -rw-r--r--. 1 root root 366 Aug 13 06:39 dev    #<---
@@ -3989,9 +4009,9 @@ for each pod open a seperate terminal, then start a web server with python
 module `SimpleHTTPServer`, listening on port 90:
 
 ----
-$ kubectl exec -it rc-webserver-1-wns77 -- python -m SimpleHTTPServer 90
+$ kubectl exec -it webserver-846c9ccb8b-1-wns77 -- python -m SimpleHTTPServer 90
 Serving HTTP on 0.0.0.0 port 90 ...
-$ kubectl exec -it rc-webserver-2-t75d8 -- python -m SimpleHTTPServer 90
+$ kubectl exec -it webserver-846c9ccb8b-2-t75d8 -- python -m SimpleHTTPServer 90
 Serving HTTP on 0.0.0.0 port 90 ...
 ----
 
@@ -3999,12 +4019,12 @@ Serving HTTP on 0.0.0.0 port 90 ...
 create some files with name being same as the `paths`: `dev`, `qa`, and `abc`.
 
 ----
-kubectl exec -it rc-webserver-1-s2zn9 -- bash -c "echo rc-webserver-1-s2zn9:10.47.255.249 > dev"
-kubectl exec -it rc-webserver-1-s2zn9 -- bash -c "echo rc-webserver-1-s2zn9:10.47.255.249 > qa"
-kubectl exec -it rc-webserver-1-s2zn9 -- bash -c "echo rc-webserver-1-s2zn9:10.47.255.249 > abc"
-kubectl exec -it rc-webserver-2-k9x26 -- bash -c "echo rc-webserver-2-k9x26:10.47.255.248 > dev"
-kubectl exec -it rc-webserver-2-k9x26 -- bash -c "echo rc-webserver-2-k9x26:10.47.255.248 > qa"
-kubectl exec -it rc-webserver-2-k9x26 -- bash -c "echo rc-webserver-2-k9x26:10.47.255.248 > abc"
+kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > dev"
+kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > qa"
+kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > abc"
+kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > dev"
+kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > qa"
+kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > abc"
 ----
 
 ////
@@ -4041,8 +4061,8 @@ $ kubectl apply -f ingress/ingress-simple-fanout2.yaml
 ingress.extensions/ingress-sf unchanged
 service/webservice-1 created    #<---
 service/webservice-2 created    #<---
-replicationcontroller/rc-webserver-1 unchanged
-replicationcontroller/rc-webserver-2 unchanged
+deployment.extensions/webserver-1 unchanged
+deployment.extensions/webserver-2 unchanged
 ----
 
 ===== test the URL with different paths
@@ -4053,7 +4073,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-wns77
+                         Hostname = webserver-846c9ccb8b-wns77
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4061,7 +4081,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = rc-webserver-2-t75d8
+                        Hostname = webserver-846c9ccb8b-2-t75d8
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4083,10 +4103,10 @@ No server is available to handle this request.
 ////
 ----
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
-rc-webserver-1-s2zn9:10.47.255.249
+webserver-846c9ccb8b-1-s2zn9:10.47.255.249
 
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/qa
-rc-webserver-2-k9x26:10.47.255.248
+webserver-846c9ccb8b-2-k9x26:10.47.255.248
 
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/abc
 <html><body><h1>503 Service Unavailable</h1>
@@ -4154,14 +4174,14 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1/qa | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = rc-webserver-2-t75d8
+                        Hostname = webserver-846c9ccb8b-2-t75d8
                                     [giphy]
 
 $ curl -H 'Host:www.juniper.net' 101.101.101.1/dev | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = rc-webserver-wns77
+                         Hostname = webserver-846c9ccb8b-wns77
                                     [giphy]
 
 $ curl -H 'Host:www.juniper.net' 101.101.101.1/ | w3m -T text/html | cat
@@ -4309,9 +4329,9 @@ spec:
     app: webserver-2
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
-  name: rc-webserver-1
+  name: webserver-1
   labels:
     app: webserver-1
 spec:
@@ -4333,9 +4353,9 @@ spec:
         - containerPort: 80
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
-  name: rc-webserver-2
+  name: webserver-2
   labels:
     app: webserver-2
 spec:
@@ -4364,8 +4384,8 @@ $ kubectl apply -f ingress/ingress-virtual-host-test.yaml
 ingress.extensions/ingress-vh created
 service/webservice-1 created
 service/webservice-2 created
-replicationcontroller/rc-webserver-1 created
-replicationcontroller/rc-webserver-2 created
+deployment.extensions/webserver-1 created
+deployment.extensions/webserver-2 created
 ----
 
 the Ingress, two services and two RC objects are now created.
@@ -4573,7 +4593,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4581,14 +4601,14 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = rc-webserver-2-m2272
+                        Hostname = webserver-846c9ccb8b-2-m2272
 
 $ kubectl exec -it cirros -- \
     curl -H 'Host:www.google.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4596,7 +4616,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 ----
 
@@ -4641,8 +4661,8 @@ with a nice webpage from Juniper/cisco official website as your test result.
 
 now, from internet host's "desktop", we launch two chrome page side by side, and
 input URLs `www.juniper.net` and `www.cisco.com`. By keep refreshing the 2 pages
-we can confirm "juniper" page is always returned by RC `rc-webserver-1` pod
-`10.47.255.236`, "cisco" page is always returned by RC `rc-webserver-2` pod
+we can confirm "juniper" page is always returned by Deployment `webserver-1` pod
+`10.47.255.236`, "cisco" page is always returned by Deployment `webserver-2` pod
 `10.47.255.235`. we launch a third chrome page and input `www.google.com`, we
 see "google" page is returned by the same pod serving "Juniper" URL.
 
@@ -4659,27 +4679,27 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = rc-webserver-2-m2272
+                        Hostname = webserver-846c9ccb8b-2-m2272
 
 $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = rc-webserver-1-g65dg
+                        Hostname = webserver-846c9ccb8b-1-g65dg
                                     [giphy]
 ----
 
@@ -4745,7 +4765,7 @@ the tools are:
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    rc-webserver-1-g65dg</h3>
+    webserver-846c9ccb8b-1-g65dg</h3>
     <img src="/static/giphy.gif">
   </body>
   </div>
