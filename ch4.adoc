@@ -56,7 +56,7 @@ In this book we won’t cover contrail integration with other environments as we
 focus only in Kubernetes. But any feature that we explain in here could be
 extended for other environments.
 
-Then what we mean by contrail enriching standard Kubernetes deployment?
+what we mean by contrail enriching standard Kubernetes deployment?
 
 Eventhough kubernetes does not provide the networking, it imposes fundamental
 requirements on the networking implementation and it is taken care by all CNI
@@ -65,6 +65,7 @@ can refer to https://kubernetes.io/docs/concepts/cluster-administration/networki
 for more available CNI providers.
 
 kubernets fundamental requirements in networking implementaion:
+
 . pods on a node can communicate with all pods on all nodes without NAT
 . agents on a node (e.g. system daemons, kubelet) can communicate with all
   pods on that node
@@ -74,6 +75,7 @@ kubernets fundamental requirements in networking implementaion:
 with CNI plugins, Kubernetes offers flat network connectivity with
 some security feature confined in a cluster, but Contrail could offer
 on top of that:
+
 . namespaces and services customized isolations for segmentations and
   multi-tenancy
 . distributed loadbalancing and firewall with extensive centralized flow and
