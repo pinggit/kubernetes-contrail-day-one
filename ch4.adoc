@@ -30,8 +30,6 @@ in brief, Contrail offers common deployment for multiple environments
 (OpenStack, Kubernetes, etc) as well it enriches Kubernetes networking and
 security capabilities.
 
-.multiple environment integration
-
 When it comes to deployment for multiple environments, Yes containers is the
 current trend to build applications, but don’t expect everyone to migrate
 everything from VM to containers that fast (This is not to mention the nested
@@ -52,39 +50,39 @@ across all environments by building and securing virtual networks that connect
 BMS, VM and Containers located in private or public cloud. 
 
 A very common way to deploy Kubernetes is to launch its POD in VMs orchestrated
-by OpenStack. this is one of the many use cases of contrail doing its magic.  in
-this book we won’t cover contrail integration with other environments as we
+by OpenStack. this is one of the many use cases of contrail doing its magic.
+
+In this book we won’t cover contrail integration with other environments as we
 focus only in Kubernetes. But any feature that we explain in here could be
 extended for other environments.
 
-.kubernetes enrichment
-
 Then what we mean by contrail enriching standard Kubernetes deployment?
 
-kubernetes by itself does not implement the networking, networking is handled in
-a plugin called "Container Network Interface" - `CNI`. there are a lot of
-opensourced CNI plugin by different providers in the industry. on the other
-hand, kubernetes does impose some very fundamental requirements for any CNI
-implementations. the most important part of the requirement is that pods on a
-node must be able to communicate with all pods on all nodes **without** NAT.
-that indicates a "flat" pod network. 
+Eventhough kubernetes does not provide the networking, it imposes fundamental
+requirements on the networking implementation and it is taken care by all CNI
+("Container Network Interface") providers. contrail is one of the cni provider. you
+can refer to https://kubernetes.io/docs/concepts/cluster-administration/networking/
+for more available CNI providers.
 
-contrail is one of such a CNI plugin. you can refer to
-https://kubernetes.io/docs/concepts/cluster-administration/networking/
-for more available CNI plugins.
-
-with CNI plugins, 
-Kubernetes offers flat network connectivity with some security feature confined
-in a cluster, but Contrail could offer on top of that:
-
+kubernets fundamental requirements in networking implementaion:
+. pods on a node can communicate with all pods on all nodes without NAT
+. agents on a node (e.g. system daemons, kubelet) can communicate with all
+  pods on that node
+. pods in the host network of a node can communicate with all pods on all
+  nodes without NAT
+  
+with CNI plugins, Kubernetes offers flat network connectivity with
+some security feature confined in a cluster, but Contrail could offer
+on top of that:
 . namespaces and services customized isolations for segmentations and
   multi-tenancy
-. service chaining
 . distributed loadbalancing and firewall with extensive centralized flow and
-  logs insight 
+  logs insight
 . rich security policy using tags that can extend to other environment
-  (OpenStack, VMWare, BMS, AWS ,..,etc) 
-
+  (OpenStack, VMWare, BMS, AWS ,..,etc)
+. service chaining
+ 
+ 
 In this chapter we will cover some of these aspects, but first let’s talk about
 Kubernetes/contrail architecture and the object mapping 
 
