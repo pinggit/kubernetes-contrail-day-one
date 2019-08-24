@@ -961,23 +961,25 @@ TIP: for brevity we'll sometimes also refer `loadbalancer` as `LB`.
 
 ==== contrail neutron loadbalancer object
 
-contrail LB is an relatively "old" feature that is supported since version 1.x.
+contrail loadbalancer is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
-virtual-ip (`VIP`) as the frontend IP towards clients.
+virtual-ip (`VIP`) as the frontend IP towards clients. 
+this diagram below illustrates contrail loadbalancer and its components.
 
 .contrail neutron loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60641740-1f5c3700-9dfb-11e9-962f-ed67836d8115.png[]
 
 some highlights of this figure:
 
-* the LB is created with VIP `20.1.1.1`. for each layber 4 port that the LB is
-  listening, a `LB listener` is created
-* all backend VMs, called a `pool`, is allocated an IP from subnet 30.1.1.0/24. 
-* each backend VM is called a `member` of the `pool`
-* a client only sees one frontend VIP representing the whole service
+* the LB is created with VIP `20.1.1.1`. the LB is listening to some application
+  layer (layber 4) ports. for each layber 4 port it is listening, a `LB
+  listener` is also created
+* all backend VMs together compose a `pool`
+* each backend VM in the `pool`, also called a `member`, is allocated an IP from
+  subnet 30.1.1.0/24. 
+* a client only sees one frontend VIP `20.1.1.1`, representing the whole service
 
 how it works:
-
 * when LB sees a request coming, it does TCP connection proxying. what that
   means is it establishes the TCP connection with the client, extracts the
   clients' HTTP/HTTPS requests, creates a new TCP connection towards one of the
@@ -1006,7 +1008,7 @@ layer) "proxy" based. more about ingress will be discussed in later section.
 
 ==== contrail sevice loadbalancer object
 
-let's look at service loadbalancer and the related objects.
+let's take a look at service loadbalancer and the related objects.
 
 .service loadbalancer
 //image::https://user-images.githubusercontent.com/2038044/60640833-0f425880-9df7-11e9-91e1-9b0830394aaa.png[]
@@ -1106,10 +1108,11 @@ which one is available and handy you can select your favorite.
 
 .explore loadbalancer object with `curl`
 
-with curl you
-just need a FQDN of the URL pointing to the object, e.g.: to find the
-loadbalancer object URL for the service `service-web-clusterip` from 
-loadbalancers list:
+with `curl` tool you
+just need a FQDN of the URL pointing to the object. 
+
+e.g.: to find the loadbalancer object URL for the service
+`service-web-clusterip` from loadbalancers list:
 
 ----
 $ curl http://10.85.188.19:8082/loadbalancers | \
@@ -1125,7 +1128,8 @@ $ curl http://10.85.188.19:8082/loadbalancers | \
         },
 ----
 
-with the loadbalancer URL, you can pull the specific LB object details:
+now with one specific loadbalancer URL, you can pull the specific LB object
+details:
 
 ----
 $ curl \
@@ -1224,28 +1228,33 @@ be of our interests at this moment. but it does tell something interesting:
 
 * in "loadbalancer_properties", the LB use service IP as its VIP
 * the LB is connected to a listener by a reference
-* `loadbalancer_provider` is `native`, this is a new extension to implement
-  layer 4 (transport layer)  ECMP for kubernetes service, different than the
-  neutron LB implemented by haproxy
+* `loadbalancer_provider` attribute is `native`, this is a new extension to
+  implement layer 4 (transport layer)  ECMP for kubernetes service
 
 .explore LB from UI
 
 in the rest part of the exploration to LB and its related objects, we'll use the
-legacy contrail UI, but the same is also supported in the new contrail command
-UI. 
+legacy contrail UI.
+
+TIP: you can also use the new contrail command UI to do the same.
 
 for each service there is a LB object, in the below capture it shows 2 LB
 objects:
 
-* ns-user-1-service-web-clusterip
-* ns-user-1-service-web-clusterip-mp
+* `ns-user-1-service-web-clusterip`
+* `ns-user-1-service-web-clusterip-mp`
+
+.loadbalancer object list
+image::https://user-images.githubusercontent.com/2038044/60685179-a0edac80-9e6f-11e9-98c1-e2db001df543.png[]
 
 this indicates 2 services were created. the service loadbalancer object's name
-is composed by connecting `<NS name>-<service name>` hence we can tell the
-2 service's name.
+is composed by connecting NS name with service name, hence we can tell the
+2 service's name:
 
-.loadbalancer objects
-image::https://user-images.githubusercontent.com/2038044/60685179-a0edac80-9e6f-11e9-98c1-e2db001df543.png[]
+* `service-web-clusterip` 
+* `service-web-clusterip-mp`
+
+==== loadbalancer
 
 click on the small triangle icon in left of the first loadbalancer object
 `ns-user-1-service-web-clusterip` to expand it, then click on `advanced json
@@ -1254,34 +1263,38 @@ you've seen in `curl` capture. for example the `VIP`, `loadbalancer_provider`,
 `loadbalancer_listener` object that refers it, etc. 
 
 from here you can keep expanding the `loadbalancer_listener` object by clicking
-the `-` character to see the detail information of it. you then see a
-`loadbalancer_pool`, expand it again you will see `member`. by the reference all
+the `+` character to see the detail information of it. you then see a
+`loadbalancer_pool`, expand it again you will see `member`. you can repeat this
+process to explore through the object data. by the reference all
 of these objects are connected to each other and work together.
 
 .loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
 
+==== listener
+
 click on the LB name and select "listener", then expand it and click on
 `advanced json view` icon on the right, you will get the listener details. the
 listener is listening on service port 8888, and it is referenced by a `pool`.
 
-.listener:
+.listener
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
 
+==== pool and member
 just repeat the exploring process we will get down to the pool and two
 `members` in it. the member is with a port of `80`, which maps to the container
 targetPort in pod.
 
-.pool:
+.pool
 image::https://user-images.githubusercontent.com/2038044/60685626-15c1e600-9e72-11e9-8539-a24ea28b0bf3.png[]
 
-.members:
+.members
 image::https://user-images.githubusercontent.com/2038044/60685682-6fc2ab80-9e72-11e9-804d-5eccd8e055df.png[]
 
 next we'll examine the vrouter VRF table for the pod to show contrail service
 loadbalancer ECMP operation details. in order to better understand the "1 to N"
 mapping between loadbalancer and listener shown in the loadbalancer object
-figure, we'll also give an example of configuring a "multiple port service" in
+figure, we'll also give an example of a "multiple port service" in
 our setup.  we'll conclude the ClusterIP service section by inspecting the
 vrouter flow table to illustrate the service packet workflow.
 
@@ -1299,7 +1312,9 @@ based on it:
 
 the digaram is here:
 
-image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
+//image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
+image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
+
 
 NOTE: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
@@ -1322,28 +1337,40 @@ let's review what we got from service lab in chapter3:
 
 ----
 $ kubectl get svc -o wide
-NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE   SELECTOR
-service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45m   app=webserver
-
-$ kubectl get pod -o wide --show-labels
-NAME                 READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE   LABELS
-cirros               1/1     Running   1          5d1h   10.47.255.237   cent222   <none>           app=cirros
-rc-webserver-g27kg   1/1     Running   0          45m    10.47.255.238   cent333   <none>           app=webserver
+NAME                   TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)   AGE  SELECTOR
+service-web-clusterip  ClusterIP  10.105.139.153  <none>       8888/TCP  45m  app=webserver
 ----
+
+----
+$ kubectl get pod -o wide --show-labels
+NAME                READY STATUS   ... IP             NODE     ... LABELS
+cirros              1/1   Running  ... 10.47.255.237  cent222  ... app=cirros
+rc-webserver-g27kg  1/1   Running  ... 10.47.255.238  cent333  ... app=webserver
+----
+
+////
+----
+$ kubectl get pod -o wide --show-labels
+NAME                              READY STATUS   ... IP             NODE     ... LABELS
+cirros                            1/1   Running  ... 10.47.255.237  cent222  ... app=cirros
+webserver-846c9ccb8b-kvwvw 1/1   Running  ... 10.47.255.238  cent333  ... app=webserver
+----
+////
 
 here we see one service is created, with one pod running as its backend. the
 label in the pod matches to the SELECTOR in service. the pod name also indicates
-this is a RC-generated pod. later we can scale the RC for ECMP case study, for
-now we'll stick to one pod and examine the ClusterIP implementation details.
+this is a deploy-generated pod. later we can scale the deploy for ECMP case
+study, for now we'll stick to one pod and examine the ClusterIP implementation
+details.
 
 in contrail, a `ClusterIP` is essentially implemented in the form of a FIP. once
-a service is created, a FIP will be created from the service subnet and
-associated to the backend pod VMI and IP. this FIP/clusterIP is also acting as a
-"VIP" to the client pods inside of the cluster. this holds true for all type of
-contrail kubernetes service, for LoadBalancer type of service contrail will
-allocate a second FIP "external-ip" as the VIP, but in that case the external
-VIP is advertised outside of the cluster through gateway router. you will get
-more details about that later.
+a service is created, a FIP will be allocated from the service subnet and
+associated to the backend pod VMI and its `fixed IP`. this FIP/clusterIP is also
+acting as a "VIP" to the client pods inside of the cluster. this holds true for
+all type of contrail kubernetes service. For LoadBalancer type of service
+contrail will allocate a second FIP - the "EXTERNAL-IP" as the VIP, and in that
+case the external VIP is advertised outside of the cluster through gateway
+router.  you will get more details about that later.
 
 from UI we'll see the automatically allocated FIP as ClusterIP.
 
