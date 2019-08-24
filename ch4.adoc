@@ -92,7 +92,7 @@ Kubernetes/contrail architecture and the object mapping
 
 A new components of contrail has been added called `contrail-Kube-manager`,
 abbreviated as `KM`. what it does basically is to watch kubernetes apiserver
-events, and translate kubernetes objects into Contrail controller object. the
+for interested kubernetes resources, and translates into Contrail controller object. the
 following figure illustratesthe basic work flow:
 
 .contrail kubernetes architecture
@@ -109,7 +109,9 @@ of that is happening behind the scene.
 what we have to be aware of it before dealing with Kubernetes/contrail is the
 object mapping. because contrail is single interface managing multiple
 environments - as explained before – each environment has its own acronym and
-terms hence the need for this mapping
+terms hence the need for this mapping which will be done by a plugin and in
+kubernetes contrail-kube-manager does this. contrail has specific plugins for
+each environments/orchestrator.
  
 For example, Namespace in Kubernetes are intended for segmentation between
 multiple teams, or projects as if we are creating virtual cluster. In contrail
