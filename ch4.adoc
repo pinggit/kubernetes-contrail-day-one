@@ -147,8 +147,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 === namespace introduction
 
-In chapter3 you`ve read about `namespace` or `NS` in kubernetes, and how to use
-a `quota` to apply some constraints to the resource utilization by a NS. in the
+In chapter3 you`ve read about `namespace` or `NS` in kubernetes. in the
 beginning of this chapter we've mentioned object mappings between kubernetes and
 contrail. in this section we'll see how NS works in contrail environments and
 how contrail extends the feature.
@@ -157,11 +156,13 @@ one analogy we`ve given when introducing `namespace` concept is openstack
 `project`, or `tenant`. that is exactly how contrail is looking at it. whenever
 a new `namespace` object is created, `contrail-kube-manager` (KM) gets noticed
 about the object creation event and it will create the corresponding `project`
-in contrail api database. to differentiate between multiple kubernetes NS
-project in contrail, a kubernetes cluster name will be added to the kubernetes
-NS or project name. the default kubernetes cluster name is `k8s`.  so if you
-create a kubernetes NS `ns-user-1`, what you will end up to see in contrail GUI
-will be: `k8s-ns-user-1`:
+in contrail. 
+
+To differentiate between multiple kubernetes clusters in contrail,
+a kubernetes cluster name will be added to the kubernetes NS or project name.
+the default kubernetes cluster name is `k8s`.  so if you create a kubernetes NS
+`ns-user-1`, `k8s-ns-user-1` project will be created in contrail and you can see
+the same in the contrail GUI.
 
 .contrail command: projects
 image::https://user-images.githubusercontent.com/2038044/60316467-8fb91300-9938-11e9-9de6-429b56429868.png[]
@@ -201,14 +202,17 @@ NOTE: in the rest part of this book we will refer all these terms `namespace`,
 you are aware that kubernetes basic networking requirement is a "flat"/"NATless"
 network - any pod can talk to any pod in any namespace, any cni providers should
 ensure that. consequently in kubernetes by default all namespaces are **not**
-isolated. It is just like a "shared tenant" in openstack.
+isolated.
+
+NOTE: isolated and non-isolated should be seen in the context of (contrail)
+networking
 
 .k8s-default-pod-network and k8s-default-service-network
 
 To provide networking for all non-isolated namespace, there should be a
 **common** VRF (virtual routing and forwarding table) or RI (routing instance).
 in contrail kubernetes environment, two "default" VNs are pre-configured in k8s
-default NS project, for pod and service respectively. correspondingly there are
+NS - default project, for pod and service respectively. correspondingly there are
 2 VRFs each with same name as their correspondingly VN. 
 
 the name of the two VNs/VRFs are in this format:
@@ -221,18 +225,20 @@ become:
 * `k8s-default-pod-network`: pod VN/VRF, with the default subnet `10.32.0.0/12`
 * `k8s-default-service-network`: service VN/VRF, with a default subnet `10.96.0.0/12`
 
-NOTE: the default subnet for pod or service is configurable.
+NOTE: kubernets uses subnet 10.32.0.0/12 for pod network and subnet 10.96.0.0/12 for
+service network by default. it is configurable.
 
 it is important to know that these 2 default VNs are **shared** between all of
 the "non-isolated" namespaces. what that means is, they will be available for
-any new non-isolated NS that you create, implicitly.  that is why in any
-non-isolated NS and `default` NS, the communication between pods in the default
-pod network works just fine. 
+any new non-isolated NS that you create, implicitly.  that is why pods from
+all non-isolated NS including default NS can talk to each other.
 
-NOTE: this only applies to the "default" VNs. all new VNs that you create will
-be isolated with other VNs, regardless of same or different NS. additional
-configuration is needed to make pods belonging two different VNs to communicate
-with each other.
+NOTE: one can think that, if service network and pod network are diffrent, how service
+can reach the backend pod? you are right by default contrail network policy is enabled
+between service and pod network which allows service to reach the pod and vice versa.
+Any VNs that you create will be isolated with other VNs, regardless of same or different
+NS and using contrail network policy pods in two different VNs can communicate with
+each other.
 
 for the isolated NS, however, it will be a different story.
 
@@ -250,7 +256,7 @@ being able to reach the network outside of current namespace.
 to illustrate this concept let's take an example. suppose you have 3 namespaces,
 the `default` NS and two user NS: `ns-non-isolated` and `ns-isolated`.
 in each NS you create one user VN: `vn-left-1`. you will end up to have
-following VN/VRFs:
+following VN/VRFs in contrail:
 
 .NS default
 
@@ -267,6 +273,9 @@ following VN/VRFs:
 * default-domain:k8s-ns-isolated:k8s-ns-isolated-pod-network
 * default-domain:k8s-ns-isolated:k8s-ns-isolated-service-network
 * default-domain:k8s-ns-isolated:k8s-vn-left-1-pod-network
+
+NOTE: The above name is mentioned in the FQDN format. In contrail domain is the top-level
+object, followed by project/tenant and followed by virtual-networks
 
 ////
 * default-domain:k8s-default:k8s-default-pod-network:k8s-default-pod-network
