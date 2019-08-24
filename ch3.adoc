@@ -1937,36 +1937,39 @@ spec:
   type: LoadBalancer    #<---
 ----
 
-the cloud will see this keyword and a load balancer will be created, with a
-public IP allocated serving as the frontend virtual IP. traffic coming to this
-external IP will be redirected to the service backend pod. please keep in mind
-that this "redirection" process, is solely an transport layer operation.
-frontend public external IP and port will be translated to private backend
-cluster IP. it does not involve any application layer activities. there is no
-such things like parsing URL, proxy HTTP request, etc. because the loadbalancer
-VIP is publicly reachable, any Internet host whoever has access to the VIP and
-port can access the service provided by kubernetes cluster.
+the cloud will see this keyword and a load balancer will be created. meanwile an
+external public `loadbalancerIP` is allocated serving as the frontend virtual
+IP. traffic coming to this `loadbalancerIP` will be redirected to the service
+backend pod. please keep in mind that this "redirection" process, is solely an
+transport layer operation.  `loadbalancerIP` and port will be translated to
+private backend cluster IP and it's `targetPort`. it does not involve any
+application layer activities. there is no such things like parsing URL, proxy
+HTTP request, etc like what will happen in HTTP proxying process.  because the
+`loadbalancerIP` is publicly reachable, any Internet host whoever has access to
+the it (and the service port) can access the service provided by kubernetes cluster.
 
 from Internet host's perspective, when it requests service, it refers this
-public external VIP and service port and the request will reaches the backend
-pod.  the external VIP is acting as a "gateway" between service inside of the cluster
-and outside world.
+public external `loadbalancerIP` plus service port and the request will reaches
+the backend pod. the `loadbalancerIP` is acting as a "gateway" between service
+inside of the cluster and outside world.
 
-Some cloud providers allow you to specify the loadBalancerIP. In those cases,
+Some cloud providers allow you to specify the `loadBalancerIP`. In those cases,
 the load-balancer is created with the user-specified loadBalancerIP. If the
-loadBalancerIP field is not specified, the loadBalancer is set up with an
-ephemeral IP address. If you specify a loadBalancerIP but your cloud provider
-does not support the feature, the loadbalancerIP field that you set is ignored.
+`loadBalancerIP` field is not specified, the loadBalancer is set up with an
+ephemeral IP address. If you specify a `loadBalancerIP` but your cloud provider
+does not support the feature, the `loadbalancerIP` field that you set is ignored.
 
 how is a loadbalancer implemented in loadbalancer service is "vendor-specific".
 a GCE loadbalancer may work in a totally different way with a AWS loadbalancer.
 we'll have a detail demonstration about how loadbalancer service works in
 contrail kubernetes environment in chapter 4.
 
-==== externalIP
+==== `externalIPs`
 
-Exposing service outside of the cluster can also be achieved via `externalIPs`
-option. 
+//https://stackoverflow.com/questions/46701644/what-is-the-difference-between-loadbalancer-and-external-ips-types-of-kubernetes
+
+Exposing service outside of the cluster can also be achieved via externalIPs option.
+here is an example:
 
 ----
 apiVersion: v1
@@ -1987,6 +1990,9 @@ In the Service spec, `externalIPs` can be specified along with any of
 the ServiceTypes. `externalIPs` are not managed by Kubernetes and are the
 responsibility of the cluster administrator. 
 
+NOTE: `externalIPs` are different from `loadbalancerIP`. `loadbalancingIP` is
+the IP assigned by cluster administrator, while `externalIPs` comes with the
+loadbalancer created by the cluster that supports it.
 
 === service implementation: kube-proxy
 

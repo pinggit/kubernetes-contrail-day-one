@@ -979,7 +979,8 @@ some highlights of this figure:
   subnet 30.1.1.0/24. 
 * a client only sees one frontend VIP `20.1.1.1`, representing the whole service
 
-how it works:
+.how it works:
+
 * when LB sees a request coming, it does TCP connection proxying. what that
   means is it establishes the TCP connection with the client, extracts the
   clients' HTTP/HTTPS requests, creates a new TCP connection towards one of the
@@ -1028,7 +1029,8 @@ highlights in this figure:
   has multiple `members`
 * each member object in the pool will map to one of pod backend
 
-this is how service works in contrail:
+.this is how service works in contrail:
+
 * when a `custerIP` or `loadbalancer` type of `service` is created, a
   `loadbalancer` object with `loadbalancer_provider` property set to `native` is
   created
@@ -1517,10 +1519,13 @@ prefix.
 .vrouter ECMP nexthop
 image::https://user-images.githubusercontent.com/2038044/60680345-ece12700-9e58-11e9-9793-2b609918e146.png[]
 
-we won't cover all details in this outputs. the most important thing that is of
+among all of the details in this outputs, the most important thing that is of
 our focus is `nh_index: 87`, which is the next hop ID (`NHID`) for the clusterIP
 prefix. from vrouter agent docker, we can further resolve the "Composite" NHID to 
-the sub-NHs (member nexthops):
+the `sub-NHs`, which is the "member" nexthops under the "Composite" next hop:
+
+TIP: don't forget to execute the vrouter command from within the vrouter docker.
+doing it from the host directly won't work.
 
 ----
 [2019-07-04 12:42:06]root@cent222:~
@@ -1539,7 +1544,24 @@ Id:37         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:5          Vrf:2
               Flags:Valid, Etree Root,
               EncapFmly:0806 Oif:8 Len:14               #<---
               Encap Data: 02 30 51 c0 fc 9e 00 00 5e 00 01 00 08 00
+----
 
+some important information to highlight from this capture:
+
+* NHID 87 is an "ECMP composite nexthop"
+* the ECMP nexthop contains 2 "sub" nexthops: nexthop 51 and nexthop 37, each
+  representing a seperate path towards the backend pods
+* nexthop 51 represents a "MPLSoUDP" tunnel toward backend pod in the remote
+  node, the tunnel is established from current node `cent222`, with source IP
+  being local fabric IP `10.169.25.20`, to the other node `cent333` whose fabric
+  IP is `10.169.25.21`. if you recall where our two backend pods are located,
+  this is the forwarding path between the 2 nodes.
+* nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
+  local backend pod's interface. 
+
+to resolve the vrouter `vif` interface,  use `vif --get 8` command:
+
+----
 $ vif --get 8
 Vrouter Interface Table
 
@@ -1558,30 +1580,35 @@ vif0/8      OS: tapeth0-304431
             Drops:455
 ----
 
-TIP: don't forget to execute the vrouter command from within the vrouter docker.
-doing it from the host directly won't work.
-
-some important information to highlight from this capture:
-
-* NHID 87 is an "ECMP composite nexthop"
-* the ECMP nexthop contains 2 "sub" nexthops: nexthop 51 and nexthop 37, each representing a
-  seperate path towards the backend pods
-* nexthop 51 represents a MPLSoUDP tunnel, from current node `cent222`, with
-  source IP being local fabric IP `10.169.25.20`, to the other node `cent333`
-  whose fabric IP is `10.169.25.21`. if you recall where our two backend pods
-  are located, this is the path to the "remote" node.
-* nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
-  local backend pod's interface. 
-* the `vif --get 8` give the corresponding pod interface name of vif 0/8.
+the output displays the corresponding local pod interface's name, IP, etc.
 
 ==== clusterIP service workflow
 
 the clusterIP service's loadbalancer ECMP workflow is illustrated in this
 figure:
 
-.contrail service loadbalancer ECMP
+.contrail service loadbalancer ECMP forwarding
 //image::https://user-images.githubusercontent.com/2038044/60762382-97f60a00-a02c-11e9-81ad-b1f05d815571.png[]
 image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-11e9-8cec-41d5e177bfb9.png[]
+
+this is what happened in the forwarding plane:
+
+* a client pod `cirros` located in node `cent222` needs to access a service
+  `service-web-clusterip`, it sends a packet towards the service's clusterIP
+  `10.105.139.153` and port `8888`
+* `cirros` sends the packet to `node222` vrouter based on the default route.
+* vrouter on `node222` got the packet, it checks its corresponding VRF table, get a
+  "Composite" nexthop ID `87`, which resolves to two sub-nexthops `51` and `37`,
+  representing a remote and local backend pod respectively. this indicates ECMP.
+* vrouter on `node222` starts to forward the packet to one of the pod based on
+  its ECMP algorithm. 
+  Suppose the remote backend pod is selected, the packet will be sent through
+  MPLSoUDP tunnel to the remote pod on node `cent333`,
+  meanwhile a vrouter flow is established in the flow table, all subsequent
+  packets belongs to the same flow will follow this same path. 
+  same applys to the local path towards local backend pod.
+
+//TODO: this is forwarding flow only, also give control plane flow?
 
 ==== multiple port service
 
@@ -1888,18 +1915,19 @@ file.
 whenever a service of `type: LoadBalancer` get created, in contrail environment
 what will happen is , not only a `clusterIP` will be allocated and exposed to
 other pods within the cluster, but also a `floating ip` will be assigned to the
-loadbalancer instance and exposed to the public world outside of the cluster. 
+loadbalancer instance as an "external IP" and exposed to the public world outside
+of the cluster. 
 
 while the `clusterIP` is still acting as a `VIP` to the client **inside** of the
-cluster, the `floating ip` will essentially act as a `VIP` facing those client
-sitting **outside** of the cluster, for example, a remote Internet host which
-sends request to the service across the gateway router. 
+cluster, the `floating ip` or `external IP` will essentially act as a `VIP`
+facing those client sitting **outside** of the cluster, for example, a remote
+Internet host which sends request to the service across the gateway router. 
 
 in this section we'll demonstrate how does the `LoadBalancer` type of service
-works in our end to end lab setup, including the kubernetes cluster, fabric
+works in our end to end lab setup, which includes the kubernetes cluster, fabric
 switch, gateway router, and Internet host.
 
-==== create loadbalancer service
+==== create `Loadbalancer` service
 
 let's look at the yaml file of a `LoadBalancer` service. it is same as ClusterIP
 service except just one more line declaring the service `type`:
@@ -1935,9 +1963,13 @@ column there is an IP allocated. if you remember what we've covered in the
 "floating IP pool" section, you should understand this "EXTERNAL-IP" is actually
 another `FIP`, allocated from the `NS FIP pool` - we did not give any specific
 FIP pool information in the service object yaml file, so based on the algorithm
-`NS default FIP pool` will be used automatically. 
+`NS FIP pool` will be used automatically. 
 
 ==== examine VRF table in gateway router
+
+in "contrail floating IP" section you've learned how to advertise FIP. here
+we'll review the main concepts to understand how it works in contrail `service`
+implementation. 
 
 the `route-target` community setting in the FIP VN makes it reachable by the
 Internet host, so effectively our service is now also exposed to the Internet
@@ -1958,7 +1990,7 @@ k8s-test.inet.0: 23 destinations, 40 routes (23 active, 0 holddown, 0 hidden)
 
 the FIP host route is learned by gateway router, from contrail controller - more
 specifically, contrail control node, which acts as a standard MP-BGP VPN `RR`
-reflects routes between compute nodes and the gateway router. A further look
+reflecting routes between compute nodes and the gateway router. A further look
 at the detail version of the same route displays more information about this
 process:
 
@@ -1991,24 +2023,29 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
                 Announcement bits (1): 1-KRT
                 AS path: ?
                 Communities: target:500:500 target:64512:8000016
-                    encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd)
-                    unknown type 8004 value eac4:7a1207 unknown type 8071 value
-                    eac4:b unknown type 8084 value eac4:10000 unknown type 8084
-                    value eac4:ff0004 unknown type 8084 value eac4:1020006
-                    unknown type 8084 value eac4:1030001
+                    ......
                 Import Accepted
                 VPN Label: 44
                 Localpref: 200
                 Router ID: 10.169.25.19
                 Primary Routing Table bgp.l3vpn.0
 ----
+////
+                    encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd)
+                    unknown type 8004 value eac4:7a1207 unknown type 8071 value
+                    eac4:b unknown type 8084 value eac4:10000 unknown type 8084
+                    value eac4:ff0004 unknown type 8084 value eac4:1020006
+                    unknown type 8084 value eac4:1030001
+////
 
 * the `source` indicates from which BGP peer the route is learned,
   `10.169.25.19` is the contrail controller (and kubernetes master) in our lab
 * `protocol next hop` tells who generates the route. `10.169.25.20` is node
-`cent222` where the backend webserver pod is running
-* `gr-2/2/0.32771` represents the (MPLS over) GRE tunnel between node `cent222`
-and the gateway router.
+  `cent222` where the backend webserver pod is running
+* `gr-2/2/0.32771` is an interface representing the (MPLS over) GRE tunnel
+  between the gateway router and node `cent222`.
+
+==== `Loadbalancer` service workflow
 
 to summarize, the FIP given to the service as its external ip is advertised to
 gateway router, and get loaded in the router's VRF table. when Internet host
@@ -2017,10 +2054,12 @@ forward it to the compute node where backend pod is locating.
 
 the packet flow is illustrated in this figure:
 
-.service workflow
-image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
+.`loadbalancer` service workflow
+//image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
+image::https://user-images.githubusercontent.com/2038044/63638336-e8fda400-c654-11e9-8938-d98901633b6b.png[]
 
-////
+here is the full story:
+
 * you create a `FIP pool` from a public VN, with route-target the VN is
   advertised to the remote gateway router via MP-BGP 
 * you create a pod with a label `app: webserver`, kubernetes decides the pod
@@ -2040,9 +2079,8 @@ image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-
   the MPLS over GRE tunnel it will send the request to the node `cent222`
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
   so the packets will be sent to the right backend pod.
-////
 
-==== verify the loadbalancer service
+==== verify the `Loadbalancer` service
 
 To verify the end to end service access from Internet host to the backend pod, 
 we will login to the Internet host desktop and launch a browser, with URL
@@ -2077,7 +2115,7 @@ This page is served by a Contrail pod
 
 the kubernetes service is available from Internet!
 
-==== loadbalancer service ECMP
+==== `Loadbalancer` service ECMP
 
 so far you've seen how loadbalancer type of service is exposed to the Internet
 and how the FIP did the "trick". in ClusterIP service section, you've also seen
@@ -2166,7 +2204,7 @@ node where a backend pod is running. now we believe the router will perform
 ECMP load balancing between the two GRE tunnel, whenever it got service request
 toward the same FIP. let's check it out.
 
-==== verify the loadbalancer service ECMP
+==== verify the `Loadbalancer` service ECMP
 
 to verify the ECMP we'll just pull the webpage a few more time and we expect to
 see both podIP displayed eventually.
@@ -2278,8 +2316,6 @@ This page is served by a Contrail pod
   IP address = 10.47.255.238
   Hostname = webserver-846c9ccb8b-r9zdt
 ----
-
-==== loadbalancer service workflow
 
 the end to end packet flow is illustrated here:
 
