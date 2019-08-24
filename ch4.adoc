@@ -464,19 +464,19 @@ frequently used methods among them are:
 * fabric SNAT
 * logical router
 
-fabric SNAT and logical router are used by overlay workloads(VM and POD) to
-reach the internet and the reverse is not possible. floating-IP supports both
-and you can configure to use ingress or egress or both.
-
-however, the prefered kubernetes solution to expose any servcice is via `service` 
-and `Ingress` objects. which you've read about and got the idea in chapter 3.
+the prefered kubernetes solution to expose any service is via `service` 
+and `Ingress` objects which you've read about and got the idea in chapter 3.
 in contrail kubernetes environment, floating IP is used in the service and Ingress
 implementation to expose them to outside of the cluster. later in this chapter
 we'll have a very detail discussion for each of these two objects. befor that,
 in this section, we'll review the "floating IP" basis and look at how it works
 with kubernetes.
 
-NOTE: please refer contrail documents for fabric SNAT and logical router
+NOTE: `fabric SNAT` and `logical router` are used by overlay workloads(VM and
+POD) to reach the internet and the reverse direction is not possible. `floating
+IP` however, supports both direction - you can configure it to support ingress
+traffic, egress traffic, or both.  in this book we focus on `floating IP` only.
+please refer contrail documents for fabric SNAT and logical router
 
 === floating IP introduction
 
