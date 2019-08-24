@@ -11,16 +11,14 @@
 :coderay-linenums-mode: inline
 :numbered:
 
-This chapter demonstrates how kubernetes objects works in contrail setup.  we'll
-start with a section about contrail kubernetes integration architecture, where
-you'll learn object mapping between kubernetes and contrail. those objects are
-NS, pod, service, ingress, and network policy. then we'll look into
-implementation of each of them in detail. to understand `service` exposure we
-also introduce floating IP, which is part of the contrail's service and Ingress
-implementation. multiple interface pod is a highlight of contrail's advantages
+This chapter expalins contrail role in kubernetes world. we'll start with a
+section about contrail kubernetes integration architecture, where you will
+learn how kubernetes objects are handled in contrail. those objects are NS,
+pod, service, ingress, network policy and etc. then we'll look into 
+implementation of each of them in detail. we also introduce contrail constructs
+on th need basis. multiple interface pod is a highlight of contrail's advantages
 as one of kubernetes network CNI over other implementations, so we cover that
-also. in the end, we conclude this chapter by demonstration of a service chain
-using Juniper CSRX container.
+also. in the end, we will demonstate service chain using Juniper CSRX container.
 
 == Contrail-Kubernetes architecture 
 === Why contrail with Kubernetes ?
