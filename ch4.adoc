@@ -12,13 +12,13 @@
 :numbered:
 
 This chapter expalins contrail role in kubernetes world. we'll start with a
-section about contrail kubernetes integration architecture, where you will
-learn how kubernetes objects are handled in contrail. those objects are NS,
-pod, service, ingress, network policy and etc. then we'll look into 
-implementation of each of them in detail. we also introduce contrail constructs
-on th need basis. multiple interface pod is a highlight of contrail's advantages
-as one of kubernetes network CNI over other implementations, so we cover that
-also. in the end, we will demonstate service chain using Juniper CSRX container.
+section about contrail kubernetes integration architecture, where you will learn
+how kubernetes objects are handled in contrail. those objects are NS, pod,
+service, ingress, network policy and etc. then we'll look into implementation of
+each of them in detail. we also introduce some contrail objects whenever needed.
+multiple interface pod is a highlight of contrail's advantages as one of
+kubernetes network CNI over other implementations, so we cover that also. in the
+end, we will demonstate service chain using Juniper CSRX container.
 
 == Contrail-Kubernetes architecture 
 === Why contrail with Kubernetes ?
@@ -60,11 +60,11 @@ what we mean by contrail enriching standard Kubernetes deployment?
 
 Eventhough kubernetes does not provide the networking, it imposes fundamental
 requirements on the networking implementation and it is taken care by all CNI
-("Container Network Interface") providers. contrail is one of the cni provider. you
+("Container Network Interface") providers. contrail is one of the cni providers. you
 can refer to https://kubernetes.io/docs/concepts/cluster-administration/networking/
 for more available CNI providers.
 
-kubernets fundamental requirements in networking implementaion:
+kubernets has defined some fundamental requirements in networking implementation:
 
 . pods on a node can communicate with all pods on all nodes without NAT
 . agents on a node (e.g. system daemons, kubelet) can communicate with all
@@ -72,9 +72,9 @@ kubernets fundamental requirements in networking implementaion:
 . pods in the host network of a node can communicate with all pods on all
   nodes without NAT
   
-with CNI plugins, Kubernetes offers flat network connectivity with
-some security feature confined in a cluster, but Contrail could offer
-on top of that:
+with these requirements to all CNI plugins implementations, Kubernetes offers
+flat network connectivity with some security feature confined in a cluster, but
+Contrail could offer on top of that:
 
 . namespaces and services customized isolations for segmentations and
   multi-tenancy
@@ -91,9 +91,9 @@ Kubernetes/contrail architecture and the object mapping
 === contrail-kube-manager
 
 A new components of contrail has been added called `contrail-Kube-manager`,
-abbreviated as `KM`. what it does basically is to watch kubernetes apiserver
-for interested kubernetes resources, and translates into Contrail controller object. the
-following figure illustratesthe basic work flow:
+abbreviated as `KM`. what it does basically is to watch kubernetes apiserver for
+interested kubernetes resources, and translates into Contrail controller object.
+the following figure illustratesthe basic work flow:
 
 .contrail kubernetes architecture
 
@@ -109,9 +109,10 @@ of that is happening behind the scene.
 what we have to be aware of it before dealing with Kubernetes/contrail is the
 object mapping. because contrail is single interface managing multiple
 environments - as explained before – each environment has its own acronym and
-terms hence the need for this mapping which will be done by a plugin and in
-kubernetes contrail-kube-manager does this. contrail has specific plugins for
-each environments/orchestrator.
+terms hence the need for this mapping, which will be done by a plugin. in
+kubernetes `contrail-kube-manager` does this. 
+
+NOTE: contrail has specific plugins for each environments/orchestrator.
  
 For example, Namespace in Kubernetes are intended for segmentation between
 multiple teams, or projects as if we are creating virtual cluster. In contrail
@@ -204,15 +205,15 @@ network - any pod can talk to any pod in any namespace, any cni providers should
 ensure that. consequently in kubernetes by default all namespaces are **not**
 isolated.
 
-NOTE: isolated and non-isolated should be seen in the context of (contrail)
-networking
+NOTE: the term "isolated" and "non-isolated" are in the context of (contrail)
+networking only. 
 
 .k8s-default-pod-network and k8s-default-service-network
 
 To provide networking for all non-isolated namespace, there should be a
 **common** VRF (virtual routing and forwarding table) or RI (routing instance).
 in contrail kubernetes environment, two "default" VNs are pre-configured in k8s
-NS - default project, for pod and service respectively. correspondingly there are
+default NS, for pod and service respectively. correspondingly there are
 2 VRFs each with same name as their correspondingly VN. 
 
 the name of the two VNs/VRFs are in this format:
@@ -225,20 +226,22 @@ become:
 * `k8s-default-pod-network`: pod VN/VRF, with the default subnet `10.32.0.0/12`
 * `k8s-default-service-network`: service VN/VRF, with a default subnet `10.96.0.0/12`
 
-NOTE: kubernets uses subnet 10.32.0.0/12 for pod network and subnet 10.96.0.0/12 for
-service network by default. it is configurable.
+NOTE: the default subnet for pod or service is configurable.
 
 it is important to know that these 2 default VNs are **shared** between all of
 the "non-isolated" namespaces. what that means is, they will be available for
 any new non-isolated NS that you create, implicitly.  that is why pods from
 all non-isolated NS including default NS can talk to each other.
 
-NOTE: one can think that, if service network and pod network are diffrent, how service
-can reach the backend pod? you are right by default contrail network policy is enabled
-between service and pod network which allows service to reach the pod and vice versa.
-Any VNs that you create will be isolated with other VNs, regardless of same or different
-NS and using contrail network policy pods in two different VNs can communicate with
-each other.
+on the other hand, any VNs that you create will be isolated with other VNs,
+regardless of same or different NS. communication between pods in two different
+VNs requires contrail network policy.
+
+NOTE: later when you read about kubernetes `service`, you may wonder why packets
+destined service VN/VRF can reach the backend pod in pod VN/VRF? the answer is
+also contrail network policy. by default contrail network policy is enabled
+between service and pod network which allows packets arriving service VN/VRF to
+reach the pod, and vice versa. 
 
 for the isolated NS, however, it will be a different story.
 
@@ -274,8 +277,8 @@ following VN/VRFs in contrail:
 * default-domain:k8s-ns-isolated:k8s-ns-isolated-service-network
 * default-domain:k8s-ns-isolated:k8s-vn-left-1-pod-network
 
-NOTE: The above name is mentioned in the FQDN format. In contrail domain is the top-level
-object, followed by project/tenant and followed by virtual-networks
+NOTE: The above name is mentioned in the FQDN format. In contrail domain is the
+top-level object, followed by project/tenant and followed by virtual-networks.
 
 ////
 * default-domain:k8s-default:k8s-default-pod-network:k8s-default-pod-network
