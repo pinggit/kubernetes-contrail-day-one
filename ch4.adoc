@@ -562,8 +562,6 @@ kind: NetworkAttachmentDefinition
 metadata:
   annotations:
     "opencontrail.org/cidr": "101.101.101.0/24"
-    "opencontrail.org/ip_fabric_forwarding": "false"
-    "opencontrail.org/ip_fabric_snat": "false"
   name: vn-ns-default
 spec:
   config: '{
@@ -634,19 +632,20 @@ it in your yaml file for every object.
 
 .NS level
 
-in a NS, a "lazy" way to give FIP is to define a "NS level" FIP pool, so that
-all objects created in that NS will get FIP assignment from that pool. 
-with NS level pool defined (e.g. `pool-ns-default`), there is no need to
-specify the FIP-pool name in each object's yaml file any more. you can still
-give a different pool name, say `my-webservie-pool` in an object `webservice` ,
-in that case object `webservice` will get the FIP from `my-webservice-pool`
-instead of from the NS level pool `pool-ns-default`, because the former is more
-specific.
+In a multi tenancy environment each namespace would be associated to a tenant,
+and each tenannt would have dedicated FIP pool. In that case it is better to
+have a option to define at "NS level" FIP pool, so that all objects created in
+that NS will get FIP assignment from that pool. with NS level pool defined
+(e.g. `pool-ns-default`), there is no need to specify the FIP-pool name in each
+object's yaml file any more. you can still give a different pool name, say
+`my-webservie-pool` in an object `webservice` , in that case object `webservice`
+will get the FIP from `my-webservice-pool` instead of from the NS level pool
+`pool-ns-default`, because the former is more specific.
 
 .global level
 
-a "even lazier" method is to define a "global" level pool, which means
-the scope will be the whole cluster, including all namespaces. 
+the scope of the "global" level pool will be the whole cluster. objects in any
+namespaces can use the "global" FIP pool.
 
 you can combine all 3 methods to take advantages of the flexibility. here is a
 practical example:
@@ -676,7 +675,7 @@ kind: Service
 metadata:
   name: service-web-lb-pool-public-1
   annotations:
-    "opencontrail.org/fip-pool": "{'domain': 'default-domain','name': 'pool-public-1','network': 'vn-public-1','project': 'k8s-ns-user-1'}"
+    "opencontrail.org/fip-pool": "{'domain': 'default-domain', 'project': 'k8s-ns-user-1', 'network': 'vn-public-1', 'name': 'pool-public-1'}"
 spec:
   ports:
   - port: 8888
@@ -704,7 +703,7 @@ kind: Namespace
 metadata:
   annotations:
     opencontrail.org/isolation: "true"
-    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'name': 'pool-ns-default', 'network': 'vn-ns-default', 'project': 'k8s-ns-user-1'}"
+    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'project': 'k8s-ns-user-1', 'network': 'vn-ns-default', 'name': 'pool-ns-default'}"
   name: ns-user-1
 ----
 
