@@ -5240,7 +5240,8 @@ ends) between the container namespace and the host network stack
 in container technology, A veth(Virtual ETHernet) pair is functioning pretty much
 like a virtual "cabel", that can be used to create tunnels between network namespaces.
 one end of it is "plugged" in the container and the other end is in the host or docker
-bridge. it can also be used to create a bridge to a physical network device in another
+bridge. 
+//it can also be used to create a bridge to a physical network device in another
 namespace.
 
 A "CNI plugin" is the one who is responsible for inserting the network interface
@@ -5258,7 +5259,7 @@ today. contrail is one of them.  for a comprehensive list you can check
 https://github.com/containernetworking/cni where contrail is also listed.
 
 `multus-cni`, is another CNI plugin that "enables attaching multiple
-network interfaces to pods". `multus-cni`'s multipe-network support is
+network interfaces to pods". multipe-network support of `multus-cni` is
 accomplished by Multus calling multiple other CNI plugins. because each plugin
 will create its own network, multiple plugins make the pod be able to have
 multiple networks. one of the main advantages that contrail provides, comparing
@@ -5274,6 +5275,11 @@ Kubernetes supports a custom extension to represent networks in its object
 model, through its `CustomResourceDefinition(CRD)` feature. This extension adds
 support for a new kind of object called `NetworkAttachmentDefinition`, which
 represents a network in Kubernetes data model.
+
+in contail, a CRD object defines the template for a network object
+`NetworkAttachmentDefinition`, which contains all information about each
+network's specification, and tells Kubernetes API how to understand and expose
+it. 
 ////
 
 contrail CNI follows the Kubernetes Network `CRD`(Custom Resource Definition)
@@ -5281,6 +5287,7 @@ contrail CNI follows the Kubernetes Network `CRD`(Custom Resource Definition)
 configurations for additional network interfaces. there is no change to the 
 standard kubernetes upstream APIs, making the implementation coming with the
 most compatibilities.
+
 in contrail setup the NetworkAttachmentDefinition CRD is created by
 `contrail-kube-manager`(`KM`). when bootup, `KM` validates if a network CRD
 `network-attachment-definitions.k8s.cni.cncf.io` is found in the Kubernetes API
@@ -5385,8 +5392,9 @@ metadata:
 ----
 ////
 
-using `NetworkAttachmentDefinition` CRD, we have the ability to create vitual-network
-in contrail.
+using this new kind `NetworkAttachmentDefinition` created from the above CRD,
+now we have the ability to create `vitual-network` in contrail kubernetes
+environments.
 
 to create a virtual-network from kubernetes, use a yaml template like this:
 
@@ -5410,7 +5418,7 @@ spec:
 like many other standard kubernetes object, basically you specify the VN name,
 namespace under `metadata`, and `annotations` which is used to carry additional
 information about a network. in contrail the following annotations are used in
-`NetworkAttachmentDefinition` CRD brings to enable certain options for the
+`NetworkAttachmentDefinition` CRD to enable certain attributes for the
 virtual-network:
 
 * `opencontrail.org/cidr`: CIDR, which defines the subnet for a VN
@@ -5421,9 +5429,9 @@ virtual-network:
 
 ****
 In contrail, `ip-fabric-forwarding` feature enables ip fabric based forwarding
-without tunneling for the VN. When two ip_fabric_forwrding enabled virtual networks
-communicate with each other, overlay traffic will be forwarded directly using the
-underlay. 
+without tunneling for the VN. When two `ip_fabric_forwrding` enabled virtual
+networks communicate with each other, overlay traffic will be forwarded directly
+using the underlay. 
 
 With the Contrail `ip-fabric-snat` feature, pods that are in the overlay can
 reach the Internet without floating IPs or a logical-router. The
@@ -5601,12 +5609,13 @@ in the UI. instead, what you will find are two VNs named
 `k8s-vn-left-1-pod-network` and `k8s-vn-right-1-pod-network` got created. 
 
 there is nothing wrong here. What happened is whenever a VN get created from
-kubernetes, contrail automatically adds a prefix kubernetes cluster name(`k8s`)
-to the VN name that you give in the network yaml file, and a suffix `-pod-network`
-in the end. This makes sense because we know a VN can be created by different methods.
-with these extra keywords embeded in the name, it is easier to tell how the VN was
-created(from kubernetes or from the UI manually), what will it be used for, and also
-potential VN name conflicts can be avoided across multiple kubernetes clusters.
+kubernetes, contrail automatically adds kubernetes cluster name(by default
+`k8s`) as a prefix to the VN name that you give in the network yaml file, and a
+suffix `-pod-network` in the end. This makes sense because we know a VN can be
+created by different methods.  with these extra keywords embeded in the name, it
+is easier to tell how the VN was created(from kubernetes or from the UI
+manually), what will it be used for, etc. also potential VN name conflicts can
+be avoided across multiple kubernetes clusters.
 
 here is yaml file of the `cirros` pod - a container version of the
 classis cirros VM.
@@ -5845,7 +5854,7 @@ before proceeding.  From the Contrail UI, select Configure > Networking >
 Networks > default-domain > k8s-default, As shown in the figure which focus on
 left network
 
-NOTE: using namespace: default in the YAML file for a network will create
+NOTE: using `default` namespace in the YAML file for a network will create
 it in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
@@ -6000,10 +6009,11 @@ spec:
       privileged: true
 
 # kubectl create -f csrx1-sc.yaml
-
+----
 
 Confirm the interface placement in the correct network 
 
+----
 # kubectl describe pod csrx1-sc
 Name:               csrx1-sc
 Namespace:          default
