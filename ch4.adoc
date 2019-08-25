@@ -562,8 +562,6 @@ kind: NetworkAttachmentDefinition
 metadata:
   annotations:
     "opencontrail.org/cidr": "101.101.101.0/24"
-    "opencontrail.org/ip_fabric_forwarding": "false"
-    "opencontrail.org/ip_fabric_snat": "false"
   name: vn-ns-default
 spec:
   config: '{
@@ -634,19 +632,20 @@ it in your yaml file for every object.
 
 .NS level
 
-in a NS, a "lazy" way to give FIP is to define a "NS level" FIP pool, so that
-all objects created in that NS will get FIP assignment from that pool. 
-with NS level pool defined (e.g. `pool-ns-default`), there is no need to
-specify the FIP-pool name in each object's yaml file any more. you can still
-give a different pool name, say `my-webservie-pool` in an object `webservice` ,
-in that case object `webservice` will get the FIP from `my-webservice-pool`
-instead of from the NS level pool `pool-ns-default`, because the former is more
-specific.
+In a multi tenancy environment each namespace would be associated to a tenant,
+and each tenannt would have dedicated FIP pool. In that case it is better to
+have a option to define at "NS level" FIP pool, so that all objects created in
+that NS will get FIP assignment from that pool. with NS level pool defined
+(e.g. `pool-ns-default`), there is no need to specify the FIP-pool name in each
+object's yaml file any more. you can still give a different pool name, say
+`my-webservie-pool` in an object `webservice` , in that case object `webservice`
+will get the FIP from `my-webservice-pool` instead of from the NS level pool
+`pool-ns-default`, because the former is more specific.
 
 .global level
 
-a "even lazier" method is to define a "global" level pool, which means
-the scope will be the whole cluster, including all namespaces. 
+the scope of the "global" level pool will be the whole cluster. objects in any
+namespaces can use the "global" FIP pool.
 
 you can combine all 3 methods to take advantages of the flexibility. here is a
 practical example:
@@ -676,7 +675,7 @@ kind: Service
 metadata:
   name: service-web-lb-pool-public-1
   annotations:
-    "opencontrail.org/fip-pool": "{'domain': 'default-domain','name': 'pool-public-1','network': 'vn-public-1','project': 'k8s-ns-user-1'}"
+    "opencontrail.org/fip-pool": "{'domain': 'default-domain', 'project': 'k8s-ns-user-1', 'network': 'vn-public-1', 'name': 'pool-public-1'}"
 spec:
   ports:
   - port: 8888
@@ -704,7 +703,7 @@ kind: Namespace
 metadata:
   annotations:
     opencontrail.org/isolation: "true"
-    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'name': 'pool-ns-default', 'network': 'vn-ns-default', 'project': 'k8s-ns-user-1'}"
+    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'project': 'k8s-ns-user-1', 'network': 'vn-ns-default', 'name': 'pool-ns-default'}"
   name: ns-user-1
 ----
 
@@ -718,11 +717,13 @@ type of configuration very often in field.
 
 === global level FIP pool
 
-to specify a global level FIP pool, you need to give the full
-qualified pool name (domain > project > network) in configuration file for the
-`contrail-kube-manager` (`KM`) docker container. 
+to specify a global level FIP pool, you need to give the full qualified pool name
+(domain > project > network > name) in contrail-kube-manager('KM') configuration
+file(/etc/contrail/contrail-kubernetes.conf). The configuration file is generated
+from ENV parameters by the contrail-kube-manager docker during bringup.
 
-the configuration file is `/etc/contrail/common_kubemanager.env` in master node:
+The ENV parameters for contrail-kube-manager can be found in '/etc/contrail/common_kubemanager.env`
+file in master node:
 
 ----
 $ cat /etc/contrail/common_kubemanager.env
@@ -769,19 +770,19 @@ Creating kubemanager_kubemanager_1 ... done
 
 now the global FIP pool is specified for the cluster.
 
-=== creating FIP
+NOTE: In all three scopes, FIP is automatically allocated and associated
+only to service and ingress objects. If the FIP has to be associated to a
+POD it has to be done manually. next section will talk about that.
+
+
+=== creating FIP for PODS
 
 once FIP pool is created and available, an FIP can be allocated from the FIP
-pool for the objects that requires one. this can be done either manually, by
-associating an FIP to a VMI (VM or pod interface), or automatically by contrail
-system when it sees the need.
-
-.manually association
+pool for the objects that requires one. this can be done by associating an FIP
+to a VMI (VM or pod interface),
 
 you can manually create a FIP out of a FIP pool in contrail UI, and then
 associate it with a pod VMI.
-
-.create a FIP manually
 
 .create FIP
 image::https://user-images.githubusercontent.com/2038044/61014424-567b9c80-a355-11e9-832e-3a7f33d2590e.png[]
@@ -791,18 +792,6 @@ image::https://user-images.githubusercontent.com/2038044/61014684-aa3ab580-a356-
 
 NOTE: make sure the FIP pool is shared to the project where FIP is going to be
 created.
-
-.automatically assignment
-
-in some cases a FIP will be created automatically. later in this book, you will
-see examples when contrail automatically assigns a FIP and associate it to
-some kubernetes objects, for example:
-
-* LoadBalancer service object
-* Ingress object
-
-in fact, `ClusterIP` by itself is also implemented by FIP. we'll check out more
-details later.
 
 === advertising FIP
 
