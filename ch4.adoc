@@ -5726,14 +5726,24 @@ we see one lo interface and 3 interfaces plugged by contrail CNI, each with the
 IP allocated from the corresponding VN. also you will notice the MAC addresses
 match what we've seen in `kubectl describe` command output. 
 
-NOTE: having the MAC address in the annotations may be very important under
-certain cases - imaging you login a pod and for some reason you lose the track
+NOTE: having the MAC address in the annotations could be useful under certain
+cases. for example, in "service chaining" section, you will run into a scenario
+where you have to use the MAC address to locate the proper interface, so that
+you can assign the right podIP which kubernetes allocated from a VN check
+"service chaining" section for more details.
+
+////
+NOTE: having the MAC address in the annotations could be useful under certain
+cases. for example, in "service chaining" section, you will run into a scenario
+when you need to use the MAC address to locate the proper interface, before you
+can even tell which interface should be configured with which podIP that
+kubernetes allocated from a VN. check "service chaining" section for more
+details.
+
+- you login a pod and for some reason you lose the track
 of interface to VN mapping (e.g., you manually changed/removed the IPs, or the
 pod's application reset the IP, etc) you can count on the MAC address! later In
-"service chaining" section you will run into a scenario when you need to use the
-MAC address to locate the proper interface, before you can even tell which
-interface should be configured with which podIP that kubernetes allocated from a
-VN. check "service chaining" section for more details.
+////
 
 you will see multiple-interfaces pod again in sevice-chaining example later on.
 in that example the pod will be based on Juniper CSRX image instead of a general
