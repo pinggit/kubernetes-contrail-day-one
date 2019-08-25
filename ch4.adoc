@@ -2655,20 +2655,21 @@ service is not required.
 
 ==== backend `pod` definition
 
-same as in `service` example, we can use exactly the same `webserver` rc to
-launch backend pods:
+same as in `service` example, we can use exactly the same `webserver` deployment
+to launch backend pods:
 
 ----
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
-  name: rc-webserver
+  name: webserver
   labels:
     app: webserver
 spec:
   replicas: 1
   selector:
-    app: webserver
+    matchLabels:
+      app: webserver
   template:
     metadata:
       name: webserver
@@ -2688,20 +2689,9 @@ spec:
 
 as usual, we can create an individual yaml file for each of the objects. but
 considering in `Ingress`, these objects always need to be created and removed
-together, it is better to "merge" all yaml files into one. yaml syntax supports
-this by using a "document delimitor", a `---` line between each object
-definition. the benefits are:
-
-* you can create all objects in the yaml file in one go, using just one `kubectl apply`
-  command with the yaml file name
-* similarly, if anything goes wrong and you need to clean up, you can delete
-  all objects created with the yaml file in one `kubectl delete` command
-* whenever needed, you can still delete/update each individual objects
-  independently, by giving the object name
-
-NOTE: imaging during test process you may need to create and delete all objects
-as a whole very often, grouping multiple objects in one yaml file is a very
-convenient and recommended method.
+together, it is better to "merge" definitions of all these objects into one yaml
+file. yaml syntax supports this by using a "document delimitor", a `---` line
+between each object definition. 
 
 ----
 apiVersion: extensions/v1beta1
@@ -2726,11 +2716,12 @@ spec:
   #type: LoadBalancer
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
   name: rc-webserver
-  labels:
-    app: webserver
+  selector:
+    matchLabels:
+      app: webserver
 spec:
   replicas: 1
   selector:
@@ -2769,20 +2760,34 @@ spec:
     imagePullPolicy: Always
   restartPolicy: Always
 ////
+the benefits of this all-in-one yaml file are:
+
+* you can create/update all objects in the yaml file in one go, using just one `kubectl
+  apply` command
+* similarly, if anything goes wrong and you need to clean up, you can delete
+  all objects created with the yaml file in one `kubectl delete` command
+* whenever needed, you can still delete each individual objects
+  independently, by giving the object name
+
+TIP: imaging during test process you may need to create and delete all objects
+as a whole very often, grouping multiple objects in one yaml file can be very
+convenient.
 
 ==== deploy the single service Ingress
 
 before applying the yaml file to get all objects created, let's take a quick
-look at our two nodes, see if there is any `haproxy` process running already:
+look at our two nodes. we want to see if there is any `haproxy` process running
+without Ingress, so later after we deploy Ingress we can compare:
 
 ----
 $ ps aux | grep haproxy
 $ 
 ----
 
-So the answer is no. haproxy will be created only after we created `Ingress` and
-the corresponding loadbalancer object is seen by `contrail-service-monitor`.
-we'll check this again after we create an `Ingress`.
+So the answer is no in both node. haproxy will be created only after we create
+`Ingress` and the corresponding loadbalancer object is seen by
+`contrail-service-monitor`.  we'll check this again after we create an
+`Ingress`.
 
 ----
 $ kubectl apply -f ingress/ingress-single-service.yaml
@@ -2791,11 +2796,13 @@ service/service-web-clusterip created
 replicationcontroller/rc-webserver created
 ----
 
-the Ingress, one service and one RC object are now created.
+the Ingress, one service and one Deployment object are now created.
 
-==== ingress objects
+==== post examination
 
-let's start to look at the Ingress object.
+===== Ingress object
+
+let's start to examine the Ingress object.
 
 ----
 $ kubectl get ingresses.extensions -o wide
@@ -2835,9 +2842,10 @@ metadata:
   selfLink: ""
 ----
 
-as expected, the backend service is applied to the Ingress properly. there is no
-explicit rules defined to map a certain URL to a different service - all
-HTTP requests will be dispatched to the same backend service. 
+as expected, the backend service is applied to the Ingress properly. In this
+`single service Ingress` there is no explicit rules defined to map a certain URL
+to a different service - all HTTP requests will be dispatched to the same
+backend service. 
 
 what may confuse you is the two IP addresses shown here: 
 
@@ -2850,10 +2858,11 @@ what may confuse you is the two IP addresses shown here:
 
 we've seen these two subnets in service examples:
 
-* 10.47.255.x is an cluster-internal `podIP` allocated from the pod's default subnet
-* 101.101.101.x is the `FIP` associated with an internal IP.
+* `10.47.255.x` is an cluster-internal `podIP` allocated from the pod's default
+  subnet
+* `101.101.101.x` is the public `FIP` associated with an internal IP.
 
-but the question is why an Ingress has a `podIP` and `FIP`?
+but the question is why an Ingress even requires a `podIP` and `FIP`?
 
 ////
 this is the IP addresses allocated to the haproxy "virtual machine". 
@@ -2866,7 +2875,8 @@ let's hold the answer for now and continue to check service and pod
 object created from the all-in-one yaml file. we'll come back to this question
 shortly.
 
-.service objects
+===== service objects
+
 ----
 $ kubectl get svc -o wide
 NAME                   TYPE       CLUSTER-IP    EXTERNAL-IP  PORT(S)   AGE  SELECTOR
@@ -2874,14 +2884,15 @@ service-web-clusterip  ClusterIP  10.97.226.91  <none>       8888/TCP  28m  app=
 ----
 
 the service is also created and allocated a clusterIP. we've seen
-this before and it looks nothing special. now look at the pods:
+this before and it looks nothing special. now look at the pods.
 
-.backend and client pod
+===== backend and client pod
+
 ----
 $ kubectl get pod -o wide --show-labels
-NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE           LABELS
-cirros              1/1    Running  0         18d  10.47.255.237  cent222  <none>     app=cirros
-webserver-846c9ccb8b-9nfdx  1/1    Running  0         33m  10.47.255.236  cent333  <none>     app=webserver
+NAME                        READY  STATUS   ... IP             NODE     ... LABELS
+cirros                      1/1    Running  ... 10.47.255.237  cent222  ... app=cirros
+webserver-846c9ccb8b-9nfdx  1/1    Running  ... 10.47.255.236  cent333  ... app=webserver
 ----
 
 everything looks fine. there is a backend pod running for the service. we have
@@ -2889,7 +2900,7 @@ learned how selector and label works in service-pod associations so there is
 nothing new here. next we'll examine the haproxy and try to make some sense out
 of the 2 IPs allocated to Ingress object.
 
-==== haproxy processes
+===== haproxy processes
 
 earlier before the Ingress is created, we were looking for haproxy process in
 node but could not see anything. let's check it again and see if any magic
@@ -2919,7 +2930,7 @@ right after ingress got created, we see a haproxy process created in each of our
 two nodes!
 
 remember earlier when we talk about ingress contrail implementation, we've said
-contrail Ingress is also implemented through loadbalancer (like service), but
+contrail Ingress is also implemented through loadbalancer (just like `service`), but
 Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
 which makes `contrail-svc-monitor` takes a different action than what it does
 for service. the `loadbalancer_provider` for Ingress loadbalancer is
@@ -2969,7 +2980,7 @@ $ docker exec -it vrouter_vrouter-agent_1 ps 16335
 ////
 
 
-==== Ingress loadbalancer objects
+===== Ingress loadbalancer objects
 
 ////
 .contrail object: SI, port tuple, VMI
@@ -2977,9 +2988,9 @@ image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-
 ////
 
 we've talked about Ingress loadbalancers for a while. in `service` section,
-we've looked into service loadbalancer object in UI and learned more details
+we've looked into service loadbalancer object in UI and learned some details
 about the object data structrure. now after we created Ingress object, let's
-check the loadbalancers object again and see what Ingress brings in.
+check the loadbalancers object again and see what Ingress brings in here.
 
 .loadbalancers (configuration > Networking > Floating IPs)
 //image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
@@ -3022,7 +3033,7 @@ some highlights in the figure:
 * `SI` object has an interface with IP `10.47.255.238`
 
 at this moment,  we can explain the Ingress IP `10.47.255.248` seen in ingress.
-it is:
+basically this IP is:
 
 * an cluster-internal IP address allocated from the default pod network to
   the `SI` which the Ingress loadbalancer refers to.  
@@ -3035,34 +3046,36 @@ IP", "Ingress loadbalancer interface IP", etc.  to differentiate it from the
 Ingress public FIP, we can also name it as "Ingress podIP". 
 //similarly we'll refer the Ingress public FIP as "Ingress external IP"
 
-Now we understand the purpose of these two IPs:
+Now to compare the different purposes of these two IPs:
 
-* Ingress `podIP` is the VIP facing inside of the cluster. To reach Ingress from
-  inside of the cluster, requests coming from other pods will have their
-  destination IP set to Ingress `podIP`.
-* Ingress `FIP` is VIP facing outside world. To reach Ingress from outside of
-  the cluster, requests coming from Internet hosts need to have their
-  destinations IP set to Ingress FIP.  when node receives traffic destined to
-  the Ingress FIP from outside of the cluster, vrouter will translate it into
+* Ingress `podIP` is the VIP facing other pods inside of the cluster. To reach
+  Ingress from inside of the cluster, requests coming from other pods will have
+  their destination IP set to Ingress `podIP`.
+* Ingress `FIP` is VIP facing "Internet host" outside world. To reach Ingress
+  from outside of the cluster, requests coming from Internet hosts need to have
+  their destinations IP set to Ingress FIP.  when node receives traffic destined
+  to the Ingress FIP from outside of the cluster, vrouter will translate it into
   the Ingress `podIP`
 
-NOTE: the detail Ingress loadbalancer object implementation refers to SI, and SI
-again includes other data structure or reference to other objects (port-tuple,
-linux netns, VMI, etc). overall it is more complicated and involves more details
-than what we've covered and it is hard to put everything in this book. we've
-tailored the details into a high level overview so that important concepts like
-haproxy and the two Ingress IPes are more understandable.
+NOTE: the detail Ingress loadbalancer object implementation refers to a SI
+(service instance), and the SI again includes other data structure or reference
+to other objects (port-tuple, linux netns, VMI, etc). overall it is more
+complicated and involves more details than what we've covered and it is hard to
+put everything in this book. we've tailored the details into a high level
+overview so that important concepts like haproxy and the two Ingress IPes can be
+understood.
 
-Once packet arrives to the Ingress `podIP`, from internal or external, Ingress
-loadbalancer will do TCP proxy operation through haproxy process, and dispatch
-the traffic towards the service and eventually to the backend pod.
+Once a HTTP/HTTPS request arrives to the Ingress `podIP`, from internal or
+external, Ingress loadbalancer will do HTTP/HTTPS proxy operation through
+haproxy process, and dispatch the requests towards the service and eventually to
+the backend pod.
 
 we've seen the haproxy process is running, to examine more details of this proxy
-operation, next we can further check its configuration file and running
-parameters.
+operation, next we can further check its configuration file for the running
+parameters details.
 //configuration file and confirm the ingress rules are programmed properly.
 
-==== `haproxy.conf` file
+===== `haproxy.conf` file
 
 in each (compute) node, under `/var/lib/contrail/loadbalancer/` folder there
 will be a `haproxy` subfolder. the file structure looks like this:
@@ -3123,7 +3136,8 @@ backend b45fb570-bec5-4208-93c9-ba58c3a55936                    #<---
 the configuration is simple, and here is the illustration of it:
 
 .single service ingress 
-image::https://user-images.githubusercontent.com/2038044/61689786-db6f9a00-acf5-11e9-9625-4ba1e570d354.png[]
+//image::https://user-images.githubusercontent.com/2038044/61689786-db6f9a00-acf5-11e9-9625-4ba1e570d354.png[]
+image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-11e9-97e9-5a84ffa874cd.png[]
 
 * the haproxy `frontend` represents the "frontend" of an Ingress, facing clients
 * the haproxy `backend` represents the "backend" of an Ingress, facing services.
@@ -3147,7 +3161,7 @@ backend.
 
 through this configuration, the haproxy implemented our single service Ingress.
 
-==== gateway router VRF table
+===== gateway router VRF table
 
 we've explored a lot inside of the cluster. now let's look at the gateway
 router's VRF table. 
