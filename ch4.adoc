@@ -770,19 +770,19 @@ Creating kubemanager_kubemanager_1 ... done
 
 now the global FIP pool is specified for the cluster.
 
-=== creating FIP
+NOTE: In all three scopes, FIP is automatically allocated and associated
+only to service and ingress objects. If the FIP has to be associated to a
+POD it has to be done manually. next section will talk about that.
+
+
+=== creating FIP for PODS
 
 once FIP pool is created and available, an FIP can be allocated from the FIP
-pool for the objects that requires one. this can be done either manually, by
-associating an FIP to a VMI (VM or pod interface), or automatically by contrail
-system when it sees the need.
-
-.manually association
+pool for the objects that requires one. this can be done by associating an FIP
+to a VMI (VM or pod interface),
 
 you can manually create a FIP out of a FIP pool in contrail UI, and then
 associate it with a pod VMI.
-
-.create a FIP manually
 
 .create FIP
 image::https://user-images.githubusercontent.com/2038044/61014424-567b9c80-a355-11e9-832e-3a7f33d2590e.png[]
@@ -792,18 +792,6 @@ image::https://user-images.githubusercontent.com/2038044/61014684-aa3ab580-a356-
 
 NOTE: make sure the FIP pool is shared to the project where FIP is going to be
 created.
-
-.automatically assignment
-
-in some cases a FIP will be created automatically. later in this book, you will
-see examples when contrail automatically assigns a FIP and associate it to
-some kubernetes objects, for example:
-
-* LoadBalancer service object
-* Ingress object
-
-in fact, `ClusterIP` by itself is also implemented by FIP. we'll check out more
-details later.
 
 === advertising FIP
 
