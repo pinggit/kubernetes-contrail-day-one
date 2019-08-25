@@ -142,7 +142,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 ////
 
-== Contrail command
+== contrail command
 Before getting into deeper, we just want to introduce contrail-command(CC) which
 is the new user interface (UI) available from contrail 5.0.1. throughout this book
 we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
@@ -151,6 +151,7 @@ in the future CC will be the only UI and the "legacy" one will be deprecated.
 in CC, the functions and settings are groups in a a "main menu". it is also the
 entry point from where you can navigate through different functions. 
 
+.contrail command main menu
 image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
 
 in order to get this menu, click on group name right next to the "contrail command"
@@ -5218,14 +5219,13 @@ the response follows the reverse path of the request:
 
 in Kubernetes cluster, typically each pod only has one network interface (except
 the `loopback` interface). In reality, there are scenarios where multiple
-interfaces are required. e.g. in contrail solution service chain model, a
-service instance typically needs a "left", "right" and optionally a "management"
-interface to manipulate the service traffic. a pod may requires a "data
-interface" to carry the service traffic, and a "management interface" for the
-reachability detection. Service Providers also tend to keep the management and
-tenant networks independent for isolation, and management purpose. Multiple
-interfaces provide a way for containers to be connected to multiple devices in
-multiple networks simultaneously.
+interfaces are required. e.g. a vnf(virtual network function) typically needs a
+"left", "right" and optionally a "management" interface to do network fucntions.
+a pod may requires a "data interface" to carry the data traffic, and a "management
+interface" for the reachability detection. Service Providers also tend to keep the
+management and tenant networks independent for isolation, and management purpose.
+Multiple interfaces provide a way for containers to be connected to multiple devices
+in multiple networks simultaneously.
 
 === contrail as a CNI
 
@@ -5237,17 +5237,16 @@ containers own network namespace and later on runs a veth pair (a cable with two
 ends) between the container namespace and the host network stack
 ////
 
-in container technology, A virtual network device pair abstraction (the `veth`)
-is functioning pretty much like a virtual "cabel", that can be used to create
-tunnels between network namespaces. one end of it is "plugged" in the container
-and the other end is in the host. it can also be used to create a bridge to a
-physical network device in another namespace.
+in container technology, A veth(Virtual ETHernet) pair is functioning pretty much
+like a virtual "cabel", that can be used to create tunnels between network namespaces.
+one end of it is "plugged" in the container and the other end is in the host or docker
+bridge. it can also be used to create a bridge to a physical network device in another
+namespace.
 
-A "CNI plugin" is the one who is responsible for inserting the network
-interface, that is one end of the veth pair, into the container network
-namespace.  it will also makes all necessary changes on the host. e.g. attaching
-the other end of the veth into a bridge, assigning IP, configuring routes, and
-so on.
+A "CNI plugin" is the one who is responsible for inserting the network interface
+(that is one end of the veth pair) into the container network namespace and it will
+also makes all necessary changes on the host. e.g. attaching the other end of the veth
+into a bridge, assigning IP, configuring routes, and so on.
 
 //TODO: need redraw
 .container and veth pair
@@ -5256,9 +5255,10 @@ image::https://user-images.githubusercontent.com/2038044/60554760-ee9ad580-9d06-
 
 there are many such CNI plugin implementations that are publicly available
 today. contrail is one of them.  for a comprehensive list you can check
-https://github.com/containernetworking/cni where contrail is also listed. for
-example, `multus-cni`, is another CNI plugin that "enables attaching multiple
-network interfaces to pods". `multus-cni` 's multipe-network support is
+https://github.com/containernetworking/cni where contrail is also listed.
+
+`multus-cni`, is another CNI plugin that "enables attaching multiple
+network interfaces to pods". `multus-cni`'s multipe-network support is
 accomplished by Multus calling multiple other CNI plugins. because each plugin
 will create its own network, multiple plugins make the pod be able to have
 multiple networks. one of the main advantages that contrail provides, comparing
@@ -5267,12 +5267,7 @@ contrail by itself provides the ability to attach multiple network interfaces to
 a kubernetes pod, without the need to call any other plugins. this brings
 support to a truly "multi-homed" pod.
 
-contrail CNI follows the Kubernetes Network `CRD` (Custom Resource Definition)
-Standard to provide a standardized method to specify the configurations for
-additional network interfaces. there is no change to the standard kubernetes
-upstream APIs, making the implementation coming with the most compatibilities.
-
-=== CRD and `contrail-kube-manager`
+===  NetworkAttachmentDefinition CRD
 
 ////
 Kubernetes supports a custom extension to represent networks in its object
@@ -5281,18 +5276,17 @@ support for a new kind of object called `NetworkAttachmentDefinition`, which
 represents a network in Kubernetes data model.
 ////
 
-in contail, a CRD object defines the template for a network object
-`NetworkAttachmentDefinition`, which contains all information about each
-network's specification, and tells Kubernetes API how to understand and expose
-it. in contrail setup the CRD is created by `contrail-kube-manager` (`KM`),
-running as a docker container typically. `KM` interfaces with Kubernetes API
-server and converts objects from kube-apiserver to Contrail config-api server.
-
-when bootup, `KM` validates if a network CRD
+contrail CNI follows the Kubernetes Network `CRD`(Custom Resource Definition)
+- NetworkAttachmentDefinition to provide a standardized method to specify the
+configurations for additional network interfaces. there is no change to the 
+standard kubernetes upstream APIs, making the implementation coming with the
+most compatibilities.
+in contrail setup the NetworkAttachmentDefinition CRD is created by
+`contrail-kube-manager`(`KM`). when bootup, `KM` validates if a network CRD
 `network-attachment-definitions.k8s.cni.cncf.io` is found in the Kubernetes API
 server, and creates one if not yet.
 
-here is a `CRD` object template:
+here is a `CRD` object yaml:
 
 ----
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -5391,10 +5385,8 @@ metadata:
 ----
 ////
 
-with this CRD object present, we have the ability to create a
-`NetworkAttachmentDefinition` object as our virtual-network.
-
-=== `NetworkAttachmentDefinition` object
+using `NetworkAttachmentDefinition` CRD, we have the ability to create vitual-network
+in contrail.
 
 to create a virtual-network from kubernetes, use a yaml template like this:
 
@@ -5415,11 +5407,11 @@ spec:
 }'
 ----
 
-through `kind: NetworkAttachmentDefinition` which is created by CRD, we can
-define new VNs. like many other standard kubernetes object, basically you
-specify the VN name, namespace under `metadata`, and `annotations` which
-is used to carry additional information about a network. in contrail
-`NetworkAttachmentDefinition` implementation, the `annotations` bring:
+like many other standard kubernetes object, basically you specify the VN name,
+namespace under `metadata`, and `annotations` which is used to carry additional
+information about a network. in contrail the following annotations are used in
+`NetworkAttachmentDefinition` CRD brings to enable certain options for the
+virtual-network:
 
 * `opencontrail.org/cidr`: CIDR, which defines the subnet for a VN
 * `opencontrail.org/ip_fabric_forwarding`: a flag to enable/disable `ip fabric
@@ -5428,17 +5420,17 @@ is used to carry additional information about a network. in contrail
   feature
 
 ****
-with the contrail `ip-fabric-forwarding` feature, A VN can be marked for IP
-fabric based forwarding without tunneling. When two virtual networks with this
-type of configuration communicate with each other, overlay traffic will be
-forwarded directly using the underlay. 
+In contrail, `ip-fabric-forwarding` feature enables ip fabric based forwarding
+without tunneling for the VN. When two ip_fabric_forwrding enabled virtual networks
+communicate with each other, overlay traffic will be forwarded directly using the
+underlay. 
 
 With the Contrail `ip-fabric-snat` feature, pods that are in the overlay can
 reach the Internet without floating IPs or a logical-router. The
 `ip-fabric-snat` feature uses compute node IP for creating a source NAT to reach
-the required services and is applicable only to pod networks. 
+the required services.
 
-`ip fabric forwarding` and `ip fabric snap` features are not covered in this
+`ip fabric forwarding` and `ip fabric snat` features are not covered in this
 book.
 ****
 
@@ -5475,7 +5467,7 @@ metadata:
     k8s.v1.cni.cncf.io/networks: '[
       { "name": "VN-a" },
       { "name": "VN-b" },
-      { "name": "other-ns/VN-c" }
+      { "namespace": "other-ns", "name": "VN-c" }
     ]'
 spec:
   containers:
@@ -5609,12 +5601,12 @@ in the UI. instead, what you will find are two VNs named
 `k8s-vn-left-1-pod-network` and `k8s-vn-right-1-pod-network` got created. 
 
 there is nothing wrong here. What happened is whenever a VN get created from
-kubernetes, contrail automatically adds a prefix `k8s-` to the VN name that you
-give in the network yaml file, and a suffix `-pod-network` in the end. This
-makes sense because we know a VN can be created by different methods. with these
-extra keywords embeded in the name, it is easier to tell how the VN was created
-(from kubernetes or from the UI manually), what will it be used for, and also
-potential VN name confliction is avoided.
+kubernetes, contrail automatically adds a prefix kubernetes cluster name(`k8s`)
+to the VN name that you give in the network yaml file, and a suffix `-pod-network`
+in the end. This makes sense because we know a VN can be created by different methods.
+with these extra keywords embeded in the name, it is easier to tell how the VN was
+created(from kubernetes or from the UI manually), what will it be used for, and also
+potential VN name conflicts can be avoided across multiple kubernetes clusters.
 
 here is yaml file of the `cirros` pod - a container version of the
 classis cirros VM.
@@ -5853,8 +5845,8 @@ before proceeding.  From the Contrail UI, select Configure > Networking >
 Networks > default-domain > k8s-default, As shown in the figure which focus on
 left network
 
-NOTE: using namespace: default object in the YAML file for a network will create
-it n in domain “default-domain” and project “K8s-default”
+NOTE: using namespace: default in the YAML file for a network will create
+it in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
 
@@ -5913,80 +5905,7 @@ NAME              READY   STATUS    RESTARTS   AGE
 left-ubuntu-sc    1/1     Running   0          25h
 right-ubuntu-sc   1/1     Running   0          25h
 
-----
-
-=== create CSRX pod
-
-create Juniper CSRX container that have one interface on the left network and
-one interface on the right network using this YAML file 
-
-----
-# cat csrx1-sc.yaml 
-apiVersion: v1
-kind: Pod
-metadata:
-  name: csrx1-sc
-  labels:
-    app: webapp-sc
-  annotations:
-   k8s.v1.cni.cncf.io/networks: '[
-       { "name": "vn-left" },
-       { "name": "vn-right" }
-   ]'
-spec:
-  containers:
-  - name: csrx1-sc
-    image: csrx
-    ports:
-    - containerPort: 22
-    imagePullPolicy: Never
-    stdin: true
-    tty: true
-    securityContext:
-      privileged: true
-
-# kubectl create -f csrx1-sc.yaml
-
-
-Confirm the interface placement in the correct network 
-
 # kubectl describe pod 
-Name:               csrx1-sc
-Namespace:          default
-Priority:           0
-PriorityClassName:  <none>
-Node:               cent22/10.85.188.17
-Start Time:         Thu, 13 Jun 2019 03:40:31 -0400
-Labels:             app=webapp-sc
-Annotations:        k8s.v1.cni.cncf.io/network-status:
-                      [
-                          {
-                              "ips": "10.10.10.2",
-                              "mac": "02:84:71:f4:f2:8d",
-                              "name": "vn-left"
-                          },
-                          {
-                              "ips": "10.20.20.2",
-                              "mac": "02:84:8b:4c:18:8d",
-                              "name": "vn-right"
-                          },
-                          {
-                              "ips": "10.47.255.248",
-                              "mac": "02:84:59:7e:54:8d",
-                              "name": "cluster-wide-default"
-                          }
-                      ]
-                    k8s.v1.cni.cncf.io/networks: [ { "name": "vn-left" }, { "name": "vn-right" } ]
-Status:             Running
-IP:                 10.47.255.248
-Containers:
-  csrx1-sc:
-    Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
-    Image:          csrx
-    Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
-
-...<snipped>...
-
 Name:               left-ubuntu-sc
 Namespace:          default
 Priority:           0
@@ -6048,6 +5967,80 @@ Containers:
     Image ID:       docker-pullable://virtualhops/ato-ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
   
  ...<snipped>...
+----
+
+=== create CSRX pod
+
+create Juniper CSRX container that have one interface on the left network and
+one interface on the right network using this YAML file 
+
+----
+# cat csrx1-sc.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csrx1-sc
+  labels:
+    app: webapp-sc
+  annotations:
+   k8s.v1.cni.cncf.io/networks: '[
+       { "name": "vn-left" },
+       { "name": "vn-right" }
+   ]'
+spec:
+  containers:
+  - name: csrx1-sc
+    image: csrx
+    ports:
+    - containerPort: 22
+    imagePullPolicy: Never
+    stdin: true
+    tty: true
+    securityContext:
+      privileged: true
+
+# kubectl create -f csrx1-sc.yaml
+
+
+Confirm the interface placement in the correct network 
+
+# kubectl describe pod csrx1-sc
+Name:               csrx1-sc
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               cent22/10.85.188.17
+Start Time:         Thu, 13 Jun 2019 03:40:31 -0400
+Labels:             app=webapp-sc
+Annotations:        k8s.v1.cni.cncf.io/network-status:
+                      [
+                          {
+                              "ips": "10.10.10.2",
+                              "mac": "02:84:71:f4:f2:8d",
+                              "name": "vn-left"
+                          },
+                          {
+                              "ips": "10.20.20.2",
+                              "mac": "02:84:8b:4c:18:8d",
+                              "name": "vn-right"
+                          },
+                          {
+                              "ips": "10.47.255.248",
+                              "mac": "02:84:59:7e:54:8d",
+                              "name": "cluster-wide-default"
+                          }
+                      ]
+                    k8s.v1.cni.cncf.io/networks: [ { "name": "vn-left" }, { "name": "vn-right" } ]
+Status:             Running
+IP:                 10.47.255.248
+Containers:
+  csrx1-sc:
+    Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
+    Image:          csrx
+    Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
+
+...<snipped>...
+
 ----
 
 NOTE: each container has one interface belong to “cluster-wide-default” network
