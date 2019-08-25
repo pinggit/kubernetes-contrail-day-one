@@ -83,8 +83,7 @@ Contrail could offer on top of that:
 . rich security policy using tags that can extend to other environment
   (OpenStack, VMWare, BMS, AWS ,..,etc)
 . service chaining
- 
- 
+
 In this chapter we will cover some of these aspects, but first let’s talk about
 Kubernetes/contrail architecture and the object mapping 
 
@@ -143,6 +142,24 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 ////
 
+== Contrail command
+Before getting into deeper, we just want to introduce contrail-command(CC) which
+is the new user interface (UI) available from contrail 5.0.1. throughout this book
+we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
+in the future CC will be the only UI and the "legacy" one will be deprecated. 
+
+in CC, the functions and settings are groups in a a "main menu". it is also the
+entry point from where you can navigate through different functions. 
+
+image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
+
+in order to get this menu, click on group name right next to the "contrail command"
+logo on the upper left of the UI. in the above screen capture that group is
+"Infrastructure", but regardless it can be any group, just click it and you will get
+the main menu, then from there you can select and jump into all other settings.
+
+Again our focus is not CC. we are trying to give base insight about CC which would be
+helpful for our primary goal of the book.
 
 == contrail namespaces and isolation
 
@@ -504,7 +521,7 @@ the figure below illustrates the basic work flow of FIP:
 //image::https://user-images.githubusercontent.com/2038044/63227026-0ee7fc00-c1b0-11e9-8e59-d247ec8d7b2e.png[]
 image::https://user-images.githubusercontent.com/2038044/63263460-a4d66200-c256-11e9-8d83-012ae4a8ab26.png[]
 
-here are some highlights regarding FIP and FIP pool configuration:
+here are some highlights regarding FIP:
 
 * a FIP is associated with a VM's `port`, or a `VMI` (Virtual Machine
   Interface).
@@ -574,26 +591,6 @@ NOTE: the UI navigation path to set RT is:
 contrail command(CC): main-menu > Overlay > "Virtual Networks" >
 k8s-vn-ns-default-pod-network > Edit > "Routing, Bridging and Policies"
 
-****
-.what is "CC"?
-contrail command (CC) is the new user interface (UI) coming with the
-contrail 5.0.1. throughout this book we use both CC and old UI to demonstrate
-most of lab studies. just keep in mind that in the future CC will be the only UI
-and the "legacy" one will be deprecated. 
-
-.what is CC's "main-menu"?
-in CC, the functions and settings are groups in a a "main menu". it is also the
-entry point from where you can navigate through different functions. 
-
-.where to find CC's "main-menu"?
-image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
-
-in order to get this menu, click on group name right next to the "contrail
-command" logo on the upper left of the UI. in the above screen capture that
-group is "Infrastructure", but regardless it can be any group, just click it and
-you will get the main menu, then from there you can select and jump into all
-other settings.
-****
 
 ////
 NOTE: in the later lab demo of `service` or `ingress`, you always need to set the
