@@ -142,7 +142,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 ////
 
-== Contrail command
+== contrail command
 Before getting into deeper, we just want to introduce contrail-command(CC) which
 is the new user interface (UI) available from contrail 5.0.1. throughout this book
 we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
@@ -151,6 +151,7 @@ in the future CC will be the only UI and the "legacy" one will be deprecated.
 in CC, the functions and settings are groups in a a "main menu". it is also the
 entry point from where you can navigate through different functions. 
 
+.contrail command main menu
 image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
 
 in order to get this menu, click on group name right next to the "contrail command"
