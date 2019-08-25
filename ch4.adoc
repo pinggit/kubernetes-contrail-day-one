@@ -474,7 +474,7 @@ we've discussed and tested the communication between pods in the same or
 different NS. so far we've only tested it **inside** of the same cluster. what
 about communication with devices **outside** of the cluster? you may already
 know that in traditional (openstack) contrail environment, there are many ways
-for the overlay entities (typically VM or POD) to access the Internet, the three
+for the overlay entities (typically a VM) to access the Internet, the 3
 frequently used methods among them are:
 
 * floating IP
@@ -493,8 +493,8 @@ NOTE: `fabric SNAT` and `logical router` are used by overlay workloads(VM and
 POD) to reach the internet and the reverse direction is not possible. `floating
 IP` however, supports both direction - you can configure it to support ingress
 traffic, egress traffic, or both and default is bi-direction. in this book we
-focus on `floating IP` only. please refer contrail documents for fabric SNAT and
-logical router
+focus on `floating IP` only. you can refer contrail documents for detail
+information about fabric SNAT and logical router.
 
 === floating IP introduction
 
