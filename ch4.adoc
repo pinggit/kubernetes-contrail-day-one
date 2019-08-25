@@ -717,11 +717,13 @@ type of configuration very often in field.
 
 === global level FIP pool
 
-to specify a global level FIP pool, you need to give the full
-qualified pool name (domain > project > network) in configuration file for the
-`contrail-kube-manager` (`KM`) docker container. 
+to specify a global level FIP pool, you need to give the full qualified pool name
+(domain > project > network > name) in contrail-kube-manager('KM') configuration
+file(/etc/contrail/contrail-kubernetes.conf). The configuration file is generated
+from ENV parameters by the contrail-kube-manager docker during bringup.
 
-the configuration file is `/etc/contrail/common_kubemanager.env` in master node:
+The ENV parameters for contrail-kube-manager can be found in '/etc/contrail/common_kubemanager.env`
+file in master node:
 
 ----
 $ cat /etc/contrail/common_kubemanager.env
