@@ -2236,9 +2236,8 @@ let's take a look at the following URL:
 following `host` are `path`. 
 //one tip is that strictly speaking the `/` between
 //`host` and `path` are not part of either one. 
-for more details you can read
-rfc1738, but for the context of this book understanding what we introduce here
-would suffice.
+for more details you can read rfc1738, but for the context of this book
+understanding what we introduce here would suffice.
 ****
 
 if you now think kubernetes Ingress is nothing but to define some rules, and the
@@ -2266,7 +2265,7 @@ of the cluster. each ingress controllers have their own implementations to
 program the ingress rules. bottom line is, there has to be an Ingress controller
 running in the cluster.
 
-ingress controller providers:
+some ingress controller providers:
 
 * nginx
 * gce
@@ -2275,13 +2274,12 @@ ingress controller providers:
 * f5
 * istio
 * contour
-* etc
 
 You may deploy any number of ingress controllers within a cluster. When you
 create an ingress, you should annotate each ingress with the appropriate
 `ingress.class` to indicate which ingress controller should be used if more than
-one exists within your cluster. annotation for ingress objects will be explained
-in the annotation section.
+one exists within your cluster. `annotation` used in ingress objects will be
+explained in the "annotation" section.
 
 === ingress examples
 

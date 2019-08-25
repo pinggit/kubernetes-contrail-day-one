@@ -2354,29 +2354,39 @@ image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-
 
 == contrail ingress
 
+////
 in chapter 3 we've learned that Ingress maps URLs to services with `rules`. this
 makes this Ingress section a little bit easier. we don't need to explain
 everything that happens in Ingress. instead, we can focus on the Ingress
 external IP exposure and service mapping. the rest part of the story is all
-about service to backend mapping which we've examined a lot. we'll also
-introduce how does contrail integrate with ingress, then we'll demonstrate with
-an "end to end" lab and verify in details to understand exactly how ingress
-works in contrail.
+about service to backend mapping which we've examined a lot. 
+
+in this chapter we'll introduce details of ingress workflow in contrail
+implementation, then we'll use a few test cases to demonstrate and verify how
+ingress works exactly in contrail environment
+////
+
+in chapter 3 we've learned Ingress basis, the relation to service, Ingress types
+and the yaml file of each type.
+
+in this chapter we'll introduce details of ingress workflow in contrail
+implementation, then we'll use a few test cases to demonstrate and verify how
+ingress works exactly in contrail environment.
 
 === contrail ingress loadbalancer
 
-like contrail's service implementation, contrail Ingress, is also implemented
-through loadbalancer, but with a different `loadbalancer_provider` attribute,
+like contrail's `service` implementation, contrail `Ingress` is also implemented
+through loadbalancer, but with a different `loadbalancer_provider` attribute.
 accordingly `contrail-svc-monitor` component takes different actions to
 implement `Ingress` in contrail environment.
 
 Remember in "Contrail-Kubernetes architecture" section we gave the "object
-mapping" between kubernetes and contrail. in that section you've learned kubernetes
-`service` maps to `ECMP loadbalancer (native)` and `Ingress` maps to `Haproxy
-loadbalancer`. 
+mapping" between kubernetes and contrail. in that section you've learned
+kubernetes `service` maps to `ECMP loadbalancer (native)` and `Ingress` maps to
+`Haproxy loadbalancer`. 
 
-in `service` section when we were exploring the loadbalancer and
-the relevant objects (listener, pool, and member), we noticed the loadbalancer's
+in `service` section when we were exploring the loadbalancer and the relevant
+objects (`listener`, `pool`, and `member`), we noticed the loadbalancer's
 `loadbalancer_provider` attribute is with a type `native`. 
 
         "loadbalancer_provider": "native",
@@ -2387,10 +2397,10 @@ between `service` loadbalancer and `Ingress` loadbalancer.
 
 === contrail ingress workflow
 
-When an Ingress is configured in contrail kubernetes environment, the event will
-be noticed by other system components, and a lot of actions will be triggered.
-the deep level implementation is out of the scope of this book, but in a high
-level here is the workflow:
+When an `Ingress` is configured in contrail kubernetes environment, the event
+will be noticed by other system components, and a lot of actions will be
+triggered.  the deep level implementation is out of the scope of this book, but
+in a high level here is the workflow:
 
 . `contrail-kube-manager` keeps listening to the events of`kube-apiserver` 
 . user creates an `ingress` object (rules)
@@ -2402,18 +2412,20 @@ level here is the workflow:
   - for `Ingress` it is set to `opencontrail`.
 . `contrail-service-monitor` component sees the `loadbalancer` creation event,
   based on `loadbalancer_provider` value, it actions differently. 
-  - if the `loadbalancer_provider` is `native`, indicating this is a `service` object,
-    it will do ECMP processing. we've learned this in previous section.
-  - if the `loadbalancer_provider` is `opencontrail`, indicating this is an `Ingress`
-    object, `contrail-svc-monitor` invokes haproxy processes.
+  - if the `loadbalancer_provider` is `native`, indicating this is a `service`
+    object, it will do ECMP processing. we've learned this in previous section.
+  - if the `loadbalancer_provider` is `opencontrail`, indicating this is an
+    `Ingress` object, `contrail-svc-monitor` invokes haproxy processes.
 
 as you can see, contrail implements `Ingress` with haproxy loadbalancer, this is
-what you've read in the section of "contrail kubernetes object mapping".
-specifically for Ingress:
+what you've read in the section of "contrail kubernetes object mapping". 
+also in contrail environment the `contrail-kube-manager` plays `Ingress
+controller` role. it reads the Ingress rules that user input and programs them
+into the loadbalancer. furthermore:
 
-* for `Ingress`, overall two haproxy processes will be created
 * for each `Ingress` object, one loadbalancer will be created
-* the two haproxy processes work in "active-standby" mode:
+* two haproxy processes will be created for `Ingress`, and they are working in
+  "active-standby" mode:
   - one compute node runs the "active" haproxy process
   - the other compute node runs the "standby" haproxy process
 * both `haproxy` processes are programmed with appropriate configuration, based
@@ -2433,19 +2445,28 @@ haproxy.
 an Ingress will be allocated 2 IPs: 
 
 * cluster-internal virtual IP
-* external virtual IP, contrail implement this with FIP
+* external virtual IP
+//, contrail implement this with FIP
 
 here is the traffic flow for service request process:
 
-* for internal request it hits Ingress's "internal" VIP directly. 
-* for external request it first hits Ingress's "external" VIP - the FIP, which
+.client to Ingress podIP
+. for internal request it hits Ingress's "internal" VIP directly. 
+. for external request it first hits Ingress's "external" VIP - the FIP, which
   is the one exposed to external, and that is the time when NAT starts to play
-  as we've explained in `FIP` section. 
-* traffic is then forwarded to internal Ingress VIP after NAT process.  
-* from this moment on, both type of requests is processed exactly the same way:
-  the requests will be "proxied" to the node where backend pods are located and
-  reaches the pods eventually. 
-* In the case that the backend pods are running in a different compute node than
+  as we've explained in `FIP` section. after NAT process traffic is forwarded to
+  internal Ingress VIP.
+
+[start=3]
+.Ingress podIP to backend service
+. from this moment on, both type of requests is processed exactly the same way.
+. the requests will be "proxied" to the corresponding service IP. 
+
+[start=5]
+.backend service to backend pod
+. based on the backend pods' availability, it will be sent to the node where one
+  of the backend pods are located and reaches the target pods eventually. 
+. In the case that the backend pods are running in a different compute node than
   the one running active haproxy, a MPLS over UDP tunnel is created between the
   two compute node.
 
@@ -2512,13 +2533,14 @@ we'll look into each type of ingress.
 
 in our lab we use the same testbed as what we use for `service` test:
 
+//TODO: redraw with color
 .Ingress testbed
 image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
 
 .Ingress test preparation
 
 in order to create and test Ingress, we will also need to create the following
-objects in our setup.
+objects in our setup before creating Ingress:
 
 . NS: `ns-user-1`
 . FIP-VN: `vn-ns-default`
@@ -2526,13 +2548,16 @@ objects in our setup.
 . client pod: `cirros`
 
 what will hold all of our test objects is the `ns-user-1` NS/project, which
-refers to a NS default pool `pool-ns-default` that is to be created manually.
-the NS default pool is based on a VN `vn-ns-default` that has subnet
-`101.101.101/24`.  that is why later on you will see FIP for Ingress get
-assigned from this subnet. a pod `cirros` is needed to start the internal
-HTTP request towards the Ingress.
+refers to a NS level pool `pool-ns-default` that is to be created manually.  the
+NS level pool is based on a VN `vn-ns-default` that has subnet `101.101.101/24`.
+later on you will see FIP for Ingress get assigned from this subnet. a pod
+`cirros` is needed to start the internal HTTP request towards the Ingress.
 
-////
+[NOTE]
+====
+if you have yaml files ready for the NS, FIP-VN and cirros pod, to create these
+object:
+
 ----
 $ kubectl apply -f ns/ns-user-1-default-pool.yaml
 namespace/ns-user-1 created
@@ -2540,19 +2565,28 @@ $ kubectl apply -f vn/vn-ns-default.yaml
 networkattachmentdefinition.k8s.cni.cncf.io/vn-ns-default created
 $ kubectl apply -f pod/pod-cirros.yaml
 pod/cirros created
+----
+
+the FIP-pool needs to be created seperately in contrail UI. refer "contrail
+floating IP" section for the details
+
+====
+
+////
+----
 $ kubectl apply -f ingress/ingress-simple-fanout.yaml
 ingress.extensions/ingress-sf created
 ----
 ////
 
-after these three objects are created, we can proceed to the next step of
-creating each type of Ingress object.
+after these objects are created, we can proceed to the test each type of Ingress
+object. next we'll start from `single service Ingress`.
 
 === single service Ingress
 
 single service Ingress is the most basic form of Ingress. it does not define any
-rules and its main usage is to expose service and proxy all incoming service
-request to the same "single" backend service.
+rules and its main usage is to expose service to the outside world. it will
+proxy all incoming service request to the same "single" backend service.
 
     www.juniper.net --|                 |
     www.cisco.com   --|  101.101.101.1  |-> webservice
@@ -2565,11 +2599,11 @@ create are:
 * a backend service object
 * at least one backend pod for the service
 
+////
 additionally, a "client" pod is needed to test the ingress from inside of the
 cluster. we can use the same `cirros` pod we've used in earlier examples as
 cluster-internal client.
 
-////
 besides that, there are 2 components running in the background:
 
 * an Ingress controller: in contrail environment it is `contrail-kube-manager`,
@@ -2603,7 +2637,7 @@ spec:
     servicePort: 8888
 ----
 
-this does not look anything fancy. basically in this "single service" Ingress
+this does not look anything fancy. basically in this `single service Ingress`
 there is nothing else but a reference to one "single service" `webserver-1` as
 its "backend". all HTTP request will be dispatched to this service, and from
 there the request will reach a backend pod. next we'll look at the backend
@@ -2623,7 +2657,7 @@ spec:
   - port: 8888
     targetPort: 80
   selector:
-    app: webserver-1
+    app: webserver
   #type: LoadBalancer
 ----
 
