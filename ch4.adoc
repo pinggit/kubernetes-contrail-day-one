@@ -1607,6 +1607,7 @@ figure:
 .contrail service loadbalancer ECMP forwarding
 //image::https://user-images.githubusercontent.com/2038044/60762382-97f60a00-a02c-11e9-81ad-b1f05d815571.png[]
 image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-11e9-8cec-41d5e177bfb9.png[]
+//TODO: redraw with color
 
 this is what happened in the forwarding plane:
 
@@ -1629,19 +1630,22 @@ this is what happened in the forwarding plane:
 
 ==== multiple port service
 
-we've understood how the service layber 4 ECMP works and explored the LB
-objects in lab. remember in the figure showing the LB and all relevant objects,
-we showed that one LB may having 2 or more LB listeners. each listener has an
-individual backend pool which has one or multiple member(s). 
+we've understood how the service layber 4 ECMP works and we've explored the LB
+objects in lab. remember in the figure showing the LB and relevant objects,
+we saw that one LB may having 2 or more LB listeners. each listener has an
+individual backend pool that has one or multiple member(s). 
 
 .service loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
 
-to understand the 1:N mapping between loadbalancer and listeners, we can use the
-`multiple port service` as an example. let's look at the yaml file of it:
+in kubernetes, this 1:N mapping between loadbalancer and listeners indicates
+a `multiple port service` - one service with multiple ports.
+let's look at the yaml file of it:
 
+//.multiple port service
+//====
+.svc/service-web-clusterip-mp.yaml
 ----
-$ cat svc/service-web-clusterip-mp.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1651,16 +1655,17 @@ spec:
   - name: port1
     port: 8888
     targetPort: 80
-  - name: port2
+  - name: port2         #<---
     port: 9999
     targetPort: 90
   selector:
     app: webserver
 ----
+//====
 
 what we've added is another item in the `ports` list: a new service port `9999`
 that maps to container's `targetPort` `90`. now with two port mappings we have
-to give each mapping a name, `port1` and `port2` respectively.
+to give each port a name, `port1` and `port2` respectively.
 
 NOTE: without a port `name` the multiple ports yaml file won't work.
 
@@ -1682,7 +1687,8 @@ service-web-clusterip      10.47.255.238:80                    4h18m
 service-web-clusterip-mp   10.47.255.238:80,10.47.255.238:90   69m
 ----
 
-NOTE: to simply the case study we've scaled down the backend RC to one pod
+NOTE: to simply the case study we've scaled down the backend deployment's
+replicas number to one.
 
 it looks everything is ok, isn't it? the new service comes up with 2 service
 ports exposed, `8888` is the old one we've tested in previous examples, and the
@@ -1725,40 +1731,36 @@ Proto RefCnt Flags       Type       State         I-Node   PID/Program name    P
 detect this situation, so in case the pod is not "ready", it will be restarted
 and you will catch the events.
 
-to resolve this let's start a server in pod to listen on port `90`. 
-one of the easiest way today to start a HTTP server is to use the
-`SimpleHTTPServer` module coming with `python`. in our test we only need to
-set the port to `90`
+to resolve this let's start a new server in pod to listen on the new port `90`
+also.  one of the easiest way today to start a HTTP server is to use the
+`SimpleHTTPServer` module coming with `python` package. in our test we only need
+to set its listening port to `90` (the default value is 8080).
 
 ----
 $ kubectl exec -it webserver-846c9ccb8b-g27kg -- python -m SimpleHTTPServer 90 
 Serving HTTP on 0.0.0.0 port 90 ...                                    
 ----
 
-NOTE: by default, python SimpleHTTPServer listens on port 8080.
-
 now the `targetPort` is on, we can start the request towards service port `9999`
-again from the cirros pod. this time it succeed and get the returned webpage
+again from the `cirros` pod. this time it succeed and get the returned webpage
 from python SimpleHTTPServer.
 
 ----
 $ kubectl exec -it cirros -- curl 10.103.87.232:9999 | w3m -T text/html | cat
+
 Directory listing for /
-
  ━━━━━━━━━━━━━━━━━━━━━
-
   • app.py
   • Dockerfile
   • file.txt
   • requirements.txt
   • static/
-
  ━━━━━━━━━━━━━━━━━━━━━
 ----
 
 for each incoming request the `SimpleHTTPServer` logs one line output, with an
-IP address showing where the request came from. in our case cirros client pod is
-with the IP `10.47.255.237`.
+IP address showing where the request came from. in our case the request coming
+from cirros client pod is with the IP `10.47.255.237`.
 
 ----
 10.47.255.237 - - [04/Jul/2019 23:49:44] "GET / HTTP/1.1" 200 -
@@ -1769,44 +1771,46 @@ with the IP `10.47.255.237`.
 so far we've tested clusterIP service, and we see client request is sent towards
 the service IP. in contrail environment `vrouter` is the module that does all of
 the packet forwarding job. when the `vrouter` in client pod get the packet, it
-looks up the corresponding `vrouter` VRF table for the pod, get the nexthop and
-resolves to the correct egress interface and proper encapsulation. in our test
-so far, the client and backend pods are in 2 different nodes, so the source
-`vrouter` decides the packets need to be send in MPLSoUDP tunnel, towards the
-node where backend pod is running. what interests us the most is:
+looks up the corresponding VRF table for the pod `cirros` in `vrouter` module,
+gets the nexthop and resolves the correct egress interface and proper
+encapsulation. in our test so far, the client and backend pods are in 2
+different nodes, the source `vrouter` decides the packets need to be send in
+MPLSoUDP tunnel, towards the node where backend pod is running. what interests
+us the most is:
 
 * how the service IP and podIP is translated to each other? 
 * is there a way to "capture and see" the two IPs in a flow, "before" and
   "after" the translations for comparison purpose?
 
 the most "straightforward" method you would think of is to capture the packets,
-then decode and see. doing that however, is not as easy as what you've expected.
-first you need to capture the packet at different places:
+then decode and see. doing that however, may not be as easy as what you've expected.
 
-* at the pod interface, this is after the address is translated, that part is
-  easy
-* the fabric interface, this is before packet is translated and reaches the pod
-  interface. here the packets are with MPLSoUDP encapsulation since data plane
-  packets are "tunneled" between nodes.
+. first you need to capture the packet at different places:
 
-then you need to copy the pcap file out and load with wireshark to decode. you
-probably also need to set up wireshark to recognize the MPLSoUDP encapsulation.
+    * at the pod interface, this is after the address is translated, that part is
+      easy
+    * the fabric interface, this is before packet is translated and reaches the pod
+      interface. here the packets are with MPLSoUDP encapsulation since data plane
+      packets are "tunneled" between nodes.
+
+. then you need to copy the pcap file out and load with wireshark to decode. you
+probably also need to configure wireshark to recognize the MPLSoUDP encapsulation.
 
 the easier way is to check the vrouter flow table which records IP and port
 details about a traffic flow. in this test we will prepare a big file `file.txt`
-in server pod and try to download it from the client pod. 
+in backend webserver pod and try to download it from the client pod. 
 
 [TIP]
 ====
-you may wonder why we don't simply use same curl test to pull the webpage, as
-what we've done in early test. in theory that is fine.  the only problem is that
-the TCP flow follows the TCP session. in our previous test with `curl`, the TCP
-session starts and stops immediately after the webpage is retrieved, then the
-vrouter clears the flow too. you won't be fast enough to capture the flow table
-at the right moment. instead, downloading a big file will hold the TCP session -
-as long as the file transfer is ongoing the session will remain, and we can take
-time to investigate the flow. later on in `ingress` example we will demonstrate
-a different method with a one-liner shell script.  
+you may wonder to trigger a flow why we don't simply use same curl test to pull
+the webpage, as what we've done in early test. in theory that is fine.  the only
+problem is that the TCP flow follows the TCP session. in our previous test with
+`curl`, the TCP session starts and stops immediately after the webpage is
+retrieved, then the vrouter clears the flow right away. you won't be fast enough
+to capture the flow table at the right moment. instead, downloading a big file
+will hold the TCP session - as long as the file transfer is ongoing the session
+will remain, and we can take time to investigate the flow. later on in `ingress`
+section we will demonstrate a different method with a one-liner shell script.  
 
 ====
 
@@ -1817,14 +1821,14 @@ files in folder, we try to pull the file: `file.txt`
 $ kubectl exec -it cirros -- curl 10.103.87.232:9999/file.txt
 ----
 
-in server pod we see the log indicating the file transfer starts:
+in server pod we see the log indicating the file downloading starts:
 
 ----
 10.47.255.237 - - [05/Jul/2019 00:41:21] "GET /file.txt HTTP/1.1" 200 -
 ----
 
-now we have enough time to collect the flow table from both client and server
-node, in the vrouter docker.
+now with the file transfer ongoing, we have enough time to collect the flow table
+from both client and server node, in the vrouter docker.
 
 .client node flow table
 
@@ -1858,8 +1862,10 @@ Listing flows matching ([10.47.255.237]:*)
 highlights in this output:
 
 * cirros client starts TCP connection from its pod IP `10.47.255.237` and a
-  rondom port, towards the service IP `10.103.87.232` and server port `9999`
-* the flow TCP flag `SSrEEr` indicates the session is established bidirectionally.
+  rondom source port, towards the service IP `10.103.87.232` and server port
+  `9999`
+* the flow TCP flag `SSrEEr` indicates the session is established
+  bidirectionally.
 * Action `F` means "forwarding". note that there is no special processing like
   `NAT` happening here. 
 
@@ -1897,30 +1903,34 @@ Listing flows matching ([10.47.255.237]:*)
  Stats:8067/419582,  SPort 51018, TTL 0, Sinfo 10.169.25.20)
 ----
 
-the second flow entry looks same as the one we just saw in client side capture.
-traffic lands vrouter fabric interface from remote cirros client node, across
-MPLSoUDP tunnel. destination IP and port are service IP and service port
-respectively. it seems nothing special here.
+let's look at the second flow entry first - the IPs looks same as the one we
+just saw in client side capture.  traffic lands vrouter fabric interface from
+remote cirros client node, across MPLSoUDP tunnel. destination IP and port are
+service IP and service port respectively. it seems nothing special here.
 
 however, the flow `Action` now is set to `N(DPd)`, not `F`. according to the
 header lines in the `flow` command output, this means NAT, or specifically,
 `DNAT` (Destination address translation) with `DPAT` (Destination port
-translation). so both the service IP and service port will be translated, to
+translation) - both the service IP and service port are translated, to
 backend pod IP and port.
 
 now look at the first flow entry. source IP `10.47.255.238` is the backend pod
 IP and source port is python server port `90` opened in backend container .
 obviously this is the returning traffic indicating the file downloading is still
 ongoing. the `Action` is also NAT(`N`), but this time it is the reverse
-operation - source NAT (`SNAT`) and source PAT(`SPAT`) will happen. vrouter will
+operation - source NAT (`SNAT`) and source PAT(`SPAT`). vrouter will
 translate backend's source IP source port to the service IP and port, before
-putting it into the MPLSoUDP tunnel and return back to client node.
+putting it into the MPLSoUDP tunnel and returning back to client pod in remote
+node.
 
 the complete end to end traffic flow is illustrated here:
 
+.clusterIP service traffic flow (NAT)
 //image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
 //image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
 image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-11e9-813a-a6aa3989c09d.png[]
+
+//TODO: redraw with color
 
 === contrail LoadBalancer service
 
