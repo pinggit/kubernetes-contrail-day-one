@@ -5835,8 +5835,8 @@ before proceeding.  From the Contrail UI, select Configure > Networking >
 Networks > default-domain > k8s-default, As shown in the figure which focus on
 left network
 
-NOTE: using namespace: default object in the YAML file for a network will create
-it n in domain “default-domain” and project “K8s-default”
+NOTE: using namespace: default in the YAML file for a network will create
+it in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
 
@@ -5895,80 +5895,7 @@ NAME              READY   STATUS    RESTARTS   AGE
 left-ubuntu-sc    1/1     Running   0          25h
 right-ubuntu-sc   1/1     Running   0          25h
 
-----
-
-=== create CSRX pod
-
-create Juniper CSRX container that have one interface on the left network and
-one interface on the right network using this YAML file 
-
-----
-# cat csrx1-sc.yaml 
-apiVersion: v1
-kind: Pod
-metadata:
-  name: csrx1-sc
-  labels:
-    app: webapp-sc
-  annotations:
-   k8s.v1.cni.cncf.io/networks: '[
-       { "name": "vn-left" },
-       { "name": "vn-right" }
-   ]'
-spec:
-  containers:
-  - name: csrx1-sc
-    image: csrx
-    ports:
-    - containerPort: 22
-    imagePullPolicy: Never
-    stdin: true
-    tty: true
-    securityContext:
-      privileged: true
-
-# kubectl create -f csrx1-sc.yaml
-
-
-Confirm the interface placement in the correct network 
-
 # kubectl describe pod 
-Name:               csrx1-sc
-Namespace:          default
-Priority:           0
-PriorityClassName:  <none>
-Node:               cent22/10.85.188.17
-Start Time:         Thu, 13 Jun 2019 03:40:31 -0400
-Labels:             app=webapp-sc
-Annotations:        k8s.v1.cni.cncf.io/network-status:
-                      [
-                          {
-                              "ips": "10.10.10.2",
-                              "mac": "02:84:71:f4:f2:8d",
-                              "name": "vn-left"
-                          },
-                          {
-                              "ips": "10.20.20.2",
-                              "mac": "02:84:8b:4c:18:8d",
-                              "name": "vn-right"
-                          },
-                          {
-                              "ips": "10.47.255.248",
-                              "mac": "02:84:59:7e:54:8d",
-                              "name": "cluster-wide-default"
-                          }
-                      ]
-                    k8s.v1.cni.cncf.io/networks: [ { "name": "vn-left" }, { "name": "vn-right" } ]
-Status:             Running
-IP:                 10.47.255.248
-Containers:
-  csrx1-sc:
-    Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
-    Image:          csrx
-    Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
-
-...<snipped>...
-
 Name:               left-ubuntu-sc
 Namespace:          default
 Priority:           0
@@ -6030,6 +5957,80 @@ Containers:
     Image ID:       docker-pullable://virtualhops/ato-ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
   
  ...<snipped>...
+----
+
+=== create CSRX pod
+
+create Juniper CSRX container that have one interface on the left network and
+one interface on the right network using this YAML file 
+
+----
+# cat csrx1-sc.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csrx1-sc
+  labels:
+    app: webapp-sc
+  annotations:
+   k8s.v1.cni.cncf.io/networks: '[
+       { "name": "vn-left" },
+       { "name": "vn-right" }
+   ]'
+spec:
+  containers:
+  - name: csrx1-sc
+    image: csrx
+    ports:
+    - containerPort: 22
+    imagePullPolicy: Never
+    stdin: true
+    tty: true
+    securityContext:
+      privileged: true
+
+# kubectl create -f csrx1-sc.yaml
+
+
+Confirm the interface placement in the correct network 
+
+# kubectl describe pod csrx1-sc
+Name:               csrx1-sc
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               cent22/10.85.188.17
+Start Time:         Thu, 13 Jun 2019 03:40:31 -0400
+Labels:             app=webapp-sc
+Annotations:        k8s.v1.cni.cncf.io/network-status:
+                      [
+                          {
+                              "ips": "10.10.10.2",
+                              "mac": "02:84:71:f4:f2:8d",
+                              "name": "vn-left"
+                          },
+                          {
+                              "ips": "10.20.20.2",
+                              "mac": "02:84:8b:4c:18:8d",
+                              "name": "vn-right"
+                          },
+                          {
+                              "ips": "10.47.255.248",
+                              "mac": "02:84:59:7e:54:8d",
+                              "name": "cluster-wide-default"
+                          }
+                      ]
+                    k8s.v1.cni.cncf.io/networks: [ { "name": "vn-left" }, { "name": "vn-right" } ]
+Status:             Running
+IP:                 10.47.255.248
+Containers:
+  csrx1-sc:
+    Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
+    Image:          csrx
+    Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
+
+...<snipped>...
+
 ----
 
 NOTE: each container has one interface belong to “cluster-wide-default” network
