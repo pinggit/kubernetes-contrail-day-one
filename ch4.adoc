@@ -666,6 +666,56 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
+=== object level FIP pool
+
+let's first take a look at the object-specific FIP pool. here is an example:
+
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-lb-pool-public-1
+  annotations:
+    "opencontrail.org/fip-pool": "{'domain': 'default-domain','name': 'pool-public-1','network': 'vn-public-1','project': 'k8s-ns-user-1'}"
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+  type: LoadBalancer
+----
+
+in this example, service `service-web-lb-pool-public-1` will get an FIP from
+pool `pool-public-1`, which is created based on VN `vn-public-1` under current
+project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`. since
+object level FIP pool is assigned for this specific object only, with this
+method each new object needs to be assigned a FIP pool explicitly.
+
+=== NS level FIP pool
+
+the next FIP pool scope is in NS level. each NS can define its own FIP
+pool.  same way as kubernetes annotations object is used to give a subnet to a
+VN, it is also used to specify a FIP pool. the yaml file looks:
+
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    opencontrail.org/isolation: "true"
+    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'name': 'pool-ns-default', 'network': 'vn-ns-default', 'project': 'k8s-ns-user-1'}"
+  name: ns-user-1
+----
+
+in this example, NS `ns-user-1` is given a NS level FIP pool named
+`pool-ns-default`, and the corresponding VN is `vn-ns-default`. once the NS
+`ns-user-1` is created with this yaml file, any new service which requires an
+FIP, if not created with the object-specific pool name in its yaml file, will
+get a FIP allocated from this pool. In practice, most NS (especially
+those isolated NS) will need its own NS default pool so you will see this
+type of configuration very often in field.
+
 === global level FIP pool
 
 to specify a global level FIP pool, you need to give the full
@@ -718,54 +768,6 @@ Creating kubemanager_kubemanager_1 ... done
 ----
 
 now the global FIP pool is specified for the cluster.
-
-=== NS level FIP pool
-
-the next FIP pool scope is in NS level. each NS can define its own FIP
-pool.  same way as kubernetes annotations object is used to give a subnet to a
-VN, it is also used to specify a FIP pool. the yaml file looks:
-
-----
-apiVersion: v1
-kind: Namespace
-metadata:
-  annotations:
-    opencontrail.org/isolation: "true"
-    opencontrail.org/fip-pool: "{'domain': 'default-domain', 'name': 'pool-ns-default', 'network': 'vn-ns-default', 'project': 'k8s-ns-user-1'}"
-  name: ns-user-1
-----
-
-in this example, NS `ns-user-1` is given a NS level FIP pool named
-`pool-ns-default`, and the corresponding VN is `vn-ns-default`. once the NS
-`ns-user-1` is created with this yaml file, any new service which requires an
-FIP, if not created with the object-specific pool name in its yaml file, will
-get a FIP allocated from this pool. In practice, most NS (especially
-those isolated NS) will need its own NS default pool so you will see this
-type of configuration very often in field.
-
-==== object level FIP pool
-
-the last one is object-specific pool. here is an example:
-
-----
-apiVersion: v1
-kind: Service
-metadata:
-  name: service-web-lb-pool-public-1
-  annotations:
-    "opencontrail.org/fip-pool": "{'domain': 'default-domain','name': 'pool-public-1','network': 'vn-public-1','project': 'k8s-ns-user-1'}"
-spec:
-  ports:
-  - port: 8888
-    targetPort: 80
-  selector:
-    app: webserver
-  type: LoadBalancer
-----
-
-in this example, service `service-web-lb-pool-public-1` will get an FIP from
-pool `pool-public-1`, which is created based on VN `vn-public-1` under current
-project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`.
 
 === creating FIP
 
@@ -5729,7 +5731,7 @@ match what we've seen in `kubectl describe` command output.
 NOTE: having the MAC address in the annotations could be useful under certain
 cases. for example, in "service chaining" section, you will run into a scenario
 where you have to use the MAC address to locate the proper interface, so that
-you can assign the right podIP which kubernetes allocated from a VN check
+you can assign the right podIP which kubernetes allocated from a VN. check
 "service chaining" section for more details.
 
 ////
