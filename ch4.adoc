@@ -1370,15 +1370,20 @@ this is a deploy-generated pod. later we can scale the deploy for ECMP case
 study, for now we'll stick to one pod and examine the ClusterIP implementation
 details.
 
-in contrail, a `ClusterIP` is essentially implemented in the form of a FIP. once
-a service is created, a FIP will be allocated from the service subnet and
-associated to the backend pod VMI and its `fixed IP`. this FIP/clusterIP is also
-acting as a "VIP" to the client pods inside of the cluster. 
+in contrail, a `ClusterIP` is essentially implemented in the form of a FIP.
+once a service is created, a FIP will be allocated from the service subnet
+and associated to all the backend pod VMI to form the ECMP loadbalancing.
+Now all backend pods can be reached via cluserIP(along with the POD IP) i.e
+this clusterIP(FIP) is acting as a "VIP" to the client pods inside of the
+cluster.
 
-NOTE: this holds true also for loadbalancer type of service, in that case
-contrail will allocate a second FIP - the "EXTERNAL-IP" as the VIP, and the
-external VIP is advertised outside of the cluster through gateway router.  you
-will get more details about these later.
+Why clusterIP should be a FIP? In the previous section, we have learnt that
+contrail does NATing for FIP and service also needs NATing atleast for port.
+So it is natural to use the FIP for clusterIP. 
+
+NOTE: for loadbalancer type of service, contrail will allocate a second FIP -
+the "EXTERNAL-IP" as the VIP, and the external VIP is advertised outside of
+the cluster through gateway router. you will get more details about these later.
 
 from UI we'll see the automatically allocated FIP as ClusterIP.
 
@@ -1470,7 +1475,7 @@ NAME             ENDPOINTS                           AGE
 service-web-lb   10.47.255.236:80,10.47.255.238:80   20m
 ----
 
-NOTE: without `-o wide` option, only first endpoint will be displayed.
+NOTE: without `-o wide` option, only first endpoint will be displayed properly.
 
 we go ahead and check the FIP again.
 
@@ -1529,8 +1534,8 @@ our focus is `nh_index: 87`, which is the next hop ID (`NHID`) for the clusterIP
 prefix. from vrouter agent docker, we can further resolve the "Composite" NHID to 
 the `sub-NHs`, which is the "member" nexthops under the "Composite" next hop:
 
-TIP: don't forget to execute the vrouter command from within the vrouter docker.
-doing it from the host directly won't work.
+TIP: don't forget to execute the vrouter commands from the vrouter docker.
+doing it from the host directly may not work.
 
 ----
 [2019-07-04 12:42:06]root@cent222:~
@@ -1607,12 +1612,11 @@ this is what happened in the forwarding plane:
   "Composite" nexthop ID `87`, which resolves to two sub-nexthops `51` and `37`,
   representing a remote and local backend pod respectively. this indicates ECMP.
 * vrouter on `node222` starts to forward the packet to one of the pod based on
-  its ECMP algorithm. 
-  Suppose the remote backend pod is selected, the packet will be sent through
-  MPLSoUDP tunnel to the remote pod on node `cent333`,
-  meanwhile a vrouter flow is established in the flow table, all subsequent
-  packets belongs to the same flow will follow this same path. 
-  same applys to the local path towards local backend pod.
+  its ECMP algorithm. Suppose the remote backend pod is selected, the packet will
+  be sent through MPLSoUDP tunnel to the remote pod on node `cent333`, after
+  establishing the flow in the flow table. all subsequent packets belongs to the
+  same flow will follow this same path. same applys to the local path towards local
+  backend pod.
 
 //TODO: this is forwarding flow only, also give control plane flow?
 
@@ -1758,15 +1762,14 @@ from cirros client pod is with the IP `10.47.255.237`.
 
 so far we've tested clusterIP service, and we see client request is sent towards
 the service IP. in contrail environment `vrouter` is the module that does all of
-the packet forwarding job. when the `vrouter` in client pod get the packet, it
-looks up the corresponding VRF table for the pod `cirros` in `vrouter` module,
-gets the nexthop and resolves the correct egress interface and proper
-encapsulation. in our test so far, the client and backend pods are in 2
-different nodes, the source `vrouter` decides the packets need to be send in
-MPLSoUDP tunnel, towards the node where backend pod is running. what interests
-us the most is:
+the packet forwarding job. when the `vrouter` in client pod gets the packet, it
+looks up the corresponding VRF table in vrouter module for the client pod(`cirros`),
+gets the nexthop and resolves the correct egress interface and proper encapsulation.
+in our test so far, the client and backend pods are in 2 different nodes, the source
+`vrouter` decides the packets need to be send in MPLSoUDP tunnel, towards the node
+where backend pod is running. what interests us the most is:
 
-* how the service IP and podIP is translated to each other? 
+* how the service IP and podIP(backend) is translated to each other? 
 * is there a way to "capture and see" the two IPs in a flow, "before" and
   "after" the translations for comparison purpose?
 
