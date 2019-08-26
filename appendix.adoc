@@ -1,4 +1,4 @@
-= contrail kubernetes setup installation
+= appendix
 :toc: right
 :toclevels: 3
 //:toc-placement: preamble
@@ -10,7 +10,9 @@
 :coderay-linenums-mode: inline
 :numbered:
 
-== HW/SW prerequisites
+== contrail kubernetes setup installation
+
+=== HW/SW prerequisites
 
 * centos 7.6
 * 32G mem
@@ -30,16 +32,16 @@ Filesystem               Size  Used Avail Use% Mounted on
 /dev/mapper/centos-root   47G   40G  7.3G  85% /
 ----
 
-== 3 nodes cluster only setup
+=== 3 nodes cluster only setup
 
-=== topology
+==== topology
 
 .3 nodes cluster-only setup (no external connections)
 //image::https://user-images.githubusercontent.com/2038044/63090318-e4384200-bf28-11e9-8ecf-8d7fe34848d0.png[]
 //image::https://user-images.githubusercontent.com/2038044/63090375-1053c300-bf29-11e9-8bc9-d60e238d73ff.png[]
 image::https://user-images.githubusercontent.com/2038044/63090439-41cc8e80-bf29-11e9-9c1b-57955ed5e5d2.png[]
 
-=== yaml template
+==== yaml template
 
 ----
 global_configuration:
@@ -91,7 +93,7 @@ only the following parameters needs to be changed:
     ntpserver: ntp.juniper.net
     ip: 10.85.111.26 ~ 28
 
-== deploy setup based on yaml file
+=== deploy setup based on yaml file
 
 ----
 yum -y install epel-release git ansible net-tools
@@ -111,7 +113,7 @@ ansible-playbook -i inventory/ playbooks/install_k8s.yml
 ansible-playbook -i inventory/ playbooks/install_contrail.yml
 ----
 
-== verification
+=== verification
 
 ----
 [root@cent1 ~]# contrail-status
