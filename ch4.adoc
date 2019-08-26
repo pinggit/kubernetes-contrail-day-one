@@ -956,18 +956,16 @@ next we'll introduce how service is implemented in contrail environment.
 
 in chapter 3 we've introduced kubernetes default implementation of service
 through `kube-proxy`. in there we mentioned CNI providers can have its own
-implementations.
-
-in contrail, `nodePort` service is still implemented by `kube-proxy` module.
-however, `clusterIP` and `loadbalancer` services are implemented by contrail's
+implementations. in contrail, `nodePort` service is implemented by kube-proxy`.
+however, `clusterIP` and `loadbalancer` services areimplemented by contrail's
 `loadbalancer` (`LB`).  
 
-before we dive into the details of a service loadbalancer, it will be good to
-review the legacy neutron based loadbalancer concept in contrail. 
+before we dive into the details of a kubernetes service in contrail, it will
+be good to review the legacy openstack based loadbalancer concept in contrail. 
 
 TIP: for brevity we'll sometimes also refer `loadbalancer` as `LB`.
 
-==== contrail neutron loadbalancer object
+==== contrail openstack loadbalancer object
 
 contrail loadbalancer is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
@@ -979,9 +977,8 @@ image::https://user-images.githubusercontent.com/2038044/60641740-1f5c3700-9dfb-
 
 some highlights of this figure:
 
-* the LB is created with VIP `20.1.1.1`. the LB is listening to some application
-  layer (layber 4) ports. for each layber 4 port it is listening, a `LB
-  listener` is also created
+* the LB is created with VIP `20.1.1.1`. a 'LB listener'is also created for each
+  listening ports. 
 * all backend VMs together compose a `pool`
 * each backend VM in the `pool`, also called a `member`, is allocated an IP from
   subnet 30.1.1.0/24. 
@@ -993,26 +990,25 @@ some highlights of this figure:
   means is it establishes the TCP connection with the client, extracts the
   clients' HTTP/HTTPS requests, creates a new TCP connection towards one of the
   backend VMs from the pool, and send the request in the new TCP connection.
-* when LB gets its response from the VM, it close the connection towards the
-  backend VM and deliver the response to the original TCP connection towards the
-  client.
+* when LB gets its response from the VM, it forwards the response to the client.
+* when one of the TCP connection is closed, the other one also would be closed.
 
 you see that this loadbalancer model is very similar to kubernetes service
 concept:
 
 * VIP is the "service IP" 
 * backend VM becomes backend pods
-* members are added by kubernetes instead of neutron
+* members are added by kubernetes instead of openstack
 
 in fact, contrail re-uses a good part of this model in kubernetes service
 implementation. to support service loadbalancing, contrail extends the
 loadbalancer with a new driver, with it service will be implemented as "equal
 cost multiple path"(ECMP) loadbalancer working in layer 4(transport layer) .
-this is the primary difference comparing with the "proxy" mode that the old
-neutron loadbalancer type does.
+this is the primary difference comparing with the "proxy" mode that the openstack
+loadbalancer type does.
 
-NOTE: ingress, on the other hand, is conceptually even closer with the old
-neutron loadbalancer in the sense that both are layer 7 (application
+NOTE: ingress, on the other hand, is conceptually even closer with the
+openstack loadbalancer in the sense that both are layer 7 (application
 layer) "proxy" based. more about ingress will be discussed in later section.
 
 ==== contrail sevice loadbalancer object
@@ -1051,7 +1047,7 @@ highlights in this figure:
   VRF table
 * `contrail-kube-manager` listens `kube-apiserver` for any changes, based on
   pod list in `Endpoints` it will knows the most current backend pods, and
-  update them as members in the pool .
+  update members in the pool .
 
 the most important thing to understand in this diagram, as we've mentioned, is
 that in contrast to the legancy neutron loadbalancer (and the ingress
@@ -1062,12 +1058,13 @@ layer) ECMP based loadbalancing.
 ////
 detail discussions of the LB and all surrounding objects are out
 of the scope of this book.
-////
+
 
 NOTE: technically, the LB has `VIP` only, but it also has a reference toward VMI
 object which again has a reference to the `instance-ip`. the `instance-ip` is
 the same IP as `service-ip`. to avoid confusions we won't cover these level of
 implementation details in this book.
+////
 
 ////
 # k8s-5.md
