@@ -2899,7 +2899,39 @@ metadata:
 as expected, the backend service is applied to the Ingress properly. In this
 `single service Ingress` there is no explicit rules defined to map a certain URL
 to a different service - all HTTP requests will be dispatched to the same
-backend service. 
+backend service.
+
+[TIP]
+====
+in the `items` -> `metadata` -> `annotations` ->
+`kubectl.kubernetes.io/last-applied-configuration` section of the output:
+
+    {"apiVersion":"extensions/v1beta1", "kind":"Ingress",
+    "metadata":{"annotations":{},"name":"ingress-ss","namespace":"ns-user-1"},
+    "spec":{"backend":{"serviceName":"webservice-1", "servicePort":80}}}
+
+it actually contains the configuration information that you gave. can format it
+(with JSON formatting tool like python `json.tool` module) to get a better view:
+
+    {
+        "apiVersion": "extensions/v1beta1",
+        "kind": "Ingress",
+        "metadata": {
+            "annotations": {},
+            "name": "ingress-ss",
+            "namespace": "ns-user-1"
+        },
+        "spec": {
+            "backend": {
+                "serviceName": "webservice-1",
+                "servicePort": 80
+            }
+        }
+    }
+
+you can do same formatting for all other objects to make it more readable.
+
+====
 
 what may confuse you is the two IP addresses shown here: 
 
@@ -3205,7 +3237,7 @@ image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-
   Ingress`, so all HTTP requests will go to the same default_backend service,
   regardless of what URL the client sent.
 
-NOTE: later in `simple fan-out Ingress` and `name-based virtual hosting Ingress`
+NOTE: later in `simple fanout Ingress` and `name-based virtual hosting Ingress`
 examples, we will see another type of configuration statement
 `use_backend...if...` that can be used to force each URL to go to a different
 backend.
@@ -3436,8 +3468,8 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
 
 everything works!
 
-next we'll look at the second Ingress type `simple fan-out Ingress`. it is
-better to clean up everything before moving forward.  now we can take advantage
+next we'll look at the second Ingress type `simple fanout Ingress`. before
+movig forward, it is better to clean up everything.  now we can take advantage
 of the all-in-one yaml file - everything can be cleared with one `kubectl
 delete` command using the same all-in-one yaml file:
 
@@ -3448,14 +3480,14 @@ service "webservice-1" deleted
 replicationcontroller "webserver-846c9ccb8b-1" deleted
 ----
 
-=== simple fan-out Ingress
+=== `simple fanout Ingress`
 
 //TODO: adjust the TOC, default backend
-both `simple fan-out Ingress` and `name-based virtual host Ingress` support "URL
+both `simple fanout Ingress` and `name-based virtual host Ingress` support "URL
 routing", the only difference is the former is based on `path` and the latter is
 based on `host`.
 
-with simple fan-out Ingress, based on the URL path and rules, an ingress
+with `simple fanout Ingress`, based on the URL path and rules, an ingress
 loadbalancer directs traffic to different backend services.
 
     www.juniper.net/qa --|                 |-> webservice-1
@@ -3470,7 +3502,7 @@ create are:
 * 2 backend services objects
 * each service requires at least one pod as backend
 
-we use the same `cirros` pod as cluster-internal client we've used in earlier
+we use the same `cirros` pod as cluster-internal client we've used in previous
 examples.
 
 ////
@@ -3491,7 +3523,7 @@ the troubleshooting flow
 
 ===== `ingress` definition
 
-in our simple fan-out Ingress test lab, we want to achieve these goals for URL
+in our `simple fanout Ingress` test lab, we want to achieve these goals for host
 `www.juniper.net`:
 
 * request toward path `/dev` will be directed to a service `webservice-1`
@@ -3521,13 +3553,13 @@ spec:
           servicePort: 8888
 ----
 
-in contrast to "single service Ingress", in "fan-out" `Ingress` object (and
+in contrast to `single service Ingress`, in `simple fanout Ingress` object (and
 "name-based virtual host Ingress") we see "rules" defined - here it is the
 mappings from multiple "paths" to different backend services. 
 
 ===== backend `service` definition
 
-since we defined 2 rules each for a `path`, we need two services also. we 
+since we defined 2 rules each for a `path`, we need two services accordingly. we 
 can "clone" the previous service in `single service Ingress` example and
 just change the service's name and selector to generate the second service.
 e.g.: this is definition of `webservice-1` and `webservice-2` service.
@@ -3563,15 +3595,16 @@ spec:
 ===== backend `pod` definition
 
 because we have 2 backend services now, apparently we also need at least two
-backend pods each with a label matching to a service.  we can clone the previous
-RC into two and just change the name and label of the second RC.
+backend pods each with a label matching to a service. we can clone the previous
+`Deployment` into two and just change the name and label of the second
+`Deployment`.
 
-this is the definition of the RCs.
+There are the definition of the `Deployment`:
 
-.RC for webserver-1
+.`Deployment` for webserver-1
 ----
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
   name: webserver-1
   labels:
@@ -3579,7 +3612,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-1
+    matchLabels:
+      app: webserver-1
   template:
     metadata:
       name: webserver-1
@@ -3596,10 +3630,10 @@ spec:
 ----
 
 
-.RC for webserver-2
+.`Deployment` for webserver-2
 ----
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
   name: webserver-2
   labels:
@@ -3607,7 +3641,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-2
+    matchLabels:
+      app: webserver-2
   template:
     metadata:
       name: webserver-2
@@ -3623,10 +3658,10 @@ spec:
         - containerPort: 80
 ----
 
-===== deploy simple fan-out Ingress
+===== deploy `simple fanout Ingress`
 
 same as in `single service Ingress`, we put everything together to get an
-"all-in-one" yaml file to test simple fan-out Ingress:
+"all-in-one" yaml file to test `simple fanout Ingress`:
 
 ----
 apiVersion: extensions/v1beta1
@@ -3680,7 +3715,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-1
+    matchLabels:
+      app: webserver-1
   template:
     metadata:
       name: webserver-1
@@ -3704,7 +3740,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-2
+    matchLabels:
+      app: webserver-2
   template:
     metadata:
       name: webserver-2
@@ -3731,7 +3768,7 @@ deployment.extensions/webserver-1 created
 deployment.extensions/webserver-2 created
 ----
 
-the Ingress, two services and two RC objects are now created.
+the Ingress, two `service` and two `Deployment` objects are now created.
 
 ==== `Ingress` post examination
 
@@ -3740,7 +3777,6 @@ the Ingress, two services and two RC objects are now created.
 let's look at the kubernetes objects created from the all-in-one yaml file:
 
 .ingress objects
-//TODO: test this out and capture the data
 ----
 $ kubectl get ingresses.extensions
 NAME        HOSTS            ADDRESS                      PORTS  AGE
@@ -3787,8 +3823,8 @@ metadata:
 ----
 
 the "rules" are defined properly, within each rule there is a mapping from a
-`path` to the corresponding service. we see same Ingress internal podIP and
-external FIP as we've seen in "single service Ingress" example:
+`path` to the corresponding `service`. we see same Ingress internal podIP and
+external FIP as we've seen in the previous `single service Ingress` example:
 
     loadBalancer:
       ingress:
@@ -3797,9 +3833,9 @@ external FIP as we've seen in "single service Ingress" example:
 
 //in `namespace` section we've known `10.32.0.0/12` is the default pod subnet.
 
-therefore from gateway router's perspective, there is no differences between all
-types of Ingress. in all cases a FIP will be allocated to the Ingress and it is
-advertised to the gateway router:
+That is why from gateway router's perspective, there is no differences between
+all types of Ingress. in all cases a public FIP will be allocated to the Ingress
+and it is advertised to the gateway router:
 
 ----
 labroot@camaro> show route table k8s-test protocol bgp
@@ -3836,18 +3872,18 @@ webservice-2   ClusterIP   10.100.156.38   <none>        8888/TCP   85m   app=we
 .backend and client pod
 ----
 $ kubectl get pod -o wide
-NAME                   READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-cirros                 1/1     Running   1          44d   10.47.255.237   cent222   <none>
-webserver-846c9ccb8b-1-wns77   1/1     Running   0          13m   10.47.255.236   cent333   <none>
-webserver-846c9ccb8b-2-t75d8   1/1     Running   0          13m   10.47.255.235   cent333   <none>
+NAME                          READY  STATUS   ... AGE  IP             NODE    ..
+cirros                        1/1    Running  ... 44d  10.47.255.237  cent222 ..
+webserver-846c9ccb8b-1-wns77  1/1    Running  ... 13m  10.47.255.236  cent333 ..
+webserver-846c9ccb8b-2-t75d8  1/1    Running  ... 13m  10.47.255.235  cent333 ..
 
 $ kubectl get pod -o wide -l app=webserver-1
-NAME                   READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE
-webserver-846c9ccb8b-1-wns77   1/1     Running   0          156m   10.47.255.236   cent333   <none>
+NAME                          READY  STATUS   ... AGE  IP             NODE    ..
+webserver-846c9ccb8b-1-wns77  1/1    Running  ... 156m 10.47.255.236  cent333 ..
 
 $ kubectl get pod -o wide -l app=webserver-2
-NAME                   READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE
-webserver-846c9ccb8b-2-t75d8   1/1     Running   0          156m   10.47.255.235   cent333   <none>
+NAME                          READY  STATUS   ... AGE  IP             NODE    ..
+webserver-846c9ccb8b-2-t75d8  1/1    Running  ... 156m 10.47.255.235  cent333 ..
 ----
 
 two services are created, each with a different clusterIP allocated.
@@ -3855,10 +3891,10 @@ for each service there is a backend pod. later when we verify Ingress from
 client we'll see these podIPs in the returned web pages.
 
 .contrail Ingress loadbalancer object
-comparing with `single service Ingress`, only difference is one more `service`
-loadbalancer:
+comparing with `single service Ingress`, in here the only difference is one more
+`service` loadbalancer:
 
-.loadbalancers (configuration > Networking > Floating IPs)
+.`simple fanout Ingress` loadbalancers (UI: configuration > Networking > Floating IPs)
 //image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
 //image::https://user-images.githubusercontent.com/2038044/61432850-aa5f2600-a8ff-11e9-9d9f-932a386bf81f.png[]
 //image::https://user-images.githubusercontent.com/2038044/61433696-ff03a080-a901-11e9-96c1-3dfd4886c322.png[]
@@ -3876,12 +3912,12 @@ investigated the key parameters of `service` and `Ingress` loadbalancers in
 
 ===== haproxy process and haproxy.cfg file
 
-in "single service Ingress" example, we've demonstrated the two haproxy
+in `single service Ingress` example, we've demonstrated the two haproxy
 processes invoked by `contrail-svc-monitor` when it sees `loadbalancer` appears
-with `loadbalancer_provider` being `opencontrail`. when we removed the "single
-service Ingress", because there is no more Ingress left in the cluster, the two
-haproxy processes will be killed. 
-now with a new Ingress creation, two new haproxy processes are invoked again:
+with `loadbalancer_provider` set to `opencontrail`. in the end of that example,
+after we removed the `single service Ingress`, since there is no more `Ingress`
+left in the cluster, the two haproxy processes will be killed.  now with a new
+Ingress creation, two new haproxy processes are invoked again:
 
 .node `cent222`
 
@@ -3903,8 +3939,8 @@ $ ps aux | grep haproxy
     -sf  1864
 ----
 
-what interests us is how the simple fan-out Ingress "rules" are programmed in
-the haproxy.conf file:
+what interests us is how the `simple fanout Ingress` "rules" are programmed in
+the haproxy.conf file this time. let's look at the haproxy configuration file:
 
 ----
 $ cd /var/lib/contrail/loadbalancer/haproxy/b32780cd-ae02-11e9-9c97-002590a54583
@@ -3963,7 +3999,8 @@ backend 46f7e7da-0769-4672-b916-21fdd15b9fad
     server d58689c2-9e59-494b-bffd-fb7a62b4e17f 10.111.234.187:8888 weight 1
 ----
 
-NOTE: the config file is slightly formatted to make it fit to a page width. 
+NOTE: the configuration file is slightly formatted to make it fit to a page
+width. 
 //also we moved the default backend to the end.
 
 the configuration looks a little bit more complicated than the one for `single
@@ -3973,7 +4010,7 @@ read.
 * the haproxy `frontend` section: it now defines URLs. each is represented by
   two `acl` statement, one for `host`, and the other for `path`.  `host` is the
   domain name and the `path` is what follows the `host` in the URL string. here
-  for `simple fan-out Ingress` there are one host `www.juniper.net` with two
+  for `simple fanout Ingress` there are one host `www.juniper.net` with two
   different paths: `\dev` and `\qa`.
 * the haproxy `backend` section: now we see 2 of them.  for each `path` there is
   a dedicated service.
@@ -4000,7 +4037,7 @@ the configuration file can be illustrated in this figure:
 //image::https://user-images.githubusercontent.com/2038044/61790000-1cde7300-ade4-11e9-9a78-d1f5c13c7046.png[]
 image::https://user-images.githubusercontent.com/2038044/62929112-c8496a80-bd87-11e9-8b53-fdc85ca959d0.png[]
 
-with this proxy.conf file, the haproxy implements our simple fan-out Ingress:
+with this proxy.conf file, the haproxy implements our `simple fanout Ingress`:
 
 * if the full URL composes `host` "www.juniper.net" and `path` "/dev" , request
   will be dispatched to `webservice-1` (`10.111.234.187:8888`)
@@ -4019,7 +4056,7 @@ Ingress` section we'll introduce how to implement this.
 
 ====== problem of old method
 
-we'll compose similar curl commands to test `simple fan-out Ingress`. this time
+we'll compose similar curl commands to test `simple fanout Ingress`. this time
 we give different paths and see how Ingress distribute them.
 
 ----
@@ -4317,7 +4354,7 @@ tests returns podIP for `webservice-1`, as expected.
 
 ===== verify ingress: from external (Internet host)
 
-to test simple fan-out Ingress from outside of the cluster, again we can 
+to test `simple fanout Ingress` from outside of the cluster, again we can 
 use `curl` CLI.
 
 ////
@@ -4448,7 +4485,7 @@ spec:
 
 .backend `service` and `pod` definition
 
-same exact service and RC definition that were used in simple fan-out Ingress
+same exact service and RC definition that were used in `simple fanout Ingress`
 can be used here.
 
 ===== an "all in one" yaml file
@@ -4628,7 +4665,7 @@ the rules are defined properly, within each rule there is a mapping from a
 //in `namespace` section we've known `10.32.0.0/12` is the default pod subnet.
 
 the services, pods and FIP prefix advertisement to gateway router are all
-exactly the same as those in simple fan-out Ingress so we'll skip them.
+exactly the same as those in `simple fanout Ingress` so we'll skip them.
 
 ===== exploring Ingress loadbalancer objects
 
@@ -4639,7 +4676,7 @@ image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-
 ////
 
 loadbalancers created in this test is almost the same as the ones created in
-simple fan-out Ingress test:
+`simple fanout Ingress` test:
 
 .loadbalancers
 image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
