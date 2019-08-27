@@ -2657,7 +2657,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `ingress` definition
+==== `Ingress` objects definition
+
+===== `Ingress` definition
 
 in our single service ingress test lab, we want to achieve this goal:
 
@@ -2683,7 +2685,7 @@ its "backend". all HTTP request will be dispatched to this service, and from
 there the request will reach a backend pod. next we'll look at the backend
 service.
 
-==== backend `service` definition
+===== backend `service` definition
 
 we can use exactly the same service as introduced in `service` example. 
 
@@ -2705,7 +2707,7 @@ NOTE: the service `type` is optional. with `Ingress`, `service` does not need to
 be exposed to external directly anymore. therefore `LoadBalancer` type of
 service is not required. 
 
-==== backend `pod` definition
+===== backend `pod` definition
 
 same as in `service` example, we can use exactly the same `webserver` deployment
 to launch backend pods:
@@ -2737,7 +2739,7 @@ spec:
         - containerPort: 80
 ----
 
-==== an "all in one" yaml file
+===== an "all in one" yaml file
 
 as usual, we can create an individual yaml file for each of the objects. but
 considering in `Ingress`, these objects always need to be created and removed
@@ -2825,7 +2827,7 @@ TIP: imaging during test process you may need to create and delete all objects
 as a whole very often, grouping multiple objects in one yaml file can be very
 convenient.
 
-==== deploy the single service Ingress
+===== deploy the single service Ingress
 
 before applying the yaml file to get all objects created, let's take a quick
 look at our two nodes. we want to see if there is any `haproxy` process running
@@ -2850,7 +2852,7 @@ replicationcontroller/rc-webserver created
 
 the Ingress, one service and one Deployment object are now created.
 
-==== post examination
+==== `Ingress` post examination
 
 ===== Ingress object
 
@@ -3201,7 +3203,7 @@ image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-
   `default_backend` refers to the only `backend` service `10.111.216.190:80`.
   this is due to the fact that there is no `rules` defined in `single service
   Ingress`, so all HTTP requests will go to the same default_backend service,
-  regardless of what URL the user types in.
+  regardless of what URL the client sent.
 
 NOTE: later in `simple fan-out Ingress` and `name-based virtual hosting Ingress`
 examples, we will see another type of configuration statement
@@ -3258,15 +3260,19 @@ k8s-test 24 destinations, 49 routes (24 active, 0 holddown, 0 hidden)
                 Announcement bits (1): 1-KRT
                 AS path: ?
                 Communities: target:500:500 target:64512:8000016
-                    encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd)
-                    unknown type 8004 value eac4:7a1207 unknown type 8071 value
-                    eac4:b unknown type 8084 value eac4:10000 unknown type 8084
-                    value eac4:ff0004 unknown type 8084 value eac4:1040000
                 Import Accepted
                 VPN Label: 61
                 Localpref: 200                          #<---
                 Router ID: 10.169.25.19
 ----
+
+////
+                Communities: target:500:500 target:64512:8000016
+                    encapsulation:unknown(0x2) encapsulation:mpls-in-udp(0xd)
+                    unknown type 8004 value eac4:7a1207 unknown type 8071 value
+                    eac4:b unknown type 8084 value eac4:10000 unknown type 8084
+                    value eac4:ff0004 unknown type 8084 value eac4:1040000
+////
 
 //TODO: add diagram
 
@@ -3287,8 +3293,7 @@ service example.
 the FIP advertisement towards gateway router is exactly the same in all types of
 Ingresses.
 
-[NOTE]
-==== 
+****
 another fact that we've skipped on purpose is the different "local
 preference" value used by the active and standby node when advertising FIP
 prefix. saying that will involve other complex topics like the active node
@@ -3299,17 +3304,20 @@ prefix `101.101.101.1` to gateway router. however, they are advertised with
 different local preference value. the "Active" node advertise with a value of
 `200` and the "standby" node with `100`. contrail controller have both routes
 from the 2 nodes, but only the "winning" one will be advertised to the gateway
-router. that is why the "other" BGP route is dropped and only the one is
+router. that is why the "other" BGP route is dropped and only one is
 displayed.  `Localpref` being `200` proves it is coming from the active compute
 node.
-====
+****
 
-==== verify ingress: from internal
+==== `Ingress` verification
 
-we've explored a lot about ingress configuration and objects examination, now it
-is time to verify the test result. since the `Ingress` serves both inside and
-outside of the cluster, our verification will start from the cirros pod
-inside of cluster, then from the Internet host outside of it.
+===== verify ingress: from internal
+
+we've explored a lot about ingress loadbalancer and the related service, pod
+objects, etc. now it is time to verify the "end-to-end" test result. since the
+`Ingress` serves both inside and outside of the cluster, our verification will
+start from the client pod inside of cluster, then from an Internet host outside
+of it.
 
 .from inside of cluster
 
@@ -3347,12 +3355,12 @@ curl 10.47.255.238:80 | w3m -T text/html | cat
 ----
 
 we still use the `curl` command to trigger HTTP requests towards the ingress's
-private IP. the return proves our `Ingress` works: requests towards
-different URLs are all proxied to the same backend pods, through the
-default backend services `service-web-clusterip`. 
+private IP. the return proves our `Ingress` works: requests towards different
+URLs are all proxied to the same backend pods, through the default backend
+services `service-web-clusterip`. 
 
 in the fourth request we didn't give a URL via `-H`, `curl` will fill `host`
-with the request IP address, `10.47.255.238` in this test, again it goes to the
+with the request IP address - `10.47.255.238` in this test, again it goes to the
 same backend pod and get the same returned response.
 
 NOTE: The `-H` option is important in Ingress test with `curl`. it carries the
@@ -3360,15 +3368,16 @@ full URL in HTTP payload that the Ingress loadbalancer is waiting for. without
 it the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
 so it will be treated same as with a unknown URL.
 
-==== verify ingress: from external (Internet host)
+===== verify ingress: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to expose services to the Internet host, even though it
 does not have to. 
 
 to make sure the URL resolves to the right FIP address, we need to update
-`/etc/hosts` file by adding one line in the end - you don't want to just end up
-with a nice webpage from Juniper/cisco's official website as your test result.
+`/etc/hosts` file by adding one line in the end - you probably don't want to
+just end up with a nice webpage from `Juniper`/`cisco`'s official website as
+your test result.
 
 ----
 # echo "101.101.101.1  www.juniper.net www.cisco.com www.google.com" >> /etc/hosts
@@ -3384,47 +3393,53 @@ refreshing the pages we can confirm all HTTP request is returned by the same
 backend pod.
 
 //image::https://user-images.githubusercontent.com/2038044/60478459-c6e93600-9c50-11e9-848b-a73e9c6d010f.png[]
-//TODO: add figure
+
+.access `www.juniper.net` from Internet host
+//image::https://user-images.githubusercontent.com/2038044/63735716-adc6c500-c84e-11e9-9267-0112916c7ea8.png[]
+image::https://user-images.githubusercontent.com/2038044/63737822-a951da80-c855-11e9-99ef-1c769f71d8b6.png[]
 
 same result can be seen from `curl` also. the command is exactly the same as
 what we've seen when testing from a pod, except this time we send requests to
 Ingress external FIP, instead of the Ingress internal podIP.
 
-from Internet host machine:
+.from Internet host machine
 
 ----
 $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
-                          IP address = 10.47.255.235
-                        Hostname = webserver-846c9ccb8b-2-m2272
+                          IP address = 10.47.255.236
+                         Hostname = webserver-846c9ccb8b-9nfdx
+                                    [giphy]
 
 $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                         Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 ----
 
-everything works!  next we'll look at the second Ingress type "simple fan-out
-Ingress".  it is better to clean up everything before moving forward.  now we
-can take advantage of the all-in-one yaml file - everything can be cleared with
-the same all-in-one yaml file:
+everything works!
+
+next we'll look at the second Ingress type `simple fan-out Ingress`. it is
+better to clean up everything before moving forward.  now we can take advantage
+of the all-in-one yaml file - everything can be cleared with one `kubectl
+delete` command using the same all-in-one yaml file:
 
 ----
 $ kubectl delete -f ingress/ingress-single-service.yaml
@@ -3436,9 +3451,9 @@ replicationcontroller "webserver-846c9ccb8b-1" deleted
 === simple fan-out Ingress
 
 //TODO: adjust the TOC, default backend
-both simple fan-out Ingress and name-based virtual host Ingress support "URL
-routing", the only difference is the former is based on `path` and the
-latter is based on `host`.
+both `simple fan-out Ingress` and `name-based virtual host Ingress` support "URL
+routing", the only difference is the former is based on `path` and the latter is
+based on `host`.
 
 with simple fan-out Ingress, based on the URL path and rules, an ingress
 loadbalancer directs traffic to different backend services.
@@ -3472,8 +3487,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
+==== `Ingress` objects definition
 
-==== `ingress` definition
+===== `ingress` definition
 
 in our simple fan-out Ingress test lab, we want to achieve these goals for URL
 `www.juniper.net`:
@@ -3509,7 +3525,7 @@ in contrast to "single service Ingress", in "fan-out" `Ingress` object (and
 "name-based virtual host Ingress") we see "rules" defined - here it is the
 mappings from multiple "paths" to different backend services. 
 
-==== backend `service` definition
+===== backend `service` definition
 
 since we defined 2 rules each for a `path`, we need two services also. we 
 can "clone" the previous service in `single service Ingress` example and
@@ -3544,7 +3560,7 @@ spec:
   #type: LoadBalancer
 ----
 
-==== backend `pod` definition
+===== backend `pod` definition
 
 because we have 2 backend services now, apparently we also need at least two
 backend pods each with a label matching to a service.  we can clone the previous
@@ -3607,7 +3623,7 @@ spec:
         - containerPort: 80
 ----
 
-==== deploy simple fan-out Ingress
+===== deploy simple fan-out Ingress
 
 same as in `single service Ingress`, we put everything together to get an
 "all-in-one" yaml file to test simple fan-out Ingress:
@@ -3717,7 +3733,9 @@ deployment.extensions/webserver-2 created
 
 the Ingress, two services and two RC objects are now created.
 
-==== ingress objects and ingress loadbalancer
+==== `Ingress` post examination
+
+===== ingress objects and ingress loadbalancer
 
 let's look at the kubernetes objects created from the all-in-one yaml file:
 
@@ -3856,7 +3874,7 @@ we won't explore the details of each objects again this time since we've
 investigated the key parameters of `service` and `Ingress` loadbalancers in
 `single service Ingress` - there is really nothing new here.
 
-==== haproxy process and haproxy.cfg file
+===== haproxy process and haproxy.cfg file
 
 in "single service Ingress" example, we've demonstrated the two haproxy
 processes invoked by `contrail-svc-monitor` when it sees `loadbalancer` appears
@@ -3995,9 +4013,11 @@ NOTE: in practice we often need a "default" backend service to process those
 HTTP request with non-specified URLs. later in `name-based virtual hosting
 Ingress` section we'll introduce how to implement this.
 
-==== verify ingress: from internal
+==== `Ingress` verification
 
-===== problem of old method
+===== verify ingress: from internal
+
+====== problem of old method
 
 we'll compose similar curl commands to test `simple fan-out Ingress`. this time
 we give different paths and see how Ingress distribute them.
@@ -4057,7 +4077,7 @@ if __name__ == '__main__':
     app.run(debug=True,host='0.0.0.0', port=80)
 ----
 
-===== workaround
+====== workaround
 
 there are several ways to workaround the problem:
 
@@ -4079,7 +4099,7 @@ server, and make it to serve the "path" that we give in the URL:
 NOTE: don't forget to delete the old services and create the new ones with the
 updated parameters.
 
-===== create web pages
+====== create web pages
 
 in order to make the webserver responding to the URL with given paths, we can
 create some web pages with file names being same as the `path`: `dev`, `qa`,
@@ -4154,7 +4174,7 @@ drwxr-xr-x. 2 root root  23 Apr 21  2017 static
 TIP: we create a page `abc` that has no corresponding path to test the scenario
 when incoming HTTP request contains an "unknown" path.
 
-===== start new web server
+====== start new web server
 
 for each pod open a seperate terminal, then start a web server with python
 module `SimpleHTTPServer`, listening on port 90:
@@ -4180,7 +4200,7 @@ kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9cc
 
 ////
 
-===== the new all-in-one yaml file
+====== the new all-in-one yaml file
 
 the last step before testing our Ingress is to update the previous services
 `targetPort` 80 in the "all-in-one" yaml file with the new HTTP server's port
@@ -4216,7 +4236,7 @@ deployment.extensions/webserver-1 unchanged
 deployment.extensions/webserver-2 unchanged
 ----
 
-===== test the URL with different paths
+====== test the URL with different paths
 
 ----
 $ kubectl exec -it cirros -- \
@@ -4295,7 +4315,7 @@ test the returned podIP `10.47.255.235` represent `webservice-2`, all other thre
 tests returns podIP for `webservice-1`, as expected.
 ////
 
-==== verify ingress: from external (Internet host)
+===== verify ingress: from external (Internet host)
 
 to test simple fan-out Ingress from outside of the cluster, again we can 
 use `curl` CLI.
@@ -4385,7 +4405,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `ingress` definition
+==== `Ingress` objects definition
+
+===== `ingress` definition
 
 in our virtual host ingress test lab, we define the following rules:
 
@@ -4429,7 +4451,7 @@ spec:
 same exact service and RC definition that were used in simple fan-out Ingress
 can be used here.
 
-==== an "all in one" yaml file
+===== an "all in one" yaml file
 
 ----
 $ cat ingress/ingress-test.yaml
@@ -4541,7 +4563,9 @@ deployment.extensions/webserver-2 created
 
 the Ingress, two services and two RC objects are now created.
 
-==== examine ingress objects
+==== `Ingress` post examination
+
+===== examine ingress objects
 
 let's start to look at the Ingress object.
 
@@ -4606,7 +4630,7 @@ the rules are defined properly, within each rule there is a mapping from a
 the services, pods and FIP prefix advertisement to gateway router are all
 exactly the same as those in simple fan-out Ingress so we'll skip them.
 
-==== exploring Ingress loadbalancer objects
+===== exploring Ingress loadbalancer objects
 
 //TODO: should skip if simple fan-out Ingress can capture this.
 ////
@@ -4628,7 +4652,7 @@ image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-
 next we can check haproxy configuration file for `name-based virtual host
 Ingress`.
 
-==== examine `haproxy.conf` file
+===== examine `haproxy.conf` file
 
 ----
 $ cd /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/
@@ -4729,7 +4753,9 @@ through this configuration, the haproxy implemented our ingress:
    `webservice-2` (`10.104.4.232:8888`)
 * other URLs goes to default backend which is service `webservice-1`
 
-==== verify ingress: from internal
+==== `Ingress` verification
+
+===== verify ingress: from internal
 
 we've explored a lot about ingress configuration and objects examination, now it
 is time to verify the test result. since the `Ingress` serves both inside and
@@ -4792,7 +4818,7 @@ full URL in HTTP payload that the loadbalancer is waiting for. without it the
 HTTP header will carry `Host: 10.47.255.238`, which has no matching rule, so it
 will be treated same as with a unknown URL.
 
-==== verify ingress: from external (Internet host)
+===== verify ingress: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to provide the "extra power" to expose services to the
