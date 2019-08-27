@@ -1971,7 +1971,8 @@ file.
 
 whenever a service of `type: LoadBalancer` get created, in contrail environment
 what will happen is , not only a `clusterIP` will be allocated and exposed to
-other pods within the cluster, but also a `floating ip` will be assigned to the
+other pods within the cluster, but also a `floating ip` from public fip pool (either
+in global scope or in NS scope or from OBJECT scope) will be assigned to the
 loadbalancer instance as an "external IP" and exposed to the public world outside
 of the cluster. 
 
@@ -2018,9 +2019,9 @@ service-web-lb  LoadBalancer  10.96.89.48  101.101.101.252  8888:32653/TCP  10s 
 comparing with the `clusterIP` service type, this time in the "EXTERNAL-IP"
 column there is an IP allocated. if you remember what we've covered in the
 "floating IP pool" section, you should understand this "EXTERNAL-IP" is actually
-another `FIP`, allocated from the `NS FIP pool` - we did not give any specific
-FIP pool information in the service object yaml file, so based on the algorithm
-`NS FIP pool` will be used automatically. 
+another `FIP`, allocated from the `NS FIP pool` or `global FIP pool` - we did not
+give any specific FIP pool information in the service object yaml file, so based
+on the algorithm right FIP pool will be used automatically. 
 
 ==== examine VRF table in gateway router
 
@@ -2128,10 +2129,10 @@ here is the full story:
 * contrail create a loadbalancer instance and assign a FIP to it. contrail also
   associate that FIP with the pod interface, so there will be one to one NAT
   operation between the FIP and podIP.
-* via XMPP, node `cent222` advertises the podIP and FIP to contrail controller
-  `cent111`, which then advertises only the FIP to the gateway router. at this
-  moment the gateway learns the nexthop of the FIP is `cent222`, so it generate
-  a soft GRE tunnel toward `cent222`.
+* via XMPP, node `cent222` advertises the FIP to contrail controller `cent111`,
+  which then advertises only the FIP to the gateway router(due to the route filter).
+  at this moment the gateway learns the nexthop of the FIP is `cent222`, so it
+  generate a soft GRE tunnel toward `cent222`.
 * when gateway router see a request coming from Internet toward the FIP, through
   the MPLS over GRE tunnel it will send the request to the node `cent222`
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
@@ -2143,19 +2144,16 @@ To verify the end to end service access from Internet host to the backend pod,
 we will login to the Internet host desktop and launch a browser, with URL
 pointing to `http://101.101.101.252:8888`. 
 
-TIP: just to keep in mind that the request has to be sent to the public **FIP**,
-not the **service IP**(**clusterIP**) or backend **podIP** which is only
-reachable from inside of the cluster!
+TIP: just to keep in mind that the internet host request has to be sent to the
+public **FIP**, not to the **service IP**(**clusterIP**) or backend **podIP**
+which are only reachable from inside of the cluster!
 
 this is the returned web page:
 
 image::https://user-images.githubusercontent.com/2038044/60388669-ea5e8600-9a82-11e9-87b9-30a98572f7bb.png[]
 
 ****
-in our testbed we installed a centos server as an Internet host. as with any
-linux distribution, if you need to login the "GUI", you need to install Xwindow
-or linux desktop applications and set it up properly. also you need a web
-browser if it does not come with the server.
+in our testbed we installed a centos desktop as an Internet host. 
 ****
 
 To simplify the test, you can also ssh into the Internet host and test it with
