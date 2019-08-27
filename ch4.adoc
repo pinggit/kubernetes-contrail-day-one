@@ -2135,14 +2135,12 @@ here is the full story:
 * contrail create a loadbalancer instance and assign a FIP to it. contrail also
   associate that FIP with the pod interface, so there will be one to one NAT
   operation between the FIP and podIP.
-* via XMPP, node `cent222` advertises the FIP to contrail controller `cent111`,
-  which then advertises only the FIP to the gateway router(due to the route filter).
-  at this moment the gateway learns the nexthop of the FIP is `cent222`, so it
-  generate a soft GRE tunnel toward `cent222`. (YUVA)
-* via XMPP, node `cent222` advertises the podIP and FIP to contrail controller
-  `cent111`, which then advertises only the FIP to the gateway router. at this
-  moment the gateway learns the nexthop of the FIP is `cent222`, so it generate
-  a soft GRE tunnel toward `cent222`. (PING)
+* via XMPP, node `cent222` advertises this FIP to contrail controller `cent111`,
+  which then advertises it to the gateway router.
+* on receiving the FIP prefix, gateway router checks and see a the RT of the
+  prefix matches to what it is expecting, it will import the prefix in local
+  VRF. at this moment the gateway learns the nexthop of the FIP is `cent222`, so
+  it generate a soft GRE tunnel toward `cent222`.
 * when gateway router see a request coming from Internet toward the FIP, through
   the MPLS over GRE tunnel it will send the request to the node `cent222`
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
@@ -3341,9 +3339,7 @@ displayed.  `Localpref` being `200` proves it is coming from the active compute
 node.
 ****
 
-==== `Ingress` verification
-
-===== verify ingress: from internal
+==== `Ingress` verification: from internal
 
 we've explored a lot about ingress loadbalancer and the related service, pod
 objects, etc. now it is time to verify the "end-to-end" test result. since the
@@ -3400,7 +3396,7 @@ full URL in HTTP payload that the Ingress loadbalancer is waiting for. without
 it the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
 so it will be treated same as with a unknown URL.
 
-===== verify ingress: from external (Internet host)
+==== `Ingress` verification: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to expose services to the Internet host, even though it
@@ -3477,7 +3473,7 @@ delete` command using the same all-in-one yaml file:
 $ kubectl delete -f ingress/ingress-single-service.yaml
 ingress.extensions "ingress-ss" deleted
 service "webservice-1" deleted
-replicationcontroller "webserver-846c9ccb8b-1" deleted
+replicationcontroller "Vwebserver-1-846c9ccb8b" deleted
 ----
 
 === `simple fanout Ingress`
@@ -3874,16 +3870,16 @@ webservice-2   ClusterIP   10.100.156.38   <none>        8888/TCP   85m   app=we
 $ kubectl get pod -o wide
 NAME                          READY  STATUS   ... AGE  IP             NODE    ..
 cirros                        1/1    Running  ... 44d  10.47.255.237  cent222 ..
-webserver-846c9ccb8b-1-wns77  1/1    Running  ... 13m  10.47.255.236  cent333 ..
-webserver-846c9ccb8b-2-t75d8  1/1    Running  ... 13m  10.47.255.235  cent333 ..
+webserver-1-846c9ccb8b-wns77  1/1    Running  ... 13m  10.47.255.236  cent333 ..
+webserver-2-846c9ccb8b-t75d8  1/1    Running  ... 13m  10.47.255.235  cent333 ..
 
 $ kubectl get pod -o wide -l app=webserver-1
 NAME                          READY  STATUS   ... AGE  IP             NODE    ..
-webserver-846c9ccb8b-1-wns77  1/1    Running  ... 156m 10.47.255.236  cent333 ..
+webserver-1-846c9ccb8b-wns77  1/1    Running  ... 156m 10.47.255.236  cent333 ..
 
 $ kubectl get pod -o wide -l app=webserver-2
 NAME                          READY  STATUS   ... AGE  IP             NODE    ..
-webserver-846c9ccb8b-2-t75d8  1/1    Running  ... 156m 10.47.255.235  cent333 ..
+Vwebserver-2-846c9ccb8b-t75d8  1/1    Running  ... 156m 10.47.255.235  cent333 ..
 ----
 
 two services are created, each with a different clusterIP allocated.
@@ -4004,26 +4000,27 @@ width.
 //also we moved the default backend to the end.
 
 the configuration looks a little bit more complicated than the one for `single
-service Ingress`, but the most important part of it doesn't really look hard to
-read. 
+service Ingress`, but the most important part of it is looks pretty
+straightforward.
 
-* the haproxy `frontend` section: it now defines URLs. each is represented by
-  two `acl` statement, one for `host`, and the other for `path`.  `host` is the
-  domain name and the `path` is what follows the `host` in the URL string. here
-  for `simple fanout Ingress` there are one host `www.juniper.net` with two
-  different paths: `\dev` and `\qa`.
-* the haproxy `backend` section: now we see 2 of them.  for each `path` there is
+* the haproxy `frontend` section: it now defines URLs. each URL is represented
+  by a pair of `acl` statement, one for `host`, and the other for `path`. in a
+  nutshell, `host` is the domain name and `path` is what follows the `host` in
+  the URL string. here for `simple fanout Ingress` there are is a host
+  `www.juniper.net` with two different paths: `\dev` and `\qa`.
+* the haproxy `backend` section: now we see 2 of them. for each `path` there is
   a dedicated service.
-* `use_backend` command in `frontend` section: this statement declares the
-  ingress rules: `if` the URL request includes a specified `path` that
-  matches to what is programmed in one of the two ACLs, "use" the corresponding
-  "backend" to forward the traffic. 
+* `use_backend...if...` command in `frontend` section: this statement declares
+  the ingress rules: "if" the URL request includes a specified `path` that
+  matches to what is programmed in one of the two ACLs pairs, "use" the
+  corresponding "backend" (that is a service), to forward the traffic. 
   
 for example, `acl 020e371c-e222-400f-b71f-5909c93132de_path path /qa` defines
-path `/qa`. if the URL request contains such a path, haproxy will use backend
-`020e371c-e222-400f-b71f-5909c93132de`, which you can find in `backend` section,
-is a UUID referring to service `server d58689c2-9e59-494b-bffd-fb7a62b4e17f
-10.111.234.187:8888 weight 1`
+path `/qa`. if the URL request contains such a path, haproxy will "use_backend"
+`020e371c-e222-400f-b71f-5909c93132de`, which you can find in `backend` section.
+The backend is a UUID referring to `server c13b0d0d-6e4a-4830-bb46-2377ba4caf23
+10.97.77.82:8888 weight 1`, which essentially is a service. you can identify
+this by looking at the `serviceIP:port`: `10.97.77.82:8888`.
 
 ////
 * `default_backend` defines which backend is the "default": it will be used when
@@ -4032,12 +4029,13 @@ is a UUID referring to service `server d58689c2-9e59-494b-bffd-fb7a62b4e17f
 
 the configuration file can be illustrated in this figure:
 
-.simple fan-out service
+.simple fanout service
 //image::https://user-images.githubusercontent.com/2038044/61764125-0f09fd00-ada6-11e9-8a30-61e3a2ed2db3.png[]
 //image::https://user-images.githubusercontent.com/2038044/61790000-1cde7300-ade4-11e9-9a78-d1f5c13c7046.png[]
-image::https://user-images.githubusercontent.com/2038044/62929112-c8496a80-bd87-11e9-8b53-fdc85ca959d0.png[]
+//image::https://user-images.githubusercontent.com/2038044/62929112-c8496a80-bd87-11e9-8b53-fdc85ca959d0.png[]
+image::https://user-images.githubusercontent.com/2038044/63776303-1e9dc980-c8af-11e9-8c25-cdbc7d6cc73a.png[]
 
-with this proxy.conf file, the haproxy implements our `simple fanout Ingress`:
+with this `proxy.conf` file, the haproxy implements our `simple fanout Ingress`:
 
 * if the full URL composes `host` "www.juniper.net" and `path` "/dev" , request
   will be dispatched to `webservice-1` (`10.111.234.187:8888`)
@@ -4046,15 +4044,16 @@ with this proxy.conf file, the haproxy implements our `simple fanout Ingress`:
 * for any other URLs the request will be dropped because there is no
   corresponding backend service defined for it.
 
-NOTE: in practice we often need a "default" backend service to process those
-HTTP request with non-specified URLs. later in `name-based virtual hosting
-Ingress` section we'll introduce how to implement this.
+NOTE: in practice we often need a the `default_backend` service to process all
+those HTTP request with no matching URLs in the rules. we've seen it in the
+previous examle of `single service Ingress`. later in `name-based virtual
+hosting Ingress` section we'll combine the `use_backend` and `default_backend`
+together to privde this type of flexibility.
 
-==== `Ingress` verification
 
-===== verify ingress: from internal
+==== `Ingress` verification: from internal
 
-====== problem of old method
+===== problem of old method
 
 we'll compose similar curl commands to test `simple fanout Ingress`. this time
 we give different paths and see how Ingress distribute them.
@@ -4071,13 +4070,17 @@ manually please check your spelling and try again.</p>
 it doesn't work!
 
 the reason is our webserver coming with the backend pods does not support the
-paths `dev` or `qa` in the URL. checking its code reveals this issue:
+`path` `dev` or `qa` in the URL. 
+
+[TIP]
+=====
+checking the webserver's code reveals the issue:
 
 ----
-$ kubectl exec -it webserver-846c9ccb8b-1-wns77 bash
-root@webserver-846c9ccb8b-1-wns77:/app# ls
+$ kubectl exec -it webserver-1-846c9ccb8b-wns77 bash
+root@webserver-1-846c9ccb8b-wns77:/app# ls
 Dockerfile  app.py  requirements.txt  static
-root@webserver-846c9ccb8b-1-wns77:/app# cat app.py
+root@webserver-1-846c9ccb8b-wns77:/app# cat app.py
 # Simple Web-Server
 from flask import Flask
 import subprocess
@@ -4114,29 +4117,33 @@ if __name__ == '__main__':
     app.run(debug=True,host='0.0.0.0', port=80)
 ----
 
-====== workaround
+in the code only path `/` and `/contrail` is supported.
+
+=====
+
+===== workaround
 
 there are several ways to workaround the problem:
 
 * change the current server code and restart the server
 * create a new server that supports URLs with the 2 paths
 
-in this section we will demonstrate how to use a python module to create a HTTP
-server, and make it to serve the "path" that we give in the URL:
+in this section we will demonstrate how to use an existing python module to
+create a HTTP server, and make it to serve the "path" that we give in the URL:
 
 * in each backend pods we'll create a new HTTP server.
 * the server is created from python module `SimpleHTTPServer` coming with
-  image of each pods.
+  the webserver image of each pods.
 * to avoid confliction, the new HTTP servers will listen on a different port
   other than default port `80`, which had been used by the existing server
   process.
-* accordingly, we update the service's `targetPort` (from `80` to `90`) in order to
-  deliver the request to the new HTTP server. 
+* accordingly, we update the `targetPort` (from `80` to `90`) of `service` in
+  order to deliver the request to the new HTTP server.
   
 NOTE: don't forget to delete the old services and create the new ones with the
 updated parameters.
 
-====== create web pages
+===== create web pages
 
 in order to make the webserver responding to the URL with given paths, we can
 create some web pages with file names being same as the `path`: `dev`, `qa`,
@@ -4172,10 +4179,10 @@ EOF
 .copy the webpage into the backend pod
 
 ----
-$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/dev
-$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/qa
-$ kubectl cp dev webserver-846c9ccb8b-1-wns77:/app/abc
-$ kubectl exec -it webserver-846c9ccb8b-1-wns77 -- ls -lt
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/dev
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/qa
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/abc
+$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- ls -lt
 total 24
 -rw-r--r--. 1 root root 364 Aug 13 06:26 abc    #<---
 -rw-r--r--. 1 root root 364 Aug 13 06:26 dev    #<---
@@ -4189,15 +4196,15 @@ drwxr-xr-x. 2 root root  23 Apr 21  2017 static
 similarly, just change the IP and Hostname of this webpage to the vaule of the
 other backend pod and then copy into it:
 
-//$ sed 's/10.47.255.236/10.47.255.235/g; s/webserver-846c9ccb8b-wns77/webserver-846c9ccb8b-2-t75d8/g' dev > dev2
+//$ sed 's/10.47.255.236/10.47.255.235/g; s/webserver-846c9ccb8b-wns77/Vwebserver-2-846c9ccb8b-t75d8/g' dev > dev2
 
 ----
 $ sed 's/10.47.255.236/10.47.255.235/g' dev > temp
 $ sed 's/webserver-1-846c9ccb8b-wns77/webserver-2-846c9ccb8b-t75d8/g' temp > dev2
-$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/dev
-$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/qa
-$ kubectl cp dev2 webserver-846c9ccb8b-2-t75d8:/app/abc
-$ kubectl exec -it webserver-846c9ccb8b-2-t75d8 -- ls -lt
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/dev
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/qa
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/abc
+$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- ls -lt
 total 24
 -rw-r--r--. 1 root root 366 Aug 13 06:39 abc    #<---
 -rw-r--r--. 1 root root 366 Aug 13 06:39 dev    #<---
@@ -4211,15 +4218,15 @@ drwxr-xr-x. 2 root root  23 Apr 21  2017 static
 TIP: we create a page `abc` that has no corresponding path to test the scenario
 when incoming HTTP request contains an "unknown" path.
 
-====== start new web server
+===== start new web server
 
 for each pod open a seperate terminal, then start a web server with python
 module `SimpleHTTPServer`, listening on port 90:
 
 ----
-$ kubectl exec -it webserver-846c9ccb8b-1-wns77 -- python -m SimpleHTTPServer 90
+$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- python -m SimpleHTTPServer 90
 Serving HTTP on 0.0.0.0 port 90 ...
-$ kubectl exec -it webserver-846c9ccb8b-2-t75d8 -- python -m SimpleHTTPServer 90
+$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- python -m SimpleHTTPServer 90
 Serving HTTP on 0.0.0.0 port 90 ...
 ----
 
@@ -4227,24 +4234,24 @@ Serving HTTP on 0.0.0.0 port 90 ...
 create some files with name being same as the `paths`: `dev`, `qa`, and `abc`.
 
 ----
-kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > dev"
-kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > qa"
-kubectl exec -it webserver-846c9ccb8b-1-s2zn9 -- bash -c "echo webserver-846c9ccb8b-1-s2zn9:10.47.255.249 > abc"
-kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > dev"
-kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > qa"
-kubectl exec -it webserver-846c9ccb8b-2-k9x26 -- bash -c "echo webserver-846c9ccb8b-2-k9x26:10.47.255.248 > abc"
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > dev"
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > qa"
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > abc"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > dev"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > qa"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > abc"
 ----
 
 ////
 
-====== the new all-in-one yaml file
+===== the new all-in-one yaml file
 
 the last step before testing our Ingress is to update the previous services
 `targetPort` 80 in the "all-in-one" yaml file with the new HTTP server's port
 90. delete the current services and apply the updated all-in-one yaml file
 again:
 
-.updated yaml file ingress-simple-fanout2.yaml
+.updated yaml file ingress-simple-fanout2.yaml (diff only)
 ----
 $ diff ingress-simple-fanout.yaml ingress-simple-fanout2.yaml
 26c26
@@ -4273,7 +4280,10 @@ deployment.extensions/webserver-1 unchanged
 deployment.extensions/webserver-2 unchanged
 ----
 
-====== test the URL with different paths
+only the two services are updated and deleted, so when we apply the new yaml
+file, only these two objects are recreated - all other objects keep unchanged.
+
+===== test the URL with different paths
 
 ----
 $ kubectl exec -it cirros -- \
@@ -4281,7 +4291,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                         Hostname = webserver-846c9ccb8b-wns77
+                         Hostname = webserver-1-846c9ccb8b-wns77
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4289,7 +4299,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = webserver-846c9ccb8b-2-t75d8
+                        Hostname = Vwebserver-2-846c9ccb8b-t75d8
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4311,10 +4321,10 @@ No server is available to handle this request.
 ////
 ----
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
-webserver-846c9ccb8b-1-s2zn9:10.47.255.249
+Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249
 
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/qa
-webserver-846c9ccb8b-2-k9x26:10.47.255.248
+Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248
 
 $ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/abc
 <html><body><h1>503 Service Unavailable</h1>
@@ -4329,16 +4339,21 @@ No server is available to handle this request.
 ----
 ////
 
-we still use the `curl` command to trigger HTTP requests towards the ingress's
-loadbalancer IP. the return proves our `Ingress` works: the 2 requests towards
+//again we use the `curl` command to trigger HTTP requests towards the ingress's loadbalancer IP. 
+the return proves our `Ingress` works: the 2 requests towards
 "/qa" and "/dev" paths are proxied to 2 different backend pods, through 2
 backend services `webservice-1` and `webservice-2` respectively. 
 
-the third request with a path `abc` is a "unknown" URL which does not have a
-matching service in `Ingress` configuration, so it goes to the default backend
-service - `service-1`.  same for the fourth and fifth requests, without a path,
-or with a different Host, the URL become unknown to our Ingress so it won't be
-served.
+the third request with a path `abc` composes a "unknown" URL which does not have
+a matching service in `Ingress` configuration, so it won't be served. same for
+the last 2 requests, without a path, or with a different Host, the URL
+become unknown to our Ingress so it won't be served.
+
+you may think that we should add more rules to include these scenarios. doing
+that works fine but not scalable apparently - you can never cover all possible
+paths and URLs that could come into your server. as we mentioned earlier, one
+solution is to use `default_backend` service to process all "other" HTTP
+requests.  we'll cover this in the next example.
 
 ////
 same rule applies to the fourth request. without given a URL via `-H`, `curl`
@@ -4352,10 +4367,7 @@ test the returned podIP `10.47.255.235` represent `webservice-2`, all other thre
 tests returns podIP for `webservice-1`, as expected.
 ////
 
-===== verify ingress: from external (Internet host)
-
-to test `simple fanout Ingress` from outside of the cluster, again we can 
-use `curl` CLI.
+==== `Ingress` verification: from external (Internet host)
 
 ////
 with chrome, this time we launch two chrome page side by side, and input URLs
@@ -4370,10 +4382,10 @@ image::https://user-images.githubusercontent.com/2038044/60478459-c6e93600-9c50-
 same result can be seen from `curl` also. 
 ////
 
-the command is the same as what we've seen when initiating the HTTP request from
-inside of a pod, except this time we are initiating from an Internet host. we
-will send the HTTP requests to the Ingress's public FIP, instead of its internal
-podIP.
+to test `simple fanout Ingress` from outside of the cluster, the command is the
+same as what we've seen when initiating the HTTP request from inside of a pod,
+except this time we are initiating from an Internet host. we will send the HTTP
+requests to the Ingress's public FIP, instead of its internal podIP.
 
 from Internet host machine:
 
@@ -4382,7 +4394,7 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1/qa | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = webserver-846c9ccb8b-2-t75d8
+                        Hostname = Vwebserver-2-846c9ccb8b-t75d8
                                     [giphy]
 
 $ curl -H 'Host:www.juniper.net' 101.101.101.1/dev | w3m -T text/html | cat
@@ -4790,9 +4802,7 @@ through this configuration, the haproxy implemented our ingress:
    `webservice-2` (`10.104.4.232:8888`)
 * other URLs goes to default backend which is service `webservice-1`
 
-==== `Ingress` verification
-
-===== verify ingress: from internal
+==== `Ingress` verification: from internal
 
 we've explored a lot about ingress configuration and objects examination, now it
 is time to verify the test result. since the `Ingress` serves both inside and
@@ -4807,7 +4817,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4815,14 +4825,14 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = webserver-846c9ccb8b-2-m2272
+                        Hostname = Vwebserver-2-846c9ccb8b-m2272
 
 $ kubectl exec -it cirros -- \
     curl -H 'Host:www.google.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
 $ kubectl exec -it cirros -- \
@@ -4830,7 +4840,7 @@ $ kubectl exec -it cirros -- \
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 ----
 
@@ -4855,7 +4865,7 @@ full URL in HTTP payload that the loadbalancer is waiting for. without it the
 HTTP header will carry `Host: 10.47.255.238`, which has no matching rule, so it
 will be treated same as with a unknown URL.
 
-===== verify ingress: from external (Internet host)
+==== `Ingress` verification: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to provide the "extra power" to expose services to the
@@ -4893,27 +4903,27 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
-                        Hostname = webserver-846c9ccb8b-2-m2272
+                        Hostname = Vwebserver-2-846c9ccb8b-m2272
 
 $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
-                        Hostname = webserver-846c9ccb8b-1-g65dg
+                        Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 ----
 
@@ -4979,7 +4989,7 @@ the tools are:
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    webserver-846c9ccb8b-1-g65dg</h3>
+    Vwebserver-1-846c9ccb8b-g65dg</h3>
     <img src="/static/giphy.gif">
   </body>
   </div>
