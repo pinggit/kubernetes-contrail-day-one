@@ -1289,9 +1289,16 @@ image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-
 
 ==== listener
 
-click on the LB name and select "listener", then expand it and click on
-`advanced json view` icon on the right, you will get the listener details. the
-listener is listening on service port 8888, and it is referenced by a `pool`.
+click on the LB name and select "listener", then expand it and display the
+details with JSON format, you will get the listener details. the listener is
+listening on service port 8888, and it is referenced by a `pool`.
+
+TIP: in order to see the detail parameters of an object in JSON format, click
+the triangle in the left of the loadbalancer name to expand it, then click on
+the "Advanced JSON view" icon
+image:https://user-images.githubusercontent.com/2038044/63659232-4b9e8f00-c77e-11e9-85d5-6a1b7a654f05.png[]
+on the up right corner in the expanded view. We'll use the JSON view a lot in
+this book to explore different contrail objects.
 
 .listener
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
@@ -2975,14 +2982,14 @@ right after ingress got created, we see a haproxy process created in each of our
 two nodes!
 
 remember earlier when we talk about ingress contrail implementation, we've said
-contrail Ingress is also implemented through loadbalancer (just like `service`), but
-Ingress's loadbalancer is with a different `loadbalancer_provider` attribute,
-which makes `contrail-svc-monitor` takes a different action than what it does
-for service. the `loadbalancer_provider` for Ingress loadbalancer is
+contrail Ingress is also implemented through loadbalancer (just like `service`),
+but Ingress's loadbalancer is with a different `loadbalancer_provider`
+attribute, which makes `contrail-svc-monitor` takes a different action than what
+it does for service. the `loadbalancer_provider` for Ingress loadbalancer is
 `opencontrail`, and accordingly the action that `contrail-svc-monitor` take on
-it is to launch a haproxy process running with ingress rules programmed in its
-configuration file.  this basically explains the haproxy processes we see in the
-2 nodes.
+it is to launch two haproxy processes running with ingress rules programmed in
+the configuration file.  this basically explains the haproxy processes we see in
+the 2 nodes.
 
 ////
 that is only a high level overview about the contrail's implementation of
@@ -3032,10 +3039,11 @@ $ docker exec -it vrouter_vrouter-agent_1 ps 16335
 image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-11e9-8bee-abfc5cbc400f.png[]
 ////
 
-we've talked about Ingress loadbalancers for a while. in `service` section,
-we've looked into service loadbalancer object in UI and learned some details
-about the object data structrure. now after we created Ingress object, let's
-check the loadbalancers object again and see what Ingress brings in here.
+we've mentioned "Ingress loadbalancer" for a few time but we haven't looked into
+it yet. In `service` section, we've looked into service loadbalancer object in
+UI and we inspected some details about the object data structrure. now after we
+created Ingress object, let's check the list of loadbalancers object again and
+see what Ingress brings in here.
 
 .loadbalancers (configuration > Networking > Floating IPs)
 //image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
@@ -3056,8 +3064,8 @@ service you will see more details, but nothing would surprise us now.
 image::https://user-images.githubusercontent.com/2038044/61433906-8bae5e80-a902-11e9-8039-fc5c5414c15a.png[]
 
 as expected, the service loadbalancer has a ClusterIP, and a listener object
-that is listening on port 8888. one thing we want to highlight here is the
-`loadbalancer_provider`. here the value is "native", so the action
+that is listening on port 8888. one thing we want to highlight here again is the
+`loadbalancer_provider`. the value is "native", so the action
 `contrail-svc-monitor` takes is layer 4 (application layer) ECMP process, which
 we've explored a lot in service section. now let's expand Ingress loadbalancer
 and look at the details.
@@ -3065,10 +3073,6 @@ and look at the details.
 .ingress loadbalancer object 
 //image::https://user-images.githubusercontent.com/2038044/61021789-f98ddf80-a370-11e9-9cce-30a0c2671bc2.png[]
 image::https://user-images.githubusercontent.com/2038044/61434308-97e6eb80-a903-11e9-8a34-58f4bbaddf30.png[]
-
-NOTE: in order to see the detail parameters of an object, click the triangle in
-the left of the loadbalancer name to expand it, then click on the "Advanced JSON
-view" icon on the right up in the expanded view)
 
 some highlights in the figure:
 
