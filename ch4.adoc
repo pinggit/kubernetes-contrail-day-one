@@ -2620,7 +2620,7 @@ ingress.extensions/ingress-sf created
 after these objects are created, we can proceed to the test each type of Ingress
 object. next we'll start from `single service Ingress`.
 
-=== single service Ingress
+=== `single service Ingress`
 
 single service Ingress is the most basic form of Ingress. it does not define any
 rules and its main usage is to expose service to the outside world. it will
@@ -3703,7 +3703,7 @@ spec:
   #type: LoadBalancer
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
   name: webserver-1
   labels:
@@ -3728,7 +3728,7 @@ spec:
         - containerPort: 80
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Deployment
 metadata:
   name: webserver-2
   labels:
@@ -4027,7 +4027,7 @@ this by looking at the `serviceIP:port`: `10.97.77.82:8888`.
   a haproxy receives a URL request that is other than the two defined one
 ////
 
-the configuration file can be illustrated in this figure:
+this configuration file can be illustrated in this figure:
 
 .simple fanout service
 //image::https://user-images.githubusercontent.com/2038044/61764125-0f09fd00-ada6-11e9-8a30-61e3a2ed2db3.png[]
@@ -4417,28 +4417,26 @@ $ curl -H 'Host:www.cisco.com' 101.101.101.1/dev | w3m -T text/html | cat
 No server is available to handle this request.
 ----
 
-everything works as expected!
+=== `name based virtual hosting Ingress`
 
-=== name-based virtual hosting Ingress
-
-Name-based virtual hosts support routing HTTP traffic to multiple host names at
-the same IP address. based on the URL and rules, an ingress loadbalancer directs
-traffic to different backend services, and each service direct traffic to its
-backend pod. 
+`Name based virtual hosting Ingress` support routing HTTP traffic to multiple
+host names at the same IP address. based on the URL and rules, an Ingress
+loadbalancer directs traffic to different backend services, and each service
+direct traffic to its backend pods. 
 
     www.juniper.net --|                 |-> webservice-1
                       |  101.101.101.1  |
     www.cisco.com   --|                 |-> webservice-2
 
 to demonstrate `virtual host` type of Ingress, the objects that we need to
-create are:
+create are same as previous `simple fanout Ingress`:
 
 * an `Ingress` object: the rules, mapping 2 URLs to 2 backend services
 * 2 backend services objects
 * each service requires at least one pod as backend
 
-again we use the same `cirros` pod as cluster-internal HTTP client we've used in
-earlier examples.
+//again we use the same `cirros` pod as cluster-internal HTTP client we've used in
+//earlier examples.
 
 ////
 besides that, there are 2 components running in the background:
@@ -4465,7 +4463,8 @@ in our virtual host ingress test lab, we define the following rules:
 * request toward URL `www.cisco.com` will be directed to a service `webservice-2`
   with `servicePort` 8888
 * request toward any URLs other than these 2, will be directed to `webservice-1`
-  with `servicePort` 8888
+  with `servicePort` 8888. Effectively we want `webservice-1` to become the
+  default backend service in here.
 
 here is the corresponding yaml definition file:
 
@@ -4497,8 +4496,8 @@ spec:
 
 .backend `service` and `pod` definition
 
-same exact service and RC definition that were used in `simple fanout Ingress`
-can be used here.
+same exact service and Deployment definition that were used in `simple fanout
+Ingress` can be used here.
 
 ===== an "all in one" yaml file
 
@@ -4559,7 +4558,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-1
+    matchLabels:
+      app: webserver-1
   template:
     metadata:
       name: webserver-1
@@ -4583,7 +4583,8 @@ metadata:
 spec:
   replicas: 1
   selector:
-    app: webserver-2
+    matchLabels:
+      app: webserver-2
   template:
     metadata:
       name: webserver-2
@@ -4599,7 +4600,7 @@ spec:
         - containerPort: 80
 ----
 
-.`apply` the all-in-one yaml file
+.`apply` the all-in-one yaml file to create Ingress and all necessary objects
 
 ----
 $ kubectl apply -f ingress/ingress-virtual-host-test.yaml
@@ -4610,13 +4611,13 @@ deployment.extensions/webserver-1 created
 deployment.extensions/webserver-2 created
 ----
 
-the Ingress, two services and two RC objects are now created.
+the `Ingress`, two services and two `Deployment` objects are now created.
 
 ==== `Ingress` post examination
 
 ===== examine ingress objects
 
-let's start to look at the Ingress object.
+let's start to look at the `Ingress` object.
 
 ----
 $ kubectl get ingresses.extensions -o wide
@@ -4624,8 +4625,9 @@ NAME        HOSTS                          ADDRESS                      PORTS  A
 ingress-vh  www.juniper.net,www.cisco.com  10.47.255.248,101.101.101.1  80     8m27s
 ----
 
-the internal and external Ingress IP remains the same, but this time we see 2
-hosts, each representing a domain name.
+//the internal and external Ingress IP remains the same, but 
+comparing with `simple fanout Ingress`, this time we see two hosts instead of
+one. Each host represents a domain name.
 
 ----
 $ kubectl get ingresses.extensions -o yaml
@@ -4676,8 +4678,8 @@ the rules are defined properly, within each rule there is a mapping from a
 
 //in `namespace` section we've known `10.32.0.0/12` is the default pod subnet.
 
-the services, pods and FIP prefix advertisement to gateway router are all
-exactly the same as those in `simple fanout Ingress` so we'll skip them.
+the services, pods and FIP prefix advertisement to gateway router behavior are
+all exactly the same as those in `simple fanout Ingress`.
 
 ===== exploring Ingress loadbalancer objects
 
@@ -4687,16 +4689,16 @@ exactly the same as those in `simple fanout Ingress` so we'll skip them.
 image::https://user-images.githubusercontent.com/2038044/60989518-3bd50380-a314-11e9-8bee-abfc5cbc400f.png[]
 ////
 
+3 loadbalancers are generated after we applied the all-in-one yaml file.
+
+* 1 for Ingress
+* 2 for services
+
 loadbalancers created in this test is almost the same as the ones created in
 `simple fanout Ingress` test:
 
 .loadbalancers
 image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
-
-3 loadbalancers are generated after we applied the all-in-one yaml file.
-
-* 1 for Ingress
-* 2 for services
 
 next we can check haproxy configuration file for `name-based virtual host
 Ingress`.
@@ -4769,22 +4771,26 @@ backend cd7a7a5b-6c49-4c23-b656-e23493cf7f46    #<---default
         server e8384ee4-7270-4272-b765-61488e1d3e9c 10.101.158.92:8888 weight 1
 ----
 
-NOTE: the config file is slightly formatted to make it fit to a page width. also
-we moved the default backend to the end.
+//NOTE: the config file is slightly formatted to make it fit to a page width.
+//also we moved the default backend to the end.
 
 here are the highlights:
 
-* the haproxy `frontend` section defines each URL, or `host`, and its path. here the
-  2 hosts are `www.juniper.net` and `www.cisco.com`. `path` is what follows the
-  host part in the URL string, in our case both are `/`. 
-* the haproxy `backend` section defines the `server`, which is `service` in our
-  case. it has a format of `serviceIP:servicePort`, which is the exact `service`
-  object we've created using the all-in-one yaml file.
-* `use_backend` command in `frontend` section declares the ingress rules: `if` the
-  request includes a specified URL and path, "use" the corresponding "backend"
-  to forward the traffic
-* `default_backend` defines which backend is the "default": it will be used when
-  a haproxy receives a URL request that is other than the two defined one
+* the haproxy `frontend` section defines each URL, or `host`, and its path. here
+  the 2 hosts are `www.juniper.net` and `www.cisco.com`. both `path` is `/`. 
+* the haproxy `backend` section defines the "servers", which is all `service` in
+  our case. it has a format of `serviceIP:servicePort`, which is the 
+  `service` we've created.
+* `use_backend...if...` command in `frontend` section declares the ingress
+  rules: `if` the request includes a specified URL and path, "use" the
+  corresponding "backend" to forward the traffic
+* `default_backend` defines the service that will act as the "default": it will
+  be used when a haproxy receives a URL request that is has no explicit match in
+  the defined rules.
+
+this configuration file can be illustrated in this figure:
+
+image::https://user-images.githubusercontent.com/2038044/63788692-e785e300-c8c3-11e9-92be-a37ac7d83104.png[]
 
 through this configuration, the haproxy implemented our ingress:
 
@@ -4800,14 +4806,18 @@ through this configuration, the haproxy implemented our ingress:
   `webservice-1` (`10.101.158.92:8888`)
 * `www.cisco.net` and `/` composes the full URL, request will be dispatched to
    `webservice-2` (`10.104.4.232:8888`)
-* other URLs goes to default backend which is service `webservice-1`
+* other URLs goes to default backend which is service `webservice-1`. 
+
+Next we'll verify these behaviors.
 
 ==== `Ingress` verification: from internal
 
+////
 we've explored a lot about ingress configuration and objects examination, now it
 is time to verify the test result. since the `Ingress` serves both inside and
 outside of the cluster, our verification will start from the cirros pod
 inside of cluster, then from the Internet host outside of it.
+////
 
 .from inside of cluster
 
@@ -4844,59 +4854,38 @@ $ kubectl exec -it cirros -- \
                                     [giphy]
 ----
 
-we still use the `curl` command to trigger HTTP requests towards the ingress's
-loadbalancer IP. the return proves our `Ingress` works: the 2 requests towards
+//we still use the `curl` command to trigger HTTP requests towards the ingress's
+//loadbalancer IP. 
+the return proves our `Ingress` works: the 2 requests towards
 "juniper" and "cisco" URL is proxied to 2 different backend pods, through 2
 backend services `webservice-1` and `webservice-2` respectively. the third request
 towards "google" is a "unknown" URL which does not have a matching service in
 `Ingress` configuration, so it goes to the default backend service -
-`webservice-1`. 
+`webservice-1` and reaches the same backend pod.
 
 same rule applies to the fourth request. without given a URL via `-H`, `curl`
 will fill `host` with the request IP address, `10.47.255.238` in this test, and
 since that "URL" does not have a defined backend service so the default backend
 service will be used. in our test, for each service we use backend pods spawned
-by same RC , so the podIP in returned webpage tells who is who. except in the
-second test the returned podIP `10.47.255.235` represent `webservice-2`, all
+by same Deployment, so the podIP in returned webpage tells who is who. except in
+the second test the returned podIP `10.47.255.235` represent `webservice-2`, all
 other three tests returns podIP for `webservice-1`, as expected.
-
-NOTE: The `-H` option is important in Ingress test with `curl`. it carries the
-full URL in HTTP payload that the loadbalancer is waiting for. without it the
-HTTP header will carry `Host: 10.47.255.238`, which has no matching rule, so it
-will be treated same as with a unknown URL.
 
 ==== `Ingress` verification: from external (Internet host)
 
-the more exciting part of the test is to visit the URLs from external. overall
-we hope `Ingress` meant to provide the "extra power" to expose services to the
-Internet host, even though it does not have to. 
-
-to make sure the URL resolves to the right FIP address, we need to update
-`/etc/hosts` file by adding one line in the end - you don't want to just end up
-with a nice webpage from Juniper/cisco official website as your test result.
-
-----
-# echo "101.101.101.1  www.juniper.net www.cisco.com www.google.com" >> /etc/hosts
-# cat /etc/hosts
-127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-101.101.101.1  www.juniper.net www.cisco.com www.google.com     #<---
-----
-
-now, from internet host's "desktop", we launch two chrome page side by side, and
-input URLs `www.juniper.net` and `www.cisco.com`. By keep refreshing the 2 pages
+From internet host's "desktop", we launch two chrome page side by side, and
+input URLs `www.juniper.net` and `www.cisco.com`. keep refreshing the 2 pages
 we can confirm "juniper" page is always returned by Deployment `webserver-1` pod
 `10.47.255.236`, "cisco" page is always returned by Deployment `webserver-2` pod
 `10.47.255.235`. we launch a third chrome page and input `www.google.com`, we
 see "google" page is returned by the same pod serving "Juniper" URL.
 
+.`name based virtual hosting Ingress`: access `www.juniper.net` from Internet host
 image::https://user-images.githubusercontent.com/2038044/60478459-c6e93600-9c50-11e9-848b-a73e9c6d010f.png[]
 
-same result can be seen from `curl` also. the command is exactly the same as
-what we've seen when testing from a pod, except this time we send requests to
-Ingress FIP, instead of the Ingress internal podIP.
+same result can be seen from `curl` also. 
 
-from Internet host machine:
+.from Internet host machine:
 
 ----
 $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
@@ -4926,8 +4915,6 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 ----
-
-everything works!
 
 === contrail ingress packet flow
 
