@@ -1028,7 +1028,9 @@ let's take a look at service loadbalancer and the related objects.
 //image::https://user-images.githubusercontent.com/2038044/60640833-0f425880-9df7-11e9-91e1-9b0830394aaa.png[]
 //image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
 //TODO: redraw, add color
-image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
+//image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
+image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
+
 
 highlights in this figure:
 
