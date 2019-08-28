@@ -4916,21 +4916,25 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                                     [giphy]
 ----
 
-=== contrail ingress packet flow
+== packet flow in contrail: an end to end view
 
-let's examine the external service request flow step by step in our lab setup,
-starting from Internet host, through gateway router, haproxy, to the destination
-pod. you've seen this figure:
+so far we've talked about `floating IP`, `service`, and `Ingress` in details.
+these objects are related to each other in certain ways. both `service` and
+`Ingress` loadbalancer IPs are implemented based on `floating IP`, but the
+forwarding mode are quite different.
+
+let's examine the end to end external service request flow in our `Ingress` lab
+setup, step by step, starting from Internet host, through gateway router,
+active haproxy node, to the destination pod. 
+
+you've seen this figure:
 
 .Ingress traffic flow: access from external
 image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
 
-earlier we use gateway router's VRF routing table to show the packet next
-hops, this time we'll introduce more useful tools available in node and client
-host. 
-
-after understanding these tools you will be able to troubleshoot both the
-routing and forwarding plane problems in contrail kubernetes environment. 
+earlier we use gateway router's VRF routing table to show the packet next hops,
+this time we'll introduce more useful tools available in nodes and
+client host to show the packet flow.
 
 the tools are:
 
@@ -4940,9 +4944,15 @@ the tools are:
 * vrouter VRF routing table
 * shell script
 
+after understanding the traffic flow in details, you will be able to
+troubleshoot both the forwarding plane problems in contrail kubernetes
+environment. 
+
 //we'll then conclude the ingress section by a figure showing the end to end flow.
 
-==== Internet Host -> gateway router
+=== from Internet Host to gateway router
+
+first let's introduce another useful option - `-v` in `curl` command:
 
 ----
 [root@cent-client ~]# curl -vH 'Host:www.juniper.net' 101.101.101.1
@@ -4984,35 +4994,37 @@ the tools are:
 * Connection #0 to host 101.101.101.1 left intact
 ----
 
-first we use `-v` option in `curl` command. with this option it prints more
-verbose information about the HTTP interaction. `>` lines are the messages
-content that `curl` sent out, and `<` lines are message content that it receives
-from remote. from the interaction we see `curl` sent a HTTP `GET` with path `/`
-to the FIP 101.101.101.1, with `Host` filled with "juniper" URL. it gets the
-response with code `200 OK`, indicating the request has succeeded. there are a
-bunch of other headers in the response that are not important for our test so we
-can skip. the rest part of the response is the HTML source code of a returned
-web page. the connection is closed immediately afterward.
+with this option, it prints more verbose information about the HTTP interaction:
 
-NOTE: the `curl` tool implementation will always close the TCP session right
+* `>` lines are the messages content that `curl` sent out
+* `<` lines are message content that it receives from remote. 
+
+from the interaction we see:
+
+* `curl` sent a HTTP `GET` with path `/` to the FIP `101.101.101.1`, with `Host`
+  filled with "juniper" URL. 
+* it gets the response with code `200 OK`, indicating the request has succeeded.
+* there are a bunch of other headers in the response that are not important for
+  our test so we can skip. 
+* the rest part of the response is the HTML source code of a returned web page. 
+* the connection is closed immediately afterward.
+
+TIP: the `curl` tool implementation will always close the TCP session right
 after the HTTP request is responded. although this is a safe and clean behavior
-in practice, it may bring some difficulties to our illustration. we prefer the
+in practice, it may bring some difficulties to our test. we prefer the
 connection to remain open for a while so we can take time to investigate some
-details during our analysis. there are some methods to workaround that.  e.g.
+details about the HTTP session. there are some methods to workaround that.  e.g.
 in "service" section you've seen we install a large file in the webserver and
-try to pull it from curl, that way the file transfer process "holds" the TCP
+try to pull it with `curl`, that way the file transfer process "holds" the TCP
 session. in this test we will show another method.
 //how to use a small shell script to workaround this problem.
 
-==== gateway router -> active haproxy node: MPLS over GRE
+=== from gateway router to Ingress public FIP of active haproxy node: MPLS over GRE
 
-we've seen gateway router's routing table earlier, so we already know the packet
-will be sent to active haproxy node `cent222` via MPLSoGRE tunnel. to
-demonstrate the forwarding flow, this time we collect the flow table in node
+we've seen gateway router's routing table earlier, from that we knew the packet
+will be sent to active haproxy node `cent222` via MPLSoGRE tunnel. another way
+to demonstrate the forwarding flow is to collect the flow table in node
 `cent222`. 
-
-NOTE: with a filter `--match 15.15.15.2`. only flow entries with Internet Host
-IP is printed.
 
 ////
 ----
@@ -5073,6 +5085,10 @@ Id:61         Type:Tunnel         Fmly: AF_INET  Rid:0  Ref_cnt:3316       Vrf:0
               Oif:0 Len:14 Data:f0 1c 2d 41 90 00 00 50 56 9e 62 25 08 00
               Sip:10.169.25.20 Dip:192.168.0.204
 ----
+
+NOTE: with a filter `--match 15.15.15.2`. only flow entries with Internet Host
+IP is printed.
+
 ////
 (vrouter-agent)[root@cent222 /]$ nh --get 89
 Id:89         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:7          Vrf:2
@@ -5081,7 +5097,8 @@ Id:89         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:7          Vrf:2
               Encap Data: 02 c0 0a c1 e6 6c 00 00 5e 00 01 00 08 00
 ////
 
-this rephrases the same fact as what we've seen from gateway router's VRF table:
+this flow table rephrases the same fact as what we've seen from gateway router's
+VRF table:
 
 * the first flow entry displays the source and destination of the http request,
   it is coming from Internet host (`15.15.15.2`) and lands the FIP in current
@@ -5099,7 +5116,7 @@ overall this confirms the request packet from Internet host traverses gateway
 router, and via MPLSoGRE tunnel it hit the Ingress external VIP `101.101.101.1`.
 NAT will happen and we'll look into it next.
 
-==== FIP -> loadbalancer IP: NAT
+=== from Ingress public FIP to Ingress podIP on active haproxy node: NAT
 ////
 ----
 (vrouter-agent)[root@cent222 /]$ flow --match 101.101.101.1
@@ -5160,7 +5177,7 @@ internal VIP (`10.47.255.238`).  after that the packet lands the Ingress
 loadbalancer's VRF, where active haproxy process is watching. next HTTP proxy
 will happen.
 
-==== active haproxy -> service IP: MPLS over UDP
+=== from Ingress podIP on active haproxy node to service IP: MPLS over UDP
 
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
@@ -5189,7 +5206,7 @@ from the wireshark screenshot, we see clearly that:
 
 everything is working as expected.
 
-==== "forward" vs "proxy"
+=== "forward" vs "proxy"
 
 if you are observant enough, you should have noticed something "weird" in
 this capture. questions are:
@@ -5215,7 +5232,7 @@ so, to put it precisely, the http request is "proxied", not "forwarded".
 //capture on haproxy interface
 //image::https://user-images.githubusercontent.com/2038044/60540296-d1e9a800-9cdc-11e9-8914-fbe4fc59ae60.png[]
 
-==== service IP -> backend pod IP: NAT
+=== from service IP to backend pod IP: NAT
 
 at the moment we know the http request is "proxied" to haproxy's backend. that
 backend is a kubernetes `service`, and to reach the `service` the request is
@@ -5269,16 +5286,16 @@ not shows what happens right before NAT.
 we can rely on the flow table again, as what we've seen on node `cent222` where
 vrouter does NAT between FIP and loadbalancer IP. the problem is, as we
 mentioned earlier, `curl` get its job done pretty fast, it open the session,
-send request, get response, then close it. in fast this process is too fast to
-be captured in the flow table. as soon as you hit "enter" to curl command,
-everything is done in less than 2 or even 1 second. by the time you type in
-flow command, everything is done and you end up with empty table. we could
-change the server's behavior - let it send a big file to hold the session, or
+send request, get response, then close it. in fact this process is too fast to
+be captured in the flow table. as soon as you hit "enter" to send the `curl`
+command, the command returns in less than 1 or 2 seconds. by the time you type
+in `flow` command, everything is done and you end up with empty table. we could
+change the server's behavior - let it send a big file to hold the session, or,
 we can repeat the test to take some chance. in the client terminal with a
 one-liner script we can repeat the test over and over, then in compute terminal
-using same script we can keep dumping the flow table. over the time we will
-have the chance to capture the flow table at the right moment. then we stop the script
-and investigate the table.
+using another script we can keep dumping the flow table. over the time we will
+have the chance to capture the flow table at the right moment. then we stop the
+script and investigate the table.
 
 compute side script:
 
@@ -5345,7 +5362,7 @@ $ tcpdump -ni tapeth0-baa392
 ----
 ////
 
-==== returning traffic
+=== returning traffic
 
 on the reverse direction, podIP runs webserver and responds with it's web page.
 the response follows the reverse path of the request:
