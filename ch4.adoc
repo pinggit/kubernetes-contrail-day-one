@@ -1358,6 +1358,22 @@ illustrate the contrail service loadbalancer implementation details.
 
 ==== ClusterIP as FIP
 
+this is the yaml file we used to create a `clusterIP` service:
+
+----
+$ cat service-web-clusterip.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-web-clusterip
+spec:
+  ports:
+  - port: 8888
+    targetPort: 80
+  selector:
+    app: webserver
+----
+
 let's review what we got from service lab in chapter3:
 
 ----
@@ -1993,7 +2009,9 @@ in this section we'll demonstrate how does the `LoadBalancer` type of service
 works in our end to end lab setup, which includes the kubernetes cluster, fabric
 switch, gateway router, and Internet host.
 
-==== create `Loadbalancer` service
+==== external IP as FIP
+
+//create `Loadbalancer` service
 
 let's look at the yaml file of a `LoadBalancer` service. it is same as ClusterIP
 service except just one more line declaring the service `type`:
@@ -2030,6 +2048,59 @@ column there is an IP allocated. if you remember what we've covered in the
 another `FIP`, allocated from the `NS FIP pool` or `global FIP pool` - we did
 not give any specific FIP pool information in the service object yaml file, so
 based on the algorithm right FIP pool will be used automatically. 
+
+from UI we'll see that for `loadbalancer` service we now have 2 FIPs: one as
+clusterIP (internal VIP), the other one as "EXTERNAL-IP" (external VIP):
+
+.2 FIPs for a `loadbalancer` service
+image::https://user-images.githubusercontent.com/2038044/63900303-1c7e5c80-c9ce-11e9-85dd-d4282aaa6c46.png[]
+
+both FIPs are associated with the pod interface:
+
+.pod interface
+image::https://user-images.githubusercontent.com/2038044/63900502-b6dea000-c9ce-11e9-8537-b44cffc90055.png[]
+
+expend the tap interface, you will see the two FIPs are listed in `fip_list`:
+
+.pod interface detail
+image::https://user-images.githubusercontent.com/2038044/63900411-7e3ec680-c9ce-11e9-876f-2deeff06bdef.png[]
+
+////
+the `fip_list`, we'll see each FIPs in the list:
+----
+ fip_list
+     FloatingIpSandeshList
+       ip_addr: 10.96.89.48
+       vrf_name: default-domain:k8s-ns-user-1:k8s-ns-user-1-service-network:k8s-ns-user-1-service-network
+       installed: Y
+       fixed_ip: 10.47.255.238
+       direction: ingress
+       port_map_enabled: true
+       port_map
+           SandeshPortMapping
+             protocol: 6
+             port: 80
+             nat_port: 8888
+     FloatingIpSandeshList
+       ip_addr: 101.101.101.252
+       vrf_name: default-domain:k8s-ns-user-1:k8s-vn-ns-default-pod-network:k8s-vn-ns-default-pod-network
+       installed: Y
+       fixed_ip: 10.47.255.238
+       direction: ingress
+       port_map_enabled: true
+       port_map
+           SandeshPortMapping
+             protocol: 6
+             port: 80
+             nat_port: 8888
+----
+////
+
+now you should understand, the only difference here between the two type of
+services, is that for loadbalancer service, an extra FIP is allocated from the
+public FIP pool, which is advertised to the gateway router and acts as the
+outside-facing VIP. that is how the `loadbalancer` service expose itself to the
+external world.
 
 ==== examine VRF table in gateway router
 
