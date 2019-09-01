@@ -1,4 +1,4 @@
-= Chapter 2: Kubernetes basics 
+= Chapter 2: Kubernetes Basics 
 // vim:set ft=asciidoc syntax=ON tw=80:
 :toc:
 :toc-placement: preamble
