@@ -1046,18 +1046,26 @@ highlights in this figure:
 
 .this is how service works in contrail:
 
-* when a `custerIP` or `loadbalancer` type of `service` is created, a
-  `loadbalancer` object with `loadbalancer_provider` property set to `native` is
-  created
+* `contrail-kube-manager` listens `kube-apiserver` for k8s service and when a
+  `custerIP` or `loadbalancer` type of `service` is created, a `loadbalancer`
+  object with `loadbalancer_provider` property `native` is created
 * `loadbalancer` will have a "virtual IP" `VIP`, which is same as the `service
   IP` 
-* The `service-ip`/`VIP` will be linked to each backend pod's interface
+* The `service-ip`/`VIP` will be linked to each backend pod's interface which is
+  done by a loadbalancer driver `native` which is part of the contrail-component
+  `contrail-svc-monitor`. Actullay any loadbalancer can be integrated with contrail
+  via `conrail-svc-monitor`. Each loadbalancer should have a loadbalancer driver and
+  loadbalancer_provider type and should be registered to contrail. `contrail-svc-monitor`
+  listens to contrail loadbalancer, listener, pool and member objects and it calls the
+  registered loadbalancer driver for the loadbalancer_provider to do the necessary work.
+  contrail by default provides ecmp loadbalancer - loadbalancer_provider is native and
+  haproxy loadbalancer - loadbalancer_provider is opencontrail.
 * the linkage from service-ip to multiple backend pods interface creates an ECMP
   next-hop in contrail, traffic will be loadbalanced from the source pod towards
   one of the backend pod directly. later we'll show the ECMP prefix in the pod's
   VRF table
-* `contrail-kube-manager` listens `kube-apiserver` for any changes, based on
-  pod list in `Endpoints` it will knows the most current backend pods, and
+* `contrail-kube-manager` continues to listen to `kube-apiserver` for any changes,
+  based on pod list in `Endpoints` it will knows the most current backend pods, and
   update members in the pool .
 
 the most important thing to understand in this diagram, as we've mentioned, is
