@@ -10,9 +10,9 @@
 :coderay-linenums-mode: inline
 :numbered:
 
-== Containers overview
+== Containers Overview
 
-=== Understanding containers
+=== Understanding Containers
 
 Two decades ago Virtualization was the most fashionable keyword in IT as there
 was a revolution in the way we build servers. It was mainly about the adoption
