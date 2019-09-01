@@ -137,7 +137,7 @@ them in kubernetes API, all of these tasks become much easiler.
 NOTE: kubernetes is not the only tool in its kind, docker has its owen
 orchestration tool named "swarm". this book will focus on kubernetes.
 
-== Kubernetes Architecture and components
+== Kubernetes Architecture and Components
 
 in a Kubernetes cluster there are two type of nodes, each running a very
 well-defined set of processes:
