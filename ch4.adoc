@@ -973,7 +973,7 @@ it enables the creation of a pool of VMs serving applications, sharing one
 virtual-ip (`VIP`) as the frontend IP towards clients. 
 this diagram below illustrates contrail loadbalancer and its components.
 
-.contrail neutron loadbalancer
+.contrail openstack loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60641740-1f5c3700-9dfb-11e9-962f-ed67836d8115.png[]
 
 some highlights of this figure:
@@ -1016,6 +1016,15 @@ cost multiple path"(ECMP) loadbalancer working in layer 4(transport layer) .
 this is the primary difference comparing with the "proxy" mode that the openstack
 loadbalancer type does.
 
+Actullay any loadbalancer can be integrated with contrail via contrail component
+`conrail-svc-monitor`. Each loadbalancer should have a loadbalancer driver should be
+registerd to contrail with a loadbalancer_provider. `contrail-svc-monitor` listens to
+contrail loadbalancer, listener, pool and member objects and it calls the registered
+loadbalancer driver for the loadbalancer_provider to do the necessary work. contrail
+by default provides ecmp loadbalancer - loadbalancer_provider is native and haproxy
+loadbalancer - loadbalancer_provider is opencontrail. The openstack loadbalancer
+is using haproxy loadbalancer.
+
 NOTE: ingress, on the other hand, is conceptually even closer with the
 openstack loadbalancer in the sense that both are layer 7 (application
 layer) "proxy" based. more about ingress will be discussed in later section.
@@ -1052,14 +1061,7 @@ highlights in this figure:
 * `loadbalancer` will have a "virtual IP" `VIP`, which is same as the `service
   IP` 
 * The `service-ip`/`VIP` will be linked to each backend pod's interface which is
-  done by a loadbalancer driver `native` which is part of the contrail-component
-  `contrail-svc-monitor`. Actullay any loadbalancer can be integrated with contrail
-  via `conrail-svc-monitor`. Each loadbalancer should have a loadbalancer driver and
-  loadbalancer_provider type and should be registered to contrail. `contrail-svc-monitor`
-  listens to contrail loadbalancer, listener, pool and member objects and it calls the
-  registered loadbalancer driver for the loadbalancer_provider to do the necessary work.
-  contrail by default provides ecmp loadbalancer - loadbalancer_provider is native and
-  haproxy loadbalancer - loadbalancer_provider is opencontrail.
+  done by a ecmp loadbalancer driver.
 * the linkage from service-ip to multiple backend pods interface creates an ECMP
   next-hop in contrail, traffic will be loadbalanced from the source pod towards
   one of the backend pod directly. later we'll show the ECMP prefix in the pod's
