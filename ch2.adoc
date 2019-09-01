@@ -665,7 +665,7 @@ figure:
 //image::https://user-images.githubusercontent.com/2038044/63236257-07a20c00-c20b-11e9-9e0f-9389716d4437.png[]
 image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-11e9-837b-6a9bce620efa.png[]
 
-=== `Pause` Container
+=== Pause Container
 
 if you login to node `cent222`, you will see the docker containers running inside
 of the pod:
