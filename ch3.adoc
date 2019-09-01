@@ -1,5 +1,5 @@
 // vim:set ft=asciidoc syntax=ON tw=80:
-= Chapter3: Kubernetes in practice
+= Chapter3: Kubernetes in Practice
 :toc: right
 //:toc-placement: preamble
 :source-highlighter: pygments
@@ -98,9 +98,9 @@ wordpress   1/1       Running   0          48s       10.47.255.238   cent333
 NOTE: You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
 
-== NameSpace
+== Namespace
 
-=== what is NameSpace
+=== what is Namespace
 
 As in many other platforms, normally there is more than one users (or teams) working on a
 kubernetes cluster. suppose a pod named 'webserver1' has been built by 'dev'
@@ -128,7 +128,7 @@ convention the purpose of this NS is to make some resources readable by all
 users without authentication. it exists mostly in kubernetes clusters
 bootstapped with `kubeadm` tool only.
 
-=== create a NS
+=== Create NS
 
 creating a NS is pretty simple. just kubectl command does the magic. you dont
 need to have a yaml file.
@@ -171,7 +171,7 @@ dev        webserver1  1/1    Running  4         2d4h  10.47.255.249  cent222  <
 sales      webserver1  1/1    Running  4         2d4h  10.47.255.244  cent222  <none>
 ----
 
-=== quota
+=== Quota
 
 similiar to openstack 'tenant', you can now apply constraints that limits
 resource consumption per namespace. for example, you can limit the quantity of
@@ -337,7 +337,7 @@ already has the objects to address this exact demand and the right answer are `R
 > running at any one time. In other words, a ReplicationController makes sure
 > that a pod or a homogeneous set of pods is always up and available.
 
-=== create RC
+=== Create RC
 
 let's look at how it works with an example. first create a yaml file for a RC
 object named `myweb`.
@@ -415,9 +415,9 @@ the key to learn is, individual pod may die any time, but the "pool" as a whole
 is always up and running, making a robust service. you will understand this
 better when you learn kubernetes `service`.
 
-=== test RC
+=== Evaluate RC
 
-you can test rc's impact by deleting one of the pod. to delete a resource with
+you can evalaute rc's impact by deleting one of the pod. to delete a resource with
 `kubectl`, use `kubectl delete` sub-command:
 
     $ kubectl delete pod myweb-5ggv6
@@ -568,7 +568,7 @@ through the RS and deployment. we've seen the `RS` , which has done the same job
 of `RC` only with a different selector format, now we'll check out the other new
 object `DEPLOY - deployment` and explore the features coming from it.
 
-=== create a deployment
+=== Create Deployment
 
 simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
 yaml file of a deployment object:
@@ -629,7 +629,7 @@ deployment does not create a pod directly, the `describe` command reveals this:
     pod/myweb-c586fd645-b2ft8        1/1  Running  0  21s
 ////
 
-=== deployment work flow
+=== Deployment Work Flow
 
 what happens is when you create a Deployment, a replica set is created
 automatically. The pods defined in a Deployment object are created and supervised
@@ -647,13 +647,13 @@ the workflow is shown in the below diagram:
 You might still be wondering why you need `RS` as one more layer sitting between
 `deployment` and `pod`. you will find the answer in the next section.
 
-=== rolling update
+=== Rolling Update
 
 "rolling update" feature is one of the "more powerful feature" coming with
 deployment object. in this section we'll demonstrate the feature with a test
 case, then we'll explain how it works.
 
-==== test rolling update
+==== evalaute rolling update
 
 suppose we have a nginx-deployment, with `replica=3` an pod image `1.7.9`.
 later we want to upgrade the image from version `1.7.9` to new image version
@@ -873,7 +873,7 @@ your router.
 
 ////
 
-=== RC vs deployment (TODO)
+=== RC vs Deployment (TODO)
 
 keep in mind that RC is going to be deprecated, and it is rather unlikely that
 you will ever need to create Pods directly in production environment, so
@@ -883,15 +883,13 @@ later throughout this book we may still use pod/RC to demonstrate different
 usage case with labs
 ////
 
-== secret
+== Secret
 
 ////
 https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 https://kubernetes.io/docs/concepts/containers/images/
 https://feisky.gitbooks.io/kubernetes/content/concepts/secret.html
 ////
-
-=== secret introduction
 
 in any modern network system, user or administrator need to deal with sensitive
 information, such as `username/passwords/ssh` keys/etc, in the platfrom. same
@@ -986,7 +984,7 @@ in this section we'll demonstrate how to create a secret from:
 * serviceAccount
 ////
 
-=== `opaque` secret
+=== Opaque Secret
 
 secret of type `opaque`, represents "arbitrary" user-owned data - usually you
 want to put in `secret` some kind of "sensitive" data, for example `username`,
@@ -1117,7 +1115,7 @@ SECRET_PASSWORD=password1
 the original "sensitive" data we encoded with `base64` is now present in the
 container!
 
-=== `dockerconfigjson` secret
+=== DockerConfigJson secret
 
 `dockerconfigjson` secret, as the name indicates, carries the docker account
 credential information that is typically stored in a `.docker/config.json` file.
@@ -1494,7 +1492,7 @@ Events:
 19h  Normal  Started    Pod   Started container
 ----
 
-=== `tls` secret
+=== TLS secret
 //https://software.danielwatrous.com/generate-tls-secret-for-kubernetes/
 //TODO
 
@@ -1502,7 +1500,7 @@ Events:
 
 ==== refer tls secret
 
-=== secret benefit
+=== Secret Benefits
 
 as you can see from our test, the Secret objects is created independently of the
 pods, and inspecting the object `spec` does not print the sensitive information
@@ -1589,7 +1587,7 @@ so let’s understand different type of services:
 * NodePort
 * LoadBalancer
 
-=== ClusterIP service
+=== ClusterIP Service
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
 the `ServiceType` is not specified. the kubernetes official website gives this
@@ -1792,7 +1790,7 @@ spec:
 ----
 
 
-=== NodePort service
+=== NodePort Service
 
 NodePort service exposes a service on each node's ip at a static port. It maps
 a static port on each node with a port of the application the POD as shown in 
@@ -1908,7 +1906,7 @@ Commercial support is available at
 </html>
 ----
 
-=== loadbalancer service
+=== Loadbalancer Service
 
 essentially, a loadBalancer service goes one more step beyond what the NodePort
 service does. it exposes the Service externally using a cloud provider’s
@@ -1994,7 +1992,7 @@ NOTE: `externalIPs` are different from `loadbalancerIP`. `loadbalancingIP` is
 the IP assigned by cluster administrator, while `externalIPs` comes with the
 loadbalancer created by the cluster that supports it.
 
-=== service implementation: kube-proxy
+=== Kube-Proxy
 
 By default kubernetes uses `kube-proxy` module for services, but CNI providers
 can have there own implementations for services.
@@ -2113,8 +2111,6 @@ request traffic exactly the same way as if all backend is pod.
 You’ve now seen ways of exposing a service to clients outside the cluster.
 another method is `Ingress`
 
-=== kubernetes Ingress introduction
-
 in service section, we understand that `service` works in transport layer.
 in reality, you access all services via URLs. 
 
@@ -2139,7 +2135,7 @@ HTTP/HTTPS routes.  we've learned a lot about kubernetes `service` so far,
 so you understand what will happen after that - the requests will be forwarded
 to each service's corresponding backend pods.
 
-=== Ingress vs service
+=== Ingress vs Service
 
 there are similiarities between loadbalancer service and ingress. both can
 expose service to outside of the cluster. but there are some main differences.
@@ -2176,7 +2172,7 @@ each service of the ingress needs an public ip if it is exposed directly to
 outside of the cluster. when ingress is a front-end to all these services, one
 public ip would be sufficient which makes life easy for cloud-admin.
 
-=== Ingress object
+=== Ingress Object
 
 before we talk about Ingress object, the best way to get a feel of it is to look
 at the yaml definition:
@@ -2253,7 +2249,7 @@ in practice there are other things you need to understand.  in reality to handle
 the ingress rules, you need at least another component called `ingress
 controller`
 
-=== ingress controller
+=== Ingress Controller
 
 An ingress controller is responsible for reading the Ingress rules and program
 the rules into the proxy which does the real work - dispatching traffic based
@@ -2281,7 +2277,7 @@ create an ingress, you should annotate each ingress with the appropriate
 one exists within your cluster. `annotation` used in ingress objects will be
 explained in the "annotation" section.
 
-=== ingress examples
+=== Ingress Examples
 
 there are basically 3 types of ingresses:
 
@@ -2376,7 +2372,7 @@ very detail case study in chapter 4 about this example.
 NOTE: it is also possible to merge a "simple fanout" Ingress and a "virtual
 host" Ingress in one Ingress, in this book we won't cover this topic though.
 
-=== multiple ingress controller
+=== Multiple Ingress Controllers
 
 you can have multiple ingress controllers in one cluster. in that case the
 cluster needs to know which one to choose.  for example, later on in chapter 4
@@ -2402,7 +2398,7 @@ metadata:
 this will make contrail's Ingress controller `opencontrail` to ignore the
 Ingress configuration.
 
-=== TLS support
+=== TLS Support
 
 //TODO
 
@@ -2410,7 +2406,7 @@ Ingress configuration.
 
 //TODO
 
-== Network policy
+== Network Policy
 
 In Kubernetes pods can reach any pods by default. Then how pods can be secured?
 The answer is network policy. `Networkpolicy` is a Kubernetes resource like pod,
@@ -2614,7 +2610,7 @@ Spec:
   Policy Types: Ingress, Egress
 ----
 
-== livenessProbe and readinessProbe
+== Liveness Probe and Readiness Probe
 
 === Liveness Probe
 
