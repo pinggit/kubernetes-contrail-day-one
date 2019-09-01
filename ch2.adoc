@@ -169,9 +169,9 @@ NOTE: you rarely need to "bypass" the master and work with nodes directly.
 but you can login to node and run all docker command to check running status of
 containers. there is an example showing this later in this chapter.
 
-=== Kubernetes "master"
+=== Kubernetes Master
 
-A kubernetes "master node", or "master", is like one's head and brian. in the
+A kubernetes "master", or "master node", is like one's head and brian. in the
 cluster master provides the "control plane" that makes all of the global
 decisions about the cluster. 
 
@@ -227,7 +227,7 @@ understanding the kubernetes basics.
 * controller manager, and etcd. 
 ////
 
-=== Kubernetes "node"
+=== Kubernetes Node
 
 nodes in a cluster are the machines that run the user end applications. in
 production there can be dozens or hundreds of nodes in one cluster depending on
@@ -248,7 +248,7 @@ really a "proxy" in current kubernetes architecture. kube-proxy is a system
 that manipulates linux IP tables in that node so that the the traffic between
 the pods and the nodes will flows correctly.
 
-=== kubernetes work flow
+=== Kubernetes Work Flow
 
 after you get some basic idea about the master and node and the main processes
 running in each, it is time to look at how things works together in figure 2.1
@@ -341,7 +341,7 @@ Accordingly, after getting the REST-API, kube-apiserver will communicate with
 the "controller-manager" to conduct the task and dispatch to the target node. 
 ////
 
-=== kubernetes objects 
+=== Kubernetes Objects 
 
 Now you understand the role of 'master' and 'node' in a kubernetes cluster, and
 in figure 2.1 you see how a basic workflow looks. now let's start to look at
@@ -479,7 +479,7 @@ myweb-shtj4   1/1       Running   0          1m        192.168.215.19    test2  
 ```
 ////
 
-== Building Kubernetes POD
+== Kubernetes Pod
 
 "POD" is the first kubernetes object you will learn.
 the kubernetes website describe a "pod" as:
@@ -521,7 +521,7 @@ now, let's get your feet wet. we'll look at how to use a config file to launch a
 "pod" in kubernetes cluster.
 
 
-=== YAML file for Kubernetes 
+=== YAML file
 
 First thing to look at is YAML. Along with many other many ways of configuring
 kubernetes, YAML is the "standard" format being used in kubernetes config file.
@@ -665,7 +665,7 @@ figure:
 //image::https://user-images.githubusercontent.com/2038044/63236257-07a20c00-c20b-11e9-9e0f-9389716d4437.png[]
 image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-11e9-837b-6a9bce620efa.png[]
 
-=== `pause` container
+=== `Pause` Container
 
 if you login to node `cent222`, you will see the docker containers running inside
 of the pod:
@@ -690,7 +690,7 @@ below figure shows a pod including a few user containers and a `pause` container
 //image::https://user-images.githubusercontent.com/2038044/63236197-d7f30400-c20a-11e9-9404-bb77dcdb3e72.png[]
 image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-11e9-838f-f3d8c76468fa.png[]
 
-=== intra-pod communication
+=== Intra Pod Communication
 
 //TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
@@ -798,7 +798,7 @@ ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<--
 LISTEN     0      128                  :::6379              :::*
 ----
 
-=== Kubectl tool 
+== Kubectl Tool 
 
 so far you've seen we created the object by `kubectl` command. this command,
 just like the `docker` command in docker world, is the interface in kubernetes
