@@ -3115,13 +3115,11 @@ two nodes!
 
 remember earlier when we talk about ingress contrail implementation, we've said
 contrail Ingress is also implemented through loadbalancer (just like `service`),
-but Ingress's loadbalancer is with a different `loadbalancer_provider`
-attribute, which makes `contrail-svc-monitor` takes a different action than what
-it does for service. the `loadbalancer_provider` for Ingress loadbalancer is
-`opencontrail`, and accordingly the action that `contrail-svc-monitor` take on
-it is to launch two haproxy processes running with ingress rules programmed in
-the configuration file.  this basically explains the haproxy processes we see in
-the 2 nodes.
+but Ingress's loadbalancer_provider attribute type is `opencontrail`. `'contrail-svc-monitor`
+invokes haproxy driver for loadbalancer_provider attribute type is `opencontrail`.
+The haproxy driver generates required haproxy configuration for the ingress rules and
+triggers two k8s-nodes to launch haproxy in active-standby mode with the generated haproxy
+configuration.
 
 ////
 that is only a high level overview about the contrail's implementation of
@@ -3211,21 +3209,22 @@ some highlights in the figure:
 * `loadbalancer_provider` is `opencontrail`
 * Ingress loadbalancer has a reference to a `service-instance` (SI) object
 * `SI` object has a property `ha_mode` set to `active-standby`
-* `SI` object has an interface with IP `10.47.255.238`
+* `SI` object refers the same loadbalancer's interface hence you can see the same IP `10.47.255.238`
 
 at this moment,  we can explain the Ingress IP `10.47.255.248` seen in ingress.
 basically this IP is:
 
-* an cluster-internal IP address allocated from the default pod network to
-  the `SI` which the Ingress loadbalancer refers to.  
+* an cluster-internal IP address allocated from the default pod network as loadbalancer
+  vip which is referred by `SI` object as well.
 * the frontend IP that the Ingress loadbalancer will listen for HTTP requests, 
-* the internal IP that the public FIP `101.101.101.1` maps to with NAT. 
+* The public FIP `101.101.101.1` maps to the internal IP `10.47.255.248` with NAT. 
 
 TIP: in this book we'll refer this private IP with different names
 interchangeably: "Ingress Internal IP", "Ingress internal VIP", "Ingress private
 IP", "Ingress loadbalancer interface IP", etc.  to differentiate it from the
-Ingress public FIP, we can also name it as "Ingress podIP". 
-//similarly we'll refer the Ingress public FIP as "Ingress external IP"
+Ingress public FIP, we can also name it as "Ingress podIP" since the internal vip
+is allocated from the pod-network. //similarly we'll refer the Ingress public FIP
+as "Ingress external IP"
 
 Now to compare the different purposes of these two IPs:
 
@@ -3240,11 +3239,10 @@ Now to compare the different purposes of these two IPs:
 
 NOTE: the detail Ingress loadbalancer object implementation refers to a SI
 (service instance), and the SI again includes other data structure or reference
-to other objects (port-tuple, linux netns, VMI, etc). overall it is more
-complicated and involves more details than what we've covered and it is hard to
-put everything in this book. we've tailored the details into a high level
-overview so that important concepts like haproxy and the two Ingress IPes can be
-understood.
+to other objects (VM, VMI, etc). overall it is more complicated and involves
+more details than what we've covered and it is hard to put everything in this
+book. we've tailored the details into a high level overview so that important
+concepts like haproxy and the two Ingress IPes can be understood.
 
 Once a HTTP/HTTPS request arrives to the Ingress `podIP`, from internal or
 external, Ingress loadbalancer will do HTTP/HTTPS proxy operation through
@@ -3258,20 +3256,17 @@ parameters details.
 
 ===== `haproxy.conf` file
 
-in each (compute) node, under `/var/lib/contrail/loadbalancer/` folder there
-will be a `haproxy` subfolder. the file structure looks like this:
+in each (compute) node, under `/var/lib/contrail/loadbalancer/haproxy/` folder
+there will be a subfolder for each loadbalancer uuid. the file structure looks like this:
 
 ----
-├── 5be035d8-a918-11e9-8112-0050569e6cfc.conf
-└── haproxy
-    └── 5be035d8-a918-11e9-8112-0050569e6cfc
-        ├── haproxy.conf
-        ├── haproxy.pid
-        └── haproxy.sock
+  8fd3e8ea-9539-11e9-9e54-0050569e6cfc
+  ├── haproxy.conf
+  ├── haproxy.pid
+  └── haproxy.sock
 ----
 
-you can check either `8fd3e8ea-9539-11e9-9e54-0050569e6cfc` or
-`haproxy/haproxy.conf` file for the same haproxy configuration:
+you can check haproxy.conf file for the haproxy configuration:
 
 ----
 $ cd /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/
@@ -3322,8 +3317,8 @@ image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-
 
 * the haproxy `frontend` represents the "frontend" of an Ingress, facing clients
 * the haproxy `backend` represents the "backend" of an Ingress, facing services.
-* the haproxy `frontend` defines a `bind` to the Ingress podIP and `mode` of
-  `http`. these knobs indicate what the frontend is listening.  
+* the haproxy `frontend` defines a `bind` to the Ingress podIP and `mode` `http`.
+  these knobs indicate what the frontend is listening.  
 * the haproxy `backend` section defines the `server`, which is backend `service`
   in our case. it has a format of `serviceIP:servicePort`, which is the exact
   `service` object we've created using the all-in-one yaml file.
@@ -3415,7 +3410,7 @@ k8s-test 24 destinations, 49 routes (24 active, 0 holddown, 0 hidden)
   router, `Source: 10.169.25.19` indicates this fact.
 
 so it looks `cent222` is "selected" to be the active haproxy node, and the other
-node `cent333` is the standby one. therefore you should expect service request
+node `cent333` is the standby one. therefore you should expect client request
 coming from Internet host goes to node `cent222` first. of course, the overlay
 traffic will be carried in MPLS over GRE tunnel, same as what you've seen from
 service example. 
@@ -3427,7 +3422,7 @@ Ingresses.
 another fact that we've skipped on purpose is the different "local
 preference" value used by the active and standby node when advertising FIP
 prefix. saying that will involve other complex topics like the active node
-selection algorithm and so on. but it is worth a brief introduction:
+selection algorithm and so on. but it is worth to undertand from high level:
 
 both nodes have loadbalancer and haproxy running so both will advertise the FIP
 prefix `101.101.101.1` to gateway router. however, they are advertised with
@@ -3437,6 +3432,9 @@ from the 2 nodes, but only the "winning" one will be advertised to the gateway
 router. that is why the "other" BGP route is dropped and only one is
 displayed.  `Localpref` being `200` proves it is coming from the active compute
 node.
+
+NOTE: localpref is not only applied to Ingress FIP route. It is applied for the
+Ingress Internal VIP route as well. Infact it can be applied to all routes.
 ****
 
 ==== `Ingress` verification: from internal
