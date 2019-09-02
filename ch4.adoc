@@ -2526,12 +2526,12 @@ kubernetes `service` maps to `ECMP loadbalancer (native)` and `Ingress` maps to
 
 in `service` section when we were exploring the loadbalancer and the relevant
 objects (`listener`, `pool`, and `member`), we noticed the loadbalancer's
-`loadbalancer_provider` attribute is with a type `native`. 
+`loadbalancer_provider` attribute type is `native`. 
 
         "loadbalancer_provider": "native",
 
-in this section we'll see `loadbalancer_provider` has a different value for 
-Ingress's `loadbalancer`. we'll also look into the similarities and differences
+in this section we'll see `loadbalancer_provider` attribute type is `opencontrail`
+for Ingress's `loadbalancer`. we'll also look into the similarities and differences
 between `service` loadbalancer and `Ingress` loadbalancer.
 
 === contrail ingress workflow
@@ -2541,20 +2541,19 @@ will be noticed by other system components, and a lot of actions will be
 triggered.  the deep level implementation is out of the scope of this book, but
 in a high level here is the workflow:
 
-. `contrail-kube-manager` keeps listening to the events of`kube-apiserver` 
+. `contrail-kube-manager` keeps listening to the events of`kube-apiserver`
 . user creates an `ingress` object (rules)
 . `contrail-kube-manager` gets the event from `kube-apiserver`
 . `contrail-kube-manager` creates a `loadbalancer` object in contrail
-  DB, and set `loadbalancer_provider` attribute differently for `service`
-  and `Ingress`:
-  - for `service` it is set to `native`.
-  - for `Ingress` it is set to `opencontrail`.
-. `contrail-service-monitor` component sees the `loadbalancer` creation event,
-  based on `loadbalancer_provider` value, it actions differently. 
-  - if the `loadbalancer_provider` is `native`, indicating this is a `service`
-    object, it will do ECMP processing. we've learned this in previous section.
-  - if the `loadbalancer_provider` is `opencontrail`, indicating this is an
-    `Ingress` object, `contrail-svc-monitor` invokes haproxy processes.
+  DB, and set `loadbalancer_provider` attribute type as `opencontrail` for ingress
+  where as it is `native` for  `service`.
+. As mentioned earlier `contrail-service-monitor` component sees the `loadbalancer`
+  creation event, based on `loadbalancer_provider` value, it invokes registered
+  loadbalancer driver for the specfied `loadbalancer_provider`.
+  - if the `loadbalancer_provider` is `native`, It will invoke ECMP loadbalancer driver
+    for ECMP loadbalancing which we've learned this in previous section.
+  - if the `loadbalancer_provider` is `opencontrail`, It will invoke haproxy loadbalancer
+    driver which triggers to launch haproxy processes in k8s-nodes.
 
 as you can see, contrail implements `Ingress` with haproxy loadbalancer, this is
 what you've read in the section of "contrail kubernetes object mapping". 
@@ -2572,7 +2571,7 @@ into the loadbalancer. furthermore:
 
 === contrail Ingress traffic flow
 
-Service request, as a type of `overlay` traffic, may come from two sources
+client request, as a type of `overlay` traffic, may come from two sources
 depending on who initiates the request:
 
 * internal request: requests coming from another pod inside of the cluster
@@ -2587,14 +2586,14 @@ an Ingress will be allocated 2 IPs:
 * external virtual IP
 //, contrail implement this with FIP
 
-here is the traffic flow for service request process:
+here is the traffic flow for client request:
 
 .client to Ingress podIP
 . for internal request it hits Ingress's "internal" VIP directly. 
 . for external request it first hits Ingress's "external" VIP - the FIP, which
   is the one exposed to external, and that is the time when NAT starts to play
-  as we've explained in `FIP` section. after NAT process traffic is forwarded to
-  internal Ingress VIP.
+  as we've explained in `FIP` section. after NAT processing, traffic is forwarded
+  to internal Ingress VIP.
 
 [start=3]
 .Ingress podIP to backend service
@@ -2718,7 +2717,7 @@ ingress.extensions/ingress-sf created
 ----
 ////
 
-after these objects are created, we can proceed to the test each type of Ingress
+after these objects are created, we can proceed to understand each type of Ingress
 object. next we'll start from `single service Ingress`.
 
 === `single service Ingress`
@@ -2922,8 +2921,8 @@ the benefits of this all-in-one yaml file are:
 * whenever needed, you can still delete each individual objects
   independently, by giving the object name
 
-TIP: imaging during test process you may need to create and delete all objects
-as a whole very often, grouping multiple objects in one yaml file can be very
+TIP: During test process you may need to create and delete all objects as a
+whole very often, grouping multiple objects in one yaml file can be very
 convenient.
 
 ===== deploy the single service Ingress
