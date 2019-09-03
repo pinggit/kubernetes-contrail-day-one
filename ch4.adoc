@@ -5031,17 +5031,17 @@ so far we've looked at `floating IP`, `service`, and `Ingress` in details.  You
 probably found that all these objects are related to each other in certain
 aspects. in contrail, both `service` and `Ingress` are implemented based on
 `loadbalancers` (but with different `loadbalancer_provider` types).
-conceptually, `Ingress` is designed based on `service`.  VIP of both type of
-loadbalancers are implemented based on `floating IP`.  however, the forwarding
-mode for `service` and `Ingress` are quite different. with `service` forwarding
-it's "one hop" procedure: source NAT and source PAT take place in ingress
-direction, destination NAT and destination PAT take places in egress direction;
+conceptually, `Ingress` is designed based on `service`. Eventhough both `service`
+and `ingress` are using `loadbalancer` objects, the forwarding mode is quite
+different between `service` and `ingress`. with `service` forwarding
+it's "one hop" procedure: destiantion NAT and destination PAT take place in forward
+direction, source NAT and sourece PAT take places in egress direction;
 while with `Ingress` forwarding, the traffic takes "two hops" to arrive the
 destination: the request first goes to the active haproxy, which then start the
 HTTP/HTTPS level proxy and do the `service` forwarding to reach the final pod.
 
 in order to undrestand the detail packet flow in contrail kubernetes
-environment, let's examine the end to end service access from external in our
+environment, let's examine the packet flow from external client to end pod in our
 `Ingress` lab setup. We'll examine the forwarding state step by step, starting
 from Internet host, through gateway router, then active haproxy node, to the
 final destination node and pod. 
