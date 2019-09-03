@@ -5019,6 +5019,11 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                                     [giphy]
 ----
 
+=== Multiple Ingress Controllers
+
+we can have multiple can have multiple ingress controllers along with
+contrail. please refer Ingress section in chapter 3 which has the required info.
+
 == packet flow in contrail: an end to end view
 
 so far we've looked at `floating IP`, `service`, and `Ingress` in details.  You
