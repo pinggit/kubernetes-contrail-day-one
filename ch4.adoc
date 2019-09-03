@@ -1016,36 +1016,24 @@ cost multiple path"(ECMP) loadbalancer working in layer 4(transport layer) .
 this is the primary difference comparing with the "proxy" mode that the openstack
 loadbalancer type does.
 
-//YUVA:
-Actullay any loadbalancer can be integrated with contrail via contrail component
-`conrail-svc-monitor`. Each loadbalancer should have a loadbalancer driver should be
-registerd to contrail with a loadbalancer_provider. `contrail-svc-monitor` listens to
-contrail loadbalancer, listener, pool and member objects and it calls the registered
-loadbalancer driver for the loadbalancer_provider to do the necessary work. contrail
-by default provides ecmp loadbalancer - loadbalancer_provider is native and haproxy
-loadbalancer - loadbalancer_provider is opencontrail. The openstack loadbalancer
-is using haproxy loadbalancer.
-
-//PING:
-
 *****
-.some extra implementation details:
+.some more implementation details:
 
 * Actullay any loadbalancer can be integrated with contrail via contrail
   component `conrail-svc-monitor`. 
 * Each loadbalancer has a loadbalancer driver that is registerd to
-  contrail with a `loadbalancer_provider` value.
+  contrail with a `loadbalancer_provider` type.
 * `contrail-svc-monitor` listens to contrail `loadbalancer`, `listener`, `pool`
   and `member` objects, it also calls the registered loadbalancer driver to do
-  the necessary work. 
+  other necessary jobs based on the `loadbalancer_provider` type. 
 * contrail by default provides "ecmp loadbalancer" (`loadbalancer_provider` is
   `native`) and "haproxy loadbalancer" (`loadbalancer_provider` is `opencontrail`). 
 * The openstack loadbalancer is using "haproxy loadbalancer".
-*****
-
-NOTE: ingress, on the other hand, is conceptually even closer with the
+* ingress, on the other hand, is conceptually even closer with the
 openstack loadbalancer in the sense that both are layer 7 (application
 layer) "proxy" based. more about ingress will be discussed in later section.
+
+*****
 
 ==== contrail sevice loadbalancer object
 
@@ -2529,11 +2517,11 @@ kubernetes `service` maps to `ECMP loadbalancer (native)` and `Ingress` maps to
 
 in `service` section when we were exploring the loadbalancer and the relevant
 objects (`listener`, `pool`, and `member`), we noticed the loadbalancer's
-`loadbalancer_provider` attribute type is `native`. 
+`loadbalancer_provider` type is `native`. 
 
         "loadbalancer_provider": "native",
 
-in this section we'll see `loadbalancer_provider` attribute type is `opencontrail`
+in this section we'll see `loadbalancer_provider` type is `opencontrail`
 for Ingress's `loadbalancer`. we'll also look into the similarities and differences
 between `service` loadbalancer and `Ingress` loadbalancer.
 
@@ -2548,15 +2536,17 @@ in a high level here is the workflow:
 . user creates an `ingress` object (rules)
 . `contrail-kube-manager` gets the event from `kube-apiserver`
 . `contrail-kube-manager` creates a `loadbalancer` object in contrail
-  DB, and set `loadbalancer_provider` attribute type as `opencontrail` for ingress
-  where as it is `native` for  `service`.
+  DB, and set `loadbalancer_provider` type as `opencontrail` for ingress
+  (where as it is `native` for `service`).
 . As mentioned earlier `contrail-service-monitor` component sees the `loadbalancer`
-  creation event, based on `loadbalancer_provider` value, it invokes registered
-  loadbalancer driver for the specfied `loadbalancer_provider`.
-  - if the `loadbalancer_provider` is `native`, It will invoke ECMP loadbalancer driver
-    for ECMP loadbalancing which we've learned this in previous section.
-  - if the `loadbalancer_provider` is `opencontrail`, It will invoke haproxy loadbalancer
-    driver which triggers to launch haproxy processes in k8s-nodes.
+  creation event, based on `loadbalancer_provider` type, it invokes registered
+  loadbalancer driver for the specified `loadbalancer_provider` type:
+  - if the `loadbalancer_provider` type is `native`, It will invoke ECMP
+    loadbalancer driver for ECMP loadbalancing which we've learned in previous
+    section.
+  - if the `loadbalancer_provider` type is `opencontrail`, It will invoke
+    haproxy loadbalancer driver which triggers haproxy processes to be launched in
+    kubernetes nodes.
 
 as you can see, contrail implements `Ingress` with haproxy loadbalancer, this is
 what you've read in the section of "contrail kubernetes object mapping". 
@@ -2720,8 +2710,8 @@ ingress.extensions/ingress-sf created
 ----
 ////
 
-after these objects are created, we can proceed to understand each type of Ingress
-object. next we'll start from `single service Ingress`.
+after these objects are created, we can proceed to look into each type of
+Ingress object. next we'll start from `single service Ingress`.
 
 === `single service Ingress`
 
@@ -2814,7 +2804,7 @@ same as in `service` example, we can use exactly the same `webserver` deployment
 to launch backend pods:
 
 ----
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver
@@ -2870,7 +2860,7 @@ spec:
     app: webserver
   #type: LoadBalancer
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rc-webserver
@@ -3117,12 +3107,12 @@ right after ingress got created, we see a haproxy process created in each of our
 two nodes!
 
 remember earlier when we talk about ingress contrail implementation, we've said
-contrail Ingress is also implemented through loadbalancer (just like `service`),
-but Ingress's loadbalancer_provider attribute type is `opencontrail`. `'contrail-svc-monitor`
-invokes haproxy driver for loadbalancer_provider attribute type is `opencontrail`.
-The haproxy driver generates required haproxy configuration for the ingress rules and
-triggers two k8s-nodes to launch haproxy in active-standby mode with the generated haproxy
-configuration.
+contrail `Ingress` is also implemented through loadbalancer (just like
+`service`). Since Ingress's `loadbalancer_provider` type is `opencontrail`,
+`'contrail-svc-monitor` invokes haproxy loadbalancer driver. The haproxy driver
+generates required haproxy configuration for the ingress rules and triggers
+haproxy processes to be launched (in active-standby mode) with the generated
+configuration in kubernetes nodes.
 
 ////
 that is only a high level overview about the contrail's implementation of
@@ -3198,36 +3188,47 @@ image::https://user-images.githubusercontent.com/2038044/61433906-8bae5e80-a902-
 
 as expected, the service loadbalancer has a ClusterIP, and a listener object
 that is listening on port 8888. one thing we want to highlight here again is the
-`loadbalancer_provider`. the value is "native", so the action
+`loadbalancer_provider`. the type is "native", so the action
 `contrail-svc-monitor` takes is layer 4 (application layer) ECMP process, which
 we've explored a lot in service section. now let's expand Ingress loadbalancer
 and look at the details.
 
 .ingress loadbalancer object 
 //image::https://user-images.githubusercontent.com/2038044/61021789-f98ddf80-a370-11e9-9cce-30a0c2671bc2.png[]
-image::https://user-images.githubusercontent.com/2038044/61434308-97e6eb80-a903-11e9-8a34-58f4bbaddf30.png[]
+//image::https://user-images.githubusercontent.com/2038044/61434308-97e6eb80-a903-11e9-8a34-58f4bbaddf30.png[]
+image::https://user-images.githubusercontent.com/2038044/64143219-0fea7180-cddd-11e9-9d93-28e08af1f6f2.png[]
 
 some highlights in the figure:
 
+////
 * `loadbalancer_provider` is `opencontrail`
 * Ingress loadbalancer has a reference to a `service-instance` (SI) object
 * `SI` object has a property `ha_mode` set to `active-standby`
-* `SI` object refers the same loadbalancer's interface hence you can see the same IP `10.47.255.238`
+* `SI` object has interface IPs same as those in loadbalancer, hence you can see
+  the same IP `10.47.255.238`
+////
+* `loadbalancer_provider` is `opencontrail`
+* Ingress loadbalancer has a reference to a `virtual-machine-interface` (VMI)
+  object
+* the `VMI` object is referred by an `instance-ip` object with an (fixed) IP
+  `10.47.255.238` and a `floating-ip` object with an (floating) IP
+  `101.101.101.1`
 
 at this moment,  we can explain the Ingress IP `10.47.255.248` seen in ingress.
-basically this IP is:
+basically:
 
-* an cluster-internal IP address allocated from the default pod network as loadbalancer
-  vip which is referred by `SI` object as well.
-* the frontend IP that the Ingress loadbalancer will listen for HTTP requests, 
-* The public FIP `101.101.101.1` maps to the internal IP `10.47.255.248` with NAT. 
+* it is an cluster-internal IP address allocated from the default pod network as
+  loadbalancer vip
+* it is the frontend IP that the Ingress loadbalancer will listen for HTTP
+  requests
+* it is also what the public FIP `101.101.101.1` maps to with NAT
 
 TIP: in this book we'll refer this private IP with different names
 interchangeably: "Ingress Internal IP", "Ingress internal VIP", "Ingress private
 IP", "Ingress loadbalancer interface IP", etc.  to differentiate it from the
 Ingress public FIP, we can also name it as "Ingress podIP" since the internal vip
-is allocated from the pod-network. //similarly we'll refer the Ingress public FIP
-as "Ingress external IP"
+is allocated from the pod-network. similarly we'll refer the Ingress public FIP
+as "Ingress external IP".
 
 Now to compare the different purposes of these two IPs:
 
@@ -3240,12 +3241,14 @@ Now to compare the different purposes of these two IPs:
   to the Ingress FIP from outside of the cluster, vrouter will translate it into
   the Ingress `podIP`
 
-NOTE: the detail Ingress loadbalancer object implementation refers to a SI
-(service instance), and the SI again includes other data structure or reference
-to other objects (VM, VMI, etc). overall it is more complicated and involves
-more details than what we've covered and it is hard to put everything in this
-book. we've tailored the details into a high level overview so that important
-concepts like haproxy and the two Ingress IPes can be understood.
+****
+the detail Ingress loadbalancer object implementation refers to a SI (service
+instance), and the SI again includes other data structure or reference to other
+objects (VM, VMI, etc). overall it is more complicated and involves more details
+than what we've covered and it is hard to put everything in this book. we've
+tailored the details into a high level overview so that important concepts like
+haproxy and the two Ingress IPes can be understood.
+****
 
 Once a HTTP/HTTPS request arrives to the Ingress `podIP`, from internal or
 external, Ingress loadbalancer will do HTTP/HTTPS proxy operation through
@@ -3260,7 +3263,8 @@ parameters details.
 ===== `haproxy.conf` file
 
 in each (compute) node, under `/var/lib/contrail/loadbalancer/haproxy/` folder
-there will be a subfolder for each loadbalancer uuid. the file structure looks like this:
+there will be a subfolder for each loadbalancer uuid. the file structure looks
+like this:
 
 ----
   8fd3e8ea-9539-11e9-9e54-0050569e6cfc
@@ -3434,10 +3438,8 @@ different local preference value. the "Active" node advertise with a value of
 from the 2 nodes, but only the "winning" one will be advertised to the gateway
 router. that is why the "other" BGP route is dropped and only one is
 displayed.  `Localpref` being `200` proves it is coming from the active compute
-node.
-
-NOTE: localpref is not only applied to Ingress FIP route. It is applied for the
-Ingress Internal VIP route as well. Infact it can be applied to all routes.
+node. this applies to both Ingress public FIP route and internal VIP route
+advertisement.
 ****
 
 ==== `Ingress` verification: from internal
@@ -3700,7 +3702,7 @@ There are the definition of the `Deployment`:
 
 .`Deployment` for webserver-1
 ----
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-1
@@ -3729,7 +3731,7 @@ spec:
 
 .`Deployment` for webserver-2
 ----
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-2
@@ -3803,7 +3805,7 @@ spec:
     app: webserver-2
   #type: LoadBalancer
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-1
@@ -3828,7 +3830,7 @@ spec:
         ports:
         - containerPort: 80
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-2
@@ -4650,7 +4652,7 @@ spec:
   selector:
     app: webserver-2
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-1
@@ -4675,7 +4677,7 @@ spec:
         ports:
         - containerPort: 80
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webserver-2
