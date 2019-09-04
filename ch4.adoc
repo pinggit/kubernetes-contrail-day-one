@@ -5026,13 +5026,19 @@ probably found that all these objects are related to each other in certain
 aspects. in contrail, both `service` and `Ingress` are implemented based on
 `loadbalancers` (but with different `loadbalancer_provider` types).
 conceptually, `Ingress` is designed based on `service`.  VIP of both type of
-loadbalancers are implemented based on `floating IP`.  however, the forwarding
-mode for `service` and `Ingress` are quite different. with `service` forwarding
-it's "one hop" procedure: source NAT and source PAT take place in ingress
-direction, destination NAT and destination PAT take places in egress direction;
-while with `Ingress` forwarding, the traffic takes "two hops" to arrive the
-destination: the request first goes to the active haproxy, which then start the
-HTTP/HTTPS level proxy and do the `service` forwarding to reach the final pod.
+loadbalancers are implemented based on `floating IP`.  
+
+however, the forwarding mode for `service` and `Ingress` are quite different.
+with `service` forwarding it's "one hop" process: client sends request to the
+clusterIP or FIP, through NAT the request reaches the destination backend pod;
+while with `Ingress` forwarding, the traffic takes a "two hops" process to
+arrive the destination pod: the request first goes to the active haproxy, which
+then start a HTTP/HTTPS level proxy procedure and do the `service` forwarding to
+reach the final pod. NAT processing happens in both forwarding process, since
+both Ingress and service public FIP implementation relies on it.
+
+//source NAT and source PAT take place in ingress direction, destination NAT and
+//destination PAT take places in egress direction
 
 in order to undrestand the detail packet flow in contrail kubernetes
 environment, let's examine the end to end service access from external in our
@@ -5040,8 +5046,8 @@ environment, let's examine the end to end service access from external in our
 from Internet host, through gateway router, then active haproxy node, to the
 final destination node and pod. 
 
-after this section, you will get a deep understanding to the packet 
-flow and be able to troubleshoot the forwarding plane problems in contrail
+after this section, you will get a deep understanding to the packet flow and you
+will be able to troubleshoot the forwarding plane problems in contrail
 kubernetes environment. 
 
 === testing methodology
@@ -5054,23 +5060,20 @@ you've seen this figure in `Ingress` section:
 image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
 
 earlier we looked at the external gateway router's VRF routing table and use the
-next hops information to find out which node get the packet from the client. in
-practice, very often you need to find out the same from the cluster and nodes
-themselves. a contrail cluster typically comes with a group of tools that you
-can use to inspect the packet flow and forwarding state. in `service` section
-you've seen the usage of `flow`, `nh`, `vif`, etc. in this section we'll revisit
-these tools. furthermore, we'll introduce some more useful tools to give
-additional information about the packet flow.
+`protocol next hop` information to find out which node get the packet from the
+client. in practice, very often you need to find out the same from the cluster
+and nodes themselves. a contrail cluster typically comes with a group of
+built-in tools that you can use to inspect the packet flow and forwarding state.
+in `service` section you've seen the usage of `flow`, `nh`, `vif`, etc. in this
+section we'll revisit these tools and introduce some more useful tools to
+demonstrate additional information about the packet flow.
 
-the tools are:
+here are some of the available tools that we can use for this test:
 
-* `curl`: with debug option
-* `tcpdump`: packet capture tool
-* `flow`: vrouter flow table
-* `rt`: vrouter VRF routing table
-* `nh`: vrouter route next hop information
-* `vif`: vrouter interface information
-* shell script
+* on Internet host client: `curl` (with debug option) and `telnet`
+* on compute host: `tcpdump` and `wireshark`: packet capture tool
+* on vrouter: `flow`/`rt`/`nh`/`vif` and etc.
+* on any controller or compute node: shell script
 
 //we'll then conclude the ingress section by a figure showing the end to end flow.
 
@@ -5078,18 +5081,20 @@ the tools are:
 
 //`curl` is a powerful tool and it has many options to support versatile useful
 //features for testing HTTP protocol. 
-the `curl` tool implementation will always close the TCP session right after the
-HTTP request is responded. although this is a safe and clean behavior in
-practice, it may bring some difficulties to our test.  in this lab we want to
-"hold" a HTTP transaction and look into the details.  However, a TCP flow entry
-in vrouter will also always be cleared when TCP session closes.  the problem is,
-`curl` get its job done pretty fast. it open the session, send request, get
-response, then close the session. in fact this process is too fast to allow us
-any time to capture the flow table. as soon as you hit "enter" to send the
-`curl` command, the command returns in less than 1 or 2 seconds. by the time you
-type in `flow` command in compute node, everything is done and you end up with
-empty table.  we may actually prefer the connection to remain open for a while
-so we can take time to capture the flow table.
+one behavior in the `curl` tool implementation is that it will always close the
+TCP session right after the HTTP response is returned. although this is a safe
+and clean behavior in practice, it may bring some difficulties to our test. in
+this lab we actually want to "hold" the HTTP transaction so we can look into the
+details.  However, a TCP flow entry in contrail `vrouter` is "bound" to the TCP
+connection - when TCP session closes the flow will also be cleared.  the problem
+is, `curl` get its job done "too fast". it establish the TCP connection, send
+HTTP request, get the response, close the session right after. this process is
+too fast to allow us any time to capture anything with the vrouter utilities
+(e.g. `flow` command). as soon as you hit "enter" to start the `curl` command,
+the command returns in less than 1 or 2 seconds. by the time you type in `flow`
+command in compute node, everything is done and you end up with no useful
+information. we actually prefer the connection to remain open for a while so
+we can take time to capture the flow table.
 
 ==== workarounds
 
@@ -5101,44 +5106,108 @@ one method is to install a large file in the webserver and try to pull it with
 `curl`, that way the file transfer process "holds" the TCP session.  we've seen
 this method in "service" section.
 
+.telnet
+
+we can also make use of `telnet` protocol. with it first we establish the TCP
+connection toward the URL's corresponding IP and port, then and manually input a
+few HTTP commands and headers to trigger the HTTP request. doing this allow you
+some period of time before the haproxy times out and tear down the TCP
+connection toward the client. 
+
+NOTE: however, haproxy may still tear down its session immediately toward the
+backend pod. how haproxy behaves varies depending on haproxy's implementation
+and configurations.
+
+from Internet host, telnet to `Ingress` public FIP `101.101.101.1` and port
+`80`:
+
+----
+[root@cent-client ~]# telnet 101.101.101.1 80
+Trying 101.101.101.1...
+Connected to 101.101.101.1.
+Escape character is '^]'.
+----
+
+now the TCP connection is established - we'll check what is the other end in a
+while. next we'll send HTTP `GET` command and `host` header:
+
+----
+GET / HTTP/1.1
+Host: www.juniper.net
+----
+
+basically what it does is to send a HTTP `GET` request to retrieve data and
+`Host` provides the URL of the request. one more `return` indicates the end of
+the request, which will trigger a response from the server immediately:
+
+----
+HTTP/1.0 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Length: 359
+Server: Werkzeug/0.12.1 Python/2.7.12
+Date: Mon, 02 Sep 2019 04:05:44 GMT
+Connection: keep-alive
+
+
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
+    pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
+    rc-webserver-1-g65dg</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+----
+
+from this moment, we can collect flow table in active haproxy compute node for
+later analysis.
+
 .shell script
 
-another method is to automate and repeat the test over and over. we can run a
-shell script in compute node to collect flow table periodically, and another
-script in Internet host to keep sending request with `curl`.  over the time we
-will have a good chance to have the flow table captured in compute node at the
-right moment.
+a script can "type" much faster than we do. so another method is to automate the
+test process and repeat the curl and flow command at the same time over and
+over. with a small shell script in compute node to collect flow table
+periodically, and another script in Internet host to keep sending request with
+`curl`, over the time we will have a good chance to have the flow table captured
+in compute node at the right moment.
 
-for instance, a compute side script may look like:
-
-----
-while :; do flow --match 10.47.255.238; sleep 0.2; done
-----
-
-Internet host side script can be:
+for instance, Internet host side script can be:
 
 ----
 while :; do curl -H 'Host:www.juniper.net' 101.101.101.1; sleep 3; done
 ----
 //lynx -stdin --dump | cat; sleep 3; done
 
-.telnet
-we can also make use of `telnet` protocol. first we establish the TCP connection
-toward the URL's corresponding IP, then and manually input the HTTP GET command
-to trigger the HTTP request. doing this allow you some period of time before the
-server end times out and tear down the TCP connection.
+a compute side script may look like:
 
-In this section we'll use the "telnet method".
+----
+while :; do flow --match 10.47.255.238; sleep 0.2; done
+----
 
-=== from Internet Host to gateway router
+first shell one-liner starts a new test every 3 second, then the second one
+captures a specific flow entry every 0.2 second. 20 tests can be done in a 2
+minutes and we will capture some useful information in a short while.
 
-==== curl `-v`
+In this section we'll use the "script method" to captur the required information
+from compute nodes.
 
-first let's start from the client. earlier we've used `curl` tool a lot to
-trigger HTTP requests for our test. `curl` supports extensive options for
-various features. we've seen `-H` option which specify the `host` field in a
-HTTP request. this time for debugging purpose we use another useful option -
-`-v` in `curl` command:
+=== Internet host: start the HTTP request
+
+.curl `-v`
+
+earlier we've used `curl` tool a lot to trigger HTTP requests for our test.
+`curl` supports extensive options for various features. we've seen `-H` option
+which specify the `host` field in a HTTP request. this time for debugging
+purpose we use another useful option - `-v` in `curl` command:
 
 ----
 [root@cent-client ~]# curl -vH 'Host:www.juniper.net' 101.101.101.1
@@ -5187,75 +5256,58 @@ with this option, it prints more verbose information about the HTTP interaction:
 
 from the interaction we see:
 
-* `curl` sent a HTTP `GET` with path `/` to the FIP `101.101.101.1`, with `Host`
-  filled with "juniper" URL. 
+* `curl` sent a HTTP `GET` with path `/` to the FIP `101.101.101.1`, and with
+  `Host` filled with "juniper" URL. 
 * it gets the response with code `200 OK`, indicating the request has succeeded.
 * there are a bunch of other headers in the response that are not important for
   our test so we can skip. 
 * the rest part of the response is the HTML source code of a returned web page. 
 * the connection is closed immediately afterward.
 
-==== telnet
+now you've seen the verbose interactions curl performed under the hood, and you
+can understand the GET command and host head we sent in `telnet` test - in that
+test we were just emulating what `curl` would do but we just did it manually!
 
-from Internet host, telnet to Ingress podIP `101.101.101.1` and port `80`:
+=== from Internet Host to gateway router
 
-----
-[root@cent-client ~]# telnet 101.101.101.1 80
-Trying 101.101.101.1...
-Connected to 101.101.101.1.
-Escape character is '^]'.
-----
+.Internet host routing table: default route
 
-now the TCP connection is established - we'll check what is the other end
-in a while. next we'll send GET command and host header, then hit return:
+first let's start from the client - the Internet host. as in any host, the
+routing table is pretty simple. static route, or more typically a default route,
+pointing to gateway route is all what it needs.
 
 ----
-GET / HTTP/1.1
-Host: www.juniper.net
+[root@cent-client ~]# ip r
+default via 10.85.188.1 dev ens160 proto static metric 100
+10.85.188.0/27 dev ens160 proto kernel scope link src 10.85.188.24 metric 100
+15.15.15.0/24 dev ens192 proto kernel scope link src 15.15.15.2 metric 101
+101.101.101.0/24 via 15.15.15.1 dev ens192      #<---
 ----
 
-one more return indicates the end of the request, and will trigger a response
-from the server:
+the last entry is the static route that we've manually configured, pointing to
+our gateway router.
 
-----
-HTTP/1.0 200 OK
-Content-Type: text/html; charset=utf-8
-Content-Length: 359
-Server: Werkzeug/0.12.1 Python/2.7.12
-Date: Mon, 02 Sep 2019 04:05:44 GMT
-Connection: keep-alive
+//TODO
+NOTE: in this setup, we configured a VRF in the gateway router to connect the
+host machine into the same MPLS/VPN, so that it can communicate with the overlay
+networks in contrail cluster. In practice, there are other ways to achieve  the
+same goal. for example, the gateway router can also choose to leak routes with
+policies between VPN and Internet routing table, so that an Internet host which
+is not part of the VPN can also access the overlay networks in contrail.
 
-
-<html>
-<style>
-  h1   {color:green}
-  h2   {color:red}
-</style>
-  <div align="center">
-  <head>
-    <title>Contrail Pod</title>
-  </head>
-  <body>
-    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
-    pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    rc-webserver-1-g65dg</h3>
-    <img src="/static/giphy.gif">
-  </body>
-  </div>
-</html>
-----
-
-from this moment, we can collect flow table in both (compute) nodes for later
-analysis.
 
 === from gateway router to Ingress public FIP: MPLS over GRE
 //of active haproxy node: MPLS over GRE
 
 earlier in Ingress section we've seen gateway router's routing table, from the
-prefix "next hop" we can find out that the packet will be sent to active haproxy
-node `cent222` via MPLSoGRE tunnel. 
-another way to demonstrate the forwarding
-flow is to collect the flow table in node `cent222`. 
+"protocol next hop" we can find out that the packet will be sent to active
+haproxy node `cent222` via MPLSoGRE tunnel.  
+
+now with flow table collected on both computes, we can find out the same
+information. let's take a look at the flow entries of active proxy compute:
+
+//another way to demonstrate the
+//forwarding flow is to collect the flow table in node `cent222`. 
 
 ////
 ----
@@ -5311,41 +5363,40 @@ Listing flows matching ([15.15.15.2]:*)
 (Gen: 1, K(nh):89, Action:N(S), Flags:, TCP:SSrEEr, QOS:-1, S(nh):89,
  Stats:1/74,  SPort 60289, TTL 0, Sinfo 8.0.0.0)
 
-(vrouter-agent)[root@cent222 /]$ nh --get 61
-Id:61         Type:Tunnel         Fmly: AF_INET  Rid:0  Ref_cnt:3316       Vrf:0
-              Flags:Valid, MPLSoGRE, Etree Root,
-              Oif:0 Len:14 Data:f0 1c 2d 41 90 00 00 50 56 9e 62 25 08 00
-              Sip:10.169.25.20 Dip:192.168.0.204
-----
 
-////
 (vrouter-agent)[root@cent222 /]$ nh --get 89
 Id:89         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:7          Vrf:2
               Flags:Valid, Policy, Etree Root,
               EncapFmly:0806 Oif:8 Len:14
               Encap Data: 02 c0 0a c1 e6 6c 00 00 5e 00 01 00 08 00
-////
+----
 
-this flow table rephrases the same fact as what we've seen from gateway router's
-VRF table:
+//this flow table rephrases the same fact as what we've seen from gateway router's VRF table:
+
+This flow reflect the state of the "first" TCP connection between Internet host
+client and active haproxy. let's first look at the first entry in the capture:
 
 * the first flow entry displays the source and destination of the http request,
-  it is coming from Internet host (`15.15.15.2`) and lands the FIP in current
-  node `cent222`
+  it is coming from Internet host (`15.15.15.2`) and lands the `Ingress` FIP in
+  current node `cent222`
 
-* `S(nh):61` in is the next hop to the source of the request - the Internet
+* `S(nh):61` is the next hop to the source of the request - the Internet
   host.  this is similiar concept like the reverse path forwarding(RPF). vrouter
   always maintains the path toward the source of the packet in the flow.
 
 * `nh --get` command resolves the nexthop 61 with more details, we see a
   `MPLSoGRE` flag is set, `Sip` and `Dip` is the two end of the GRE tunnel,
   they are current node and gateway router's loopback IP respectively. 
-  
-overall this confirms the request packet from Internet host traverses gateway
-router, and via MPLSoGRE tunnel it hit the Ingress external VIP `101.101.101.1`.
-NAT will happen and we'll look into it next.
 
-=== from Ingress public FIP to Ingress podIP: NAT
+* `TCP:SSrEEr` is TCP flags showing the state of this the TCP connection.
+  vrouter detected the `SYN` (`S`), `SYN-ACK` (`Sr`), so bidirectional
+  connection is established (`EEr`).
+
+overall the first flow entry confirms: the request packet from Internet host
+traverses gateway router, and via MPLSoGRE tunnel it hit the Ingress external
+VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
+
+=== from Ingress public FIP to Ingress podIP: FIP(NAT)
 //on active haproxy node: NAT
 ////
 ----
@@ -5382,30 +5433,31 @@ Listing flows matching ([10.47.255.238]:*)
 ////
 
 to verify the NAT operation, we only need to dig a little bit more out of the
-same flow output.
+previous flow output.
 
-* the `Action` flag, `N(D)` in the first entry and `N(S)` in the second,
-  indicate the two type of NAT operations:
-  - destination NAT - `DNAT`, destination FIP `101.101.101.1` which is the
-    external Ingress will be translated to the Ingress internal VIP
-  - source NAT - `SNAT`, source IP which is the internal Ingress VIP
-    `10.47.255.238` will be translated to the Ingress external VIP
+* the `Action` flag, `N(D)` in the first entry indicates destination NAT -
+  `DNAT`. destination Ingress external FIP `101.101.101.1` which is the external
+  Ingress will be translated to the Ingress internal VIP
+
+* the `Action` flag, `N(S)` in the second entry, indicates source NAT - `SNAT`.
+  indicate source NAT - `SNAT`, source IP `10.47.255.238` which is the internal
+  internal Ingress VIP will be translated to the Ingress external VIP.
   
-* in vrouter flow, the second flow entry is also called a "reverse flow" of the
-  first one. it is the flow entry vrouter uses to send returning packet towards
-  Internet host.  from Ingress loadbalancer's perspective it only uses
-  `10.47.255.248` assigned from the default pod network as its source IP, it
-  does not knows anything about the FIP. same thing for the external Intenet host, it
-  only knows how to reach the FIP and has no clues about the private
-  Ingress internal VIP. it is vrouter that is doing the two way NAT translations
-  in between.
-
 in summary, what the flow table of active haprox node `cent222` tells is that on
 receiving the packet destined to the Ingress FIP, vrouter on node `cent222`
-performs NAT and translates destination FIP (`101.101.101.1`) to the Ingress's
-internal VIP (`10.47.255.238`).  after that the packet lands the Ingress
-loadbalancer's VRF, where active haproxy process is watching. next HTTP proxy
-will happen.
+performs NAT operation and translates destination FIP (`101.101.101.1`) to the
+Ingress's internal VIP (`10.47.255.238`).  after that the packet lands the
+Ingress loadbalancer's VRF, where active haproxy process is watching. from this
+moment HTTP proxy will happen and we'll talk about it next.
+
+NOTE: in vrouter flow, the second flow entry is also called a "reverse flow" of
+the first one. it is the flow entry vrouter uses to send returning packet
+towards Internet host.  from Ingress loadbalancer's perspective it only uses
+`10.47.255.248` assigned from the default pod network as its source IP, it does
+not knows anything about the FIP. same thing for the external Intenet host, it
+only knows how to reach the FIP and has no clues about the private Ingress
+internal VIP. it is vrouter that is doing the two way NAT translations in
+between.
 
 === from Ingress podIP to service IP: MPLS over UDP
 //on active haproxy node 
@@ -5417,25 +5469,40 @@ the haproxy.  what the haproxy supposes to do is:
 * haproxy checks the ingress rule programmed in its config file, decides that
   the requests need to be proxied to service IP of `webservice-1`. 
 * vrouter checks the Ingress loadbalancer's VRF table and sees the prefix of
-  `webservice-1` IP is learned from a destination node `cent333`. between compute
-  node the forwarding path is programmed with MPLSoUDP tunnel, so it pushes a
-  MPLS label and send it through MPLS over UDP tunnel.
+  `webservice-1` service IP is learned from a destination node `cent333`, which
+  will be the next hop to forward the packet. 
+* between compute node the forwarding path is programmed with MPLSoUDP tunnel,
+  so vrouter pushes a MPLS label and send it through MPLS over UDP tunnel.
 
-to verify haproxy process packet processing details, we capture packets on
-the physical interface of node `cent222`, where the active haproxy process is
-running.
+please note that all traffic from Ingress to service happens in overlay. between
+contrail compute nodes that means all overlay packets should be encapsulated in
+MPLS over UDP tunnel. to verify haproxy process packet processing details, we
+capture packets on the physical interface of node `cent222`, where the active
+haproxy process is running.
 
 //image::https://user-images.githubusercontent.com/2038044/60518123-e1ea9300-9cae-11e9-82ec-d341e32e42c8.png[]
 image::https://user-images.githubusercontent.com/2038044/60539848-aadea680-9cdb-11e9-8896-c4824d17dd9d.png[]
 
 from the wireshark screenshot, we see clearly that:
 
-* the HTTP request packet is "forwarded" to the service IP, which is the other
-  node `cent333`. that is why we see underlay destination IP of the request is
-  `10.169.25.21`
+* frame 38-40, Ingress private podIP established a new TCP connection toward
+  service IP and port, this happens in overlay.
+* frame 41, on the new TCP connection, haproxy start a HTTP request to the
+  service IP. 
+* frame 44, the HTTP response returns back.
+
+frame 41 is also the one we use as an example to show the packet encapsulation.
+you will see this IP packet containing the HTTP request is MPLS-labeled, and it
+is embedded inside of a UDP datagram. the "outer" source and destination IP of
+the packet are `10.169.25.20` (compute node `cent222`) and `10.169.25.21`
+(compute node `cent333`) respectively.
+
+////
 * sending overlay packets between compute node requirs MPLSoUDP tunnel. 
 
-everything is working as expected.
+  which is on the other node `cent333`. that is indicated by the
+  underlay destination IP of the request - `10.169.25.21`
+////
 
 ."forward" vs "proxy"
 
@@ -5444,39 +5511,91 @@ this capture. questions are:
 
 * shouldn't the source IP address be the Internet host's IP `15.15.15.2`,
   instead of loadbalancer's frontend IP? 
-* is the packet "forwarded" at all?
-* is the transaction within the same TCP session from Internet host, accrossing
-  gateway router and loadbalancer node `cent222`, all the way up to the backend
-  pod sitting in node 'cent333`?
+* is the original HTTP request "forwarded" at all?
+* is the transaction within the same TCP session sourcing from Internet host,
+  accrossing gateway router and loadbalancer node `cent222`, all the way down to
+  the backend pod sitting in node 'cent333`?
 
 The answers are NO. the haproxy in this test is doing layer 7 (application
 layer) loadbalancing. what it does is:
 
 * establish TCP connection with Internet host and keep monitoring the HTTP request. 
-* whenever it see an request coming in, it checks its rule and initiates a brand
-  new TCP connection to the corresponding backend
-* it "copies" the original HTTP request from Internet host and "paste" into the
-  new TCP connection with its backend. 
-
-so, to put it precisely, the http request is "proxied", not "forwarded".
+* whenever it see a HTTP request coming in, it checks its rule and initiates a
+  "brand new" TCP connection to the corresponding backend
+* it "copies" the original HTTP request it received from Internet host and
+  "paste" into the new TCP connection with its backend. precisely speaking, the
+  http request is "proxied", not "forwarded".
 
 //capture on haproxy interface
 //image::https://user-images.githubusercontent.com/2038044/60540296-d1e9a800-9cdc-11e9-8914-fbe4fc59ae60.png[]
 
-=== from service IP to backend pod IP: NAT
+at the moment we know the http request is "proxied" to haproxy's backend.
+according to Ingress configuration that backend is a kubernetes `service`. now,
+to reach the `service` the request is sent to a "destination node" `cent333`
+where all backend pod is sitting. next we'll look at what will happen in
+destination node.
 
-at the moment we know the http request is "proxied" to haproxy's backend. that
-backend is a kubernetes `service`, and to reach the `service` the request is
-sent to node `cent333` where all backend pod is sitting.
+=== from service IP to backend pod IP: FIP(NAT)
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
-again translates the service IP to the backend podIP `10.47.255.236`. the
-translation is a NAT operation, pretty much the same as what we've seen many
-times earlier, whenever FIP is involved. 
+again do the FIP NAT translation operations. it translates the service IP to the
+backend podIP `10.47.255.236`, pretty much the same way as what we've seen 
+in node `cent222`, where vrouter translate between Ingress public FIP with
+Ingress internal podIP.
 
-packet capture on the backend pod interface also reveals the packet interaction
-between the Ingress intenral IP and backend podID.
+here is the flow table we captured with shell script. this flow shows the state
+of the "second" TCP connection between active haproxy and the backend pod.
+
+----
+evrouter-agent)[root@cent333 /]$ flow --match 10.47.255.238
+Flow table(size 80609280, entries 629760)
+Entries: Created 482 Added 482 Deleted 10 Changed 10Processed 482 Used Overflow entries 0
+(Created Flows/CPU: 163 146 18 155)(oflows 0)
+
+Action:F=Forward, D=Drop N=NAT(S=SNAT, D=DNAT, Ps=SPAT, Pd=DPAT, L=Link Local Port)
+ Other:K(nh)=Key_Nexthop, S(nh)=RPF_Nexthop
+ Flags:E=Evicted, Ec=Evict Candidate, N=New Flow, M=Modified Dm=Delete Marked
+TCP(r=reverse):S=SYN, F=FIN, R=RST, C=HalfClose, E=Established, D=Dead
+
+Listing flows matching ([10.47.255.238]:*)
+
+    Index                Source:Port/Destination:Port                      Proto(V)
+ ----------------------------------------------------------------------------------
+   403188<=>462132       10.47.255.236:80                                    6 (2->4)
+                         10.47.255.238:57760
+(Gen: 1, K(nh):23, Action:N(SPs), Flags:, TCP:SSrEEr, QOS:-1, S(nh):23,
+ Stats:2/140,  SPort 52190, TTL 0, Sinfo 4.0.0.0)
+
+   462132<=>403188       10.47.255.238:57760                                 6 (2->2)
+                         10.99.225.17:8888
+(Gen: 1, K(nh):23, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):26,
+ Stats:3/271,  SPort 65421, TTL 0, Sinfo 10.169.25.20)
+----
+
+You've seen something similar in `service` section so you may not have issues to
+read it through.  obviously the second entry is triggered by the incoming
+request from active haproxy IP (the Ingress podIP) towards service IP.
+//active haproxy (in node `cent222`) follows its rules inheritated from our
+//Ingress definition and dispatchs the request of "juniper" URL to
+//`webservice-1`, whose IP:port is `10.99.225.17:8888`. 
+vrouter knows the service IP is a FIP that maps to the  backend podIP
+`10.47.255.236`, and service port maps to the container targetPort in backend
+pod. it does `DNAT+DPAT` (`DPd`) in incoming direction and `SNAT+SPAT` (`SPs`)
+in outgoing direction.
+
+finally, pod sees the HTTP request and responds back with a web page. this
+returning traffic is reflected by the first flow entry in the capture, which
+shows: 
+
+* original source IP as backend podIP `10.47.255.236`
+* original source port as webserver port `80`
+* destination IP as `Ingress` internal podIP `10.47.255.238`
+
+=== backend pod: receives the HTTP request
+
+another `tcpdump` packet capture on the backend pod interface helps to reveal
+the packet interaction between the Ingress intenral IP and backend podID.
 
 ----
 $ tcpdump -ni tapeth0-baa392 -v
@@ -5516,41 +5635,6 @@ not shows what happens right before NAT.
 
 //TODO: add something here
 
-here is the flow table we captured before it's gone.
-
-----
-evrouter-agent)[root@cent333 /]$ flow --match 10.47.255.238
-Flow table(size 80609280, entries 629760)
-Entries: Created 482 Added 482 Deleted 10 Changed 10Processed 482 Used Overflow entries 0
-(Created Flows/CPU: 163 146 18 155)(oflows 0)
-
-Action:F=Forward, D=Drop N=NAT(S=SNAT, D=DNAT, Ps=SPAT, Pd=DPAT, L=Link Local Port)
- Other:K(nh)=Key_Nexthop, S(nh)=RPF_Nexthop
- Flags:E=Evicted, Ec=Evict Candidate, N=New Flow, M=Modified Dm=Delete Marked
-TCP(r=reverse):S=SYN, F=FIN, R=RST, C=HalfClose, E=Established, D=Dead
-
-Listing flows matching ([10.47.255.238]:*)
-
-    Index                Source:Port/Destination:Port                      Proto(V)
- ----------------------------------------------------------------------------------
-   403188<=>462132       10.47.255.236:80                                    6 (2->4)
-                         10.47.255.238:57760
-(Gen: 1, K(nh):23, Action:N(SPs), Flags:, TCP:SSrEEr, QOS:-1, S(nh):23,
- Stats:2/140,  SPort 52190, TTL 0, Sinfo 4.0.0.0)
-
-   462132<=>403188       10.47.255.238:57760                                 6 (2->2)
-                         10.99.225.17:8888
-(Gen: 1, K(nh):23, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):26,
- Stats:3/271,  SPort 65421, TTL 0, Sinfo 10.169.25.20)
-----
-
-obviously the second entry is triggered by the incoming request. haproxy follows
-its rules inheritated from our Ingress definition and dispatchs the request of
-"juniper" URL to `webservice-1`, whose IP:port is `10.99.225.17:8888`. vrouter see
-the service IP and knows that supposes to go to backend podIP `10.47.255.236`.
-it does NAT between the two IPs. 
-
-finally, pod sees the HTTP request and responds back with a web page.
 
 ////
 ----
