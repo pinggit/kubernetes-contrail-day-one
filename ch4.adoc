@@ -496,7 +496,7 @@ traffic, egress traffic, or both and default is bi-direction. in this book we
 focus on `floating IP` only. you can refer contrail documents for detail
 information about fabric SNAT and logical router.
 
-=== Floating IP Introduction
+=== Floating IP and FIP Pool
 
 `floating IP`, or `FIP` for short, is a "traditional" concept that contrail
 supports since very early releases. Essentially it is an openstack concept to
@@ -539,7 +539,7 @@ environment. But the usage of floating IP has been extended in kubernetes
 for accessing toward kubernetes `service` and `ingress` from external. 
 you can check later sections in this chapter for more details on this.
 
-=== Create FIP Pool
+==== Create FIP Pool
 
 creating a FIP pool is a 3 steps process:
 
@@ -609,7 +609,7 @@ Overlay > Floating IP > Create
 TIP: in contrail UI, you can also set the "external" flag in VN "Advanced"
 options so that a FIP pool named "public" will automatically be created.
 
-=== FIP Pool Scope
+==== FIP Pool Scope
 
 there are different ways you can refer an floating IP pool in contrail
 kubernetes environment, and correspondingly the scope of the pools will also be
@@ -664,7 +664,7 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
-=== Object FIP Pool
+===== Object FIP Pool
 
 let's first take a look at the object-specific FIP pool. here is an example:
 
@@ -690,7 +690,7 @@ project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`. since
 object level FIP pool is assigned for this specific object only, with this
 method each new object needs to be assigned a FIP pool explicitly.
 
-=== NS FIP Pool
+===== NS FIP Pool
 
 the next FIP pool scope is in NS level. each NS can define its own FIP
 pool.  same way as kubernetes annotations object is used to give a subnet to a
@@ -714,7 +714,7 @@ get a FIP allocated from this pool. In practice, most NS (especially
 those isolated NS) will need its own NS default pool so you will see this
 type of configuration very often in field.
 
-=== Global FIP pool
+===== Global FIP pool
 
 to specify a global level FIP pool, you need to give the full qualified pool
 name (domain > project > network > name) in contrail-kube-manager('KM') docker's
