@@ -2481,7 +2481,7 @@ the end to end packet flow is illustrated here:
 .loadbalancer service ECMP
 image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
 
-== contrail ingress
+== Contrail Ingress
 
 ////
 in chapter 3 we've learned that Ingress maps URLs to services with `rules`. this
@@ -2502,7 +2502,7 @@ in this chapter we'll introduce details of ingress workflow in contrail
 implementation, then we'll use a few test cases to demonstrate and verify how
 ingress works exactly in contrail environment.
 
-=== contrail ingress loadbalancer
+=== Contrail Ingress Loadbalancer
 
 like contrail's `service` implementation, contrail `Ingress` is also implemented
 through loadbalancer, but with a different `loadbalancer_provider` attribute.
@@ -2524,7 +2524,7 @@ in this section we'll see `loadbalancer_provider` type is `opencontrail`
 for Ingress's `loadbalancer`. we'll also look into the similarities and differences
 between `service` loadbalancer and `Ingress` loadbalancer.
 
-=== contrail ingress workflow
+=== Contrail Ingress Workflow
 
 When an `Ingress` is configured in contrail kubernetes environment, the event
 will be noticed by other system components, and a lot of actions will be
@@ -2561,7 +2561,7 @@ into the loadbalancer. furthermore:
 * both `haproxy` processes are programmed with appropriate configuration, based
   on the rules defined in Ingress object.
 
-=== contrail Ingress traffic flow
+=== Contrail Ingress Traffic Flow
 
 client request, as a type of `overlay` traffic, may come from two sources
 depending on who initiates the request:
@@ -2659,7 +2659,7 @@ contrail supports all 3 types of ingress:
 
 we'll look into each type of ingress.
 
-=== Ingress testbed
+=== Ingress Setup
 
 in our lab we use the same testbed as what we use for `service` test:
 
@@ -2712,7 +2712,7 @@ ingress.extensions/ingress-sf created
 after these objects are created, we can proceed to look into each type of
 Ingress object. next we'll start from `single service Ingress`.
 
-=== `single service Ingress`
+=== Single Service Ingress
 
 single service Ingress is the most basic form of Ingress. it does not define any
 rules and its main usage is to expose service to the outside world. it will
@@ -2747,9 +2747,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `Ingress` objects definition
+===== `Ingress` objects definition
 
-===== `Ingress` definition
+====== `Ingress` definition
 
 in our single service ingress test lab, we want to achieve this goal:
 
@@ -2775,7 +2775,7 @@ its "backend". all HTTP request will be dispatched to this service, and from
 there the request will reach a backend pod. next we'll look at the backend
 service.
 
-===== backend `service` definition
+====== backend `service` definition
 
 we can use exactly the same service as introduced in `service` example. 
 
@@ -2797,7 +2797,7 @@ NOTE: the service `type` is optional. with `Ingress`, `service` does not need to
 be exposed to external directly anymore. therefore `LoadBalancer` type of
 service is not required. 
 
-===== backend `pod` definition
+====== backend `pod` definition
 
 same as in `service` example, we can use exactly the same `webserver` deployment
 to launch backend pods:
@@ -2829,7 +2829,7 @@ spec:
         - containerPort: 80
 ----
 
-===== an "all in one" yaml file
+====== an "all in one" yaml file
 
 as usual, we can create an individual yaml file for each of the objects. but
 considering in `Ingress`, these objects always need to be created and removed
@@ -2917,7 +2917,7 @@ TIP: During test process you may need to create and delete all objects as a
 whole very often, grouping multiple objects in one yaml file can be very
 convenient.
 
-===== deploy the single service Ingress
+====== deploy the single service Ingress
 
 before applying the yaml file to get all objects created, let's take a quick
 look at our two nodes. we want to see if there is any `haproxy` process running
@@ -3051,7 +3051,7 @@ let's hold the answer for now and continue to check service and pod
 object created from the all-in-one yaml file. we'll come back to this question
 shortly.
 
-===== service objects
+====== service objects
 
 ----
 $ kubectl get svc -o wide
@@ -3062,7 +3062,7 @@ service-web-clusterip  ClusterIP  10.97.226.91  <none>       8888/TCP  28m  app=
 the service is also created and allocated a clusterIP. we've seen
 this before and it looks nothing special. now look at the pods.
 
-===== backend and client pod
+====== backend and client pod
 
 ----
 $ kubectl get pod -o wide --show-labels
@@ -3076,7 +3076,7 @@ learned how selector and label works in service-pod associations so there is
 nothing new here. next we'll examine the haproxy and try to make some sense out
 of the 2 IPs allocated to Ingress object.
 
-===== haproxy processes
+====== haproxy processes
 
 earlier before the Ingress is created, we were looking for haproxy process in
 node but could not see anything. let's check it again and see if any magic
@@ -3154,7 +3154,7 @@ $ docker exec -it vrouter_vrouter-agent_1 ps 16335
 ////
 
 
-===== Ingress loadbalancer objects
+====== Ingress loadbalancer objects
 
 ////
 .contrail object: SI, port tuple, VMI
@@ -3259,7 +3259,7 @@ operation, next we can further check its configuration file for the running
 parameters details.
 //configuration file and confirm the ingress rules are programmed properly.
 
-===== `haproxy.conf` file
+====== `haproxy.conf` file
 
 in each (compute) node, under `/var/lib/contrail/loadbalancer/haproxy/` folder
 there will be a subfolder for each loadbalancer uuid. the file structure looks
@@ -3343,7 +3343,7 @@ backend.
 
 through this configuration, the haproxy implemented our single service Ingress.
 
-===== gateway router VRF table
+====== gateway router VRF table
 
 we've explored a lot inside of the cluster. now let's look at the gateway
 router's VRF table. 
@@ -3441,7 +3441,7 @@ node. this applies to both Ingress public FIP route and internal VIP route
 advertisement.
 ****
 
-==== `Ingress` verification: from internal
+===== `Ingress` verification: from internal
 
 we've explored a lot about ingress loadbalancer and the related service, pod
 objects, etc. now it is time to verify the "end-to-end" test result. since the
@@ -3498,7 +3498,7 @@ full URL in HTTP payload that the Ingress loadbalancer is waiting for. without
 it the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
 so it will be treated same as with a unknown URL.
 
-==== `Ingress` verification: from external (Internet host)
+===== `Ingress` verification: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to expose services to the Internet host, even though it
@@ -3578,7 +3578,7 @@ service "webservice-1" deleted
 replicationcontroller "Vwebserver-1-846c9ccb8b" deleted
 ----
 
-=== `simple fanout Ingress`
+=== Simple Fanout Ingress
 
 //TODO: adjust the TOC, default backend
 both `simple fanout Ingress` and `name-based virtual host Ingress` support "URL
@@ -3617,9 +3617,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `Ingress` objects definition
+===== `Ingress` objects definition
 
-===== `ingress` definition
+====== `ingress` definition
 
 in our `simple fanout Ingress` test lab, we want to achieve these goals for host
 `www.juniper.net`:
@@ -3655,7 +3655,7 @@ in contrast to `single service Ingress`, in `simple fanout Ingress` object (and
 "name-based virtual host Ingress") we see "rules" defined - here it is the
 mappings from multiple "paths" to different backend services. 
 
-===== backend `service` definition
+====== backend `service` definition
 
 since we defined 2 rules each for a `path`, we need two services accordingly. we 
 can "clone" the previous service in `single service Ingress` example and
@@ -3690,7 +3690,7 @@ spec:
   #type: LoadBalancer
 ----
 
-===== backend `pod` definition
+====== backend `pod` definition
 
 because we have 2 backend services now, apparently we also need at least two
 backend pods each with a label matching to a service. we can clone the previous
@@ -3756,7 +3756,7 @@ spec:
         - containerPort: 80
 ----
 
-===== deploy `simple fanout Ingress`
+====== deploy `simple fanout Ingress`
 
 same as in `single service Ingress`, we put everything together to get an
 "all-in-one" yaml file to test `simple fanout Ingress`:
@@ -3868,9 +3868,9 @@ deployment.extensions/webserver-2 created
 
 the Ingress, two `service` and two `Deployment` objects are now created.
 
-==== `Ingress` post examination
+===== `Ingress` post examination
 
-===== ingress objects and ingress loadbalancer
+====== ingress objects and ingress loadbalancer
 
 let's look at the kubernetes objects created from the all-in-one yaml file:
 
@@ -4008,7 +4008,7 @@ we won't explore the details of each objects again this time since we've
 investigated the key parameters of `service` and `Ingress` loadbalancers in
 `single service Ingress` - there is really nothing new here.
 
-===== haproxy process and haproxy.cfg file
+====== haproxy process and haproxy.cfg file
 
 in `single service Ingress` example, we've demonstrated the two haproxy
 processes invoked by `contrail-svc-monitor` when it sees `loadbalancer` appears
@@ -4153,9 +4153,9 @@ hosting Ingress` section we'll combine the `use_backend` and `default_backend`
 together to privde this type of flexibility.
 
 
-==== `Ingress` verification: from internal
+===== `Ingress` verification: from internal
 
-===== problem of old method
+====== problem of old method
 
 we'll compose similar curl commands to test `simple fanout Ingress`. this time
 we give different paths and see how Ingress distribute them.
@@ -4223,7 +4223,7 @@ in the code only path `/` and `/contrail` is supported.
 
 =====
 
-===== workaround
+====== workaround
 
 there are several ways to workaround the problem:
 
@@ -4245,7 +4245,7 @@ create a HTTP server, and make it to serve the "path" that we give in the URL:
 NOTE: don't forget to delete the old services and create the new ones with the
 updated parameters.
 
-===== create web pages
+====== create web pages
 
 in order to make the webserver responding to the URL with given paths, we can
 create some web pages with file names being same as the `path`: `dev`, `qa`,
@@ -4320,7 +4320,7 @@ drwxr-xr-x. 2 root root  23 Apr 21  2017 static
 TIP: we create a page `abc` that has no corresponding path to test the scenario
 when incoming HTTP request contains an "unknown" path.
 
-===== start new web server
+====== start new web server
 
 for each pod open a seperate terminal, then start a web server with python
 module `SimpleHTTPServer`, listening on port 90:
@@ -4346,7 +4346,7 @@ kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846
 
 ////
 
-===== the new all-in-one yaml file
+====== the new all-in-one yaml file
 
 the last step before testing our Ingress is to update the previous services
 `targetPort` 80 in the "all-in-one" yaml file with the new HTTP server's port
@@ -4385,7 +4385,7 @@ deployment.extensions/webserver-2 unchanged
 only the two services are updated and deleted, so when we apply the new yaml
 file, only these two objects are recreated - all other objects keep unchanged.
 
-===== test the URL with different paths
+====== test the URL with different paths
 
 ----
 $ kubectl exec -it cirros -- \
@@ -4469,7 +4469,7 @@ test the returned podIP `10.47.255.235` represent `webservice-2`, all other thre
 tests returns podIP for `webservice-1`, as expected.
 ////
 
-==== `Ingress` verification: from external (Internet host)
+===== `Ingress` verification: from external (Internet host)
 
 ////
 with chrome, this time we launch two chrome page side by side, and input URLs
@@ -4519,9 +4519,9 @@ $ curl -H 'Host:www.cisco.com' 101.101.101.1/dev | w3m -T text/html | cat
 No server is available to handle this request.
 ----
 
-=== `name based virtual hosting Ingress`
+=== Virtual Hosting Ingress
 
-`Name based virtual hosting Ingress` support routing HTTP traffic to multiple
+`Virtual Hosting Ingress` support routing HTTP traffic to multiple
 host names at the same IP address. based on the URL and rules, an Ingress
 loadbalancer directs traffic to different backend services, and each service
 direct traffic to its backend pods. 
@@ -4554,9 +4554,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `Ingress` objects definition
+===== `Ingress` objects definition
 
-===== `ingress` definition
+====== `ingress` definition
 
 in our virtual host ingress test lab, we define the following rules:
 
@@ -4601,7 +4601,7 @@ spec:
 same exact service and Deployment definition that were used in `simple fanout
 Ingress` can be used here.
 
-===== an "all in one" yaml file
+====== an "all in one" yaml file
 
 ----
 $ cat ingress/ingress-test.yaml
@@ -4715,9 +4715,9 @@ deployment.extensions/webserver-2 created
 
 the `Ingress`, two services and two `Deployment` objects are now created.
 
-==== `Ingress` post examination
+===== `Ingress` post examination
 
-===== examine ingress objects
+====== examine ingress objects
 
 let's start to look at the `Ingress` object.
 
@@ -4783,7 +4783,7 @@ the rules are defined properly, within each rule there is a mapping from a
 the services, pods and FIP prefix advertisement to gateway router behavior are
 all exactly the same as those in `simple fanout Ingress`.
 
-===== exploring Ingress loadbalancer objects
+====== exploring Ingress loadbalancer objects
 
 //TODO: should skip if simple fan-out Ingress can capture this.
 ////
@@ -4805,7 +4805,7 @@ image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-
 next we can check haproxy configuration file for `name-based virtual host
 Ingress`.
 
-===== examine `haproxy.conf` file
+====== examine `haproxy.conf` file
 
 ----
 $ cd /var/lib/contrail/loadbalancer/haproxy/8fd3e8ea-9539-11e9-9e54-0050569e6cfc/
@@ -4912,7 +4912,7 @@ through this configuration, the haproxy implemented our ingress:
 
 Next we'll verify these behaviors.
 
-==== `Ingress` verification: from internal
+===== `Ingress` verification: from internal
 
 ////
 we've explored a lot about ingress configuration and objects examination, now it
@@ -5025,7 +5025,7 @@ we can have multiple ingress controllers along with contrail ingress
 controller. please refer Ingress section in chapter 3 which has the
 required info.
 
-=== Service vs Ingress Packet Flow 
+=== Service vs Ingress Traffic Flow
 in contrail, eventough both `service` and `Ingress` are implemented based via
 `loadbalancers` (but with different `loadbalancer_provider` types). the forwarding
 mode for `service` and `Ingress` are quite different. with `service` forwarding
@@ -5035,10 +5035,9 @@ the traffic takes a "two hops" process to arrive the destination pod: the reques
 first goes to the active haproxy, which then start a HTTP/HTTPS level proxy procedure
 and do the `service` forwarding to reach the final pod. NAT processing happens in both
 forwarding process, since both Ingress and service public FIP implementation relies on
-it. The next section will give a detailed view of packet flow in contrail with the
-help of ingress and service 
+it. The next section will give a detailed view of packet flow for traffics in contrail.
 
-== packet flow in contrail: an end to end view
+== Packet Flow in Contrail: End to End View
 
 //source NAT and source PAT take place in ingress direction, destination NAT and
 //destination PAT take places in egress direction
