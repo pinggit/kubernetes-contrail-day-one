@@ -2549,10 +2549,12 @@ in a high level here is the workflow:
     kubernetes nodes.
 
 as you can see, contrail implements `Ingress` with haproxy loadbalancer, this is
-what you've read in the section of "contrail kubernetes object mapping". 
-also in contrail environment the `contrail-kube-manager` plays `Ingress
-controller` role. it reads the Ingress rules that user input and programs them
-into the loadbalancer. furthermore:
+what you've read in the section of "contrail kubernetes object mapping".  also
+as we've talked in chapter 3, "Ingress controller" is required to implement
+Ingress, and multiple "Ingress Controllers" is possible. in contrail environment
+the `contrail-kube-manager` plays `Ingress controller` role. it reads the
+Ingress rules that user input and programs them into the loadbalancer.
+furthermore:
 
 * for each `Ingress` object, one loadbalancer will be created
 * two haproxy processes will be created for `Ingress`, and they are working in
@@ -2561,6 +2563,9 @@ into the loadbalancer. furthermore:
   - the other compute node runs the "standby" haproxy process
 * both `haproxy` processes are programmed with appropriate configuration, based
   on the rules defined in Ingress object.
+
+
+
 
 === contrail Ingress traffic flow
 
@@ -5018,13 +5023,6 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 ----
-
-//TODO
-=== Multiple Ingress Controllers
-
-we can have multiple ingress controllers along with contrail ingress
-controller. please refer Ingress section in chapter 3 which has the
-required info.
 
 == packet flow in contrail: an end to end view
 
