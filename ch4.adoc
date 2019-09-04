@@ -1128,7 +1128,7 @@ default the clusterIP is not reachable from external.
 
 ////
 
-==== Contrail Service Loadbalancer Objects
+==== Contrail Loadbalancer Objects
 
 we've talked a lot about the contrail "loadbalancer object" and you may wonder
 what exactly it looks like. now we'll dig a little big deeper to look at the
@@ -1286,7 +1286,7 @@ is composed by connecting NS name with service name, hence we can tell the
 * `service-web-clusterip` 
 * `service-web-clusterip-mp`
 
-==== Loadbalancer
+===== Loadbalancer
 
 click on the small triangle icon in left of the first loadbalancer object
 `ns-user-1-service-web-clusterip` to expand it, then click on `advanced json
@@ -1303,7 +1303,7 @@ of these objects are connected to each other and work together.
 .loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
 
-==== Listener
+===== Listener
 
 click on the LB name and select "listener", then expand it and display the
 details with JSON format, you will get the listener details. the listener is
@@ -1319,7 +1319,7 @@ this book to explore different contrail objects.
 .listener
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
 
-==== Pool and Member
+===== Pool and Member
 just repeat the exploring process we will get down to the pool and two
 `members` in it. the member is with a port of `80`, which maps to the container
 targetPort in pod.
