@@ -5052,9 +5052,7 @@ after this section, you will get a deep understanding to the packet flow and you
 will be able to troubleshoot the forwarding plane problems in contrail
 kubernetes environment. 
 
-=== testing methodology
-
-==== available tools
+=== Setup and Utils/Tools
 
 you've seen this figure in `Ingress` section:
 
@@ -5065,12 +5063,13 @@ earlier we looked at the external gateway router's VRF routing table and use the
 `protocol next hop` information to find out which node get the packet from the
 client. in practice, very often you need to find out the same from the cluster
 and nodes themselves. a contrail cluster typically comes with a group of
-built-in tools that you can use to inspect the packet flow and forwarding state.
+built-in utils that you can use to inspect the packet flow and forwarding state.
 in `service` section you've seen the usage of `flow`, `nh`, `vif`, etc. in this
-section we'll revisit these tools and introduce some more useful tools to
+section we'll revisit these utils and introduce some more useful utils/tools to
 demonstrate additional information about the packet flow.
 
-here are some of the available tools that we can use for this test:
+
+here are some of the available utils/tools that we can use for this test:
 
 * on any linux machine: 
   - `curl` (with debug option), `telnet` as HTTP client tool
@@ -5080,7 +5079,7 @@ here are some of the available tools that we can use for this test:
 
 //we'll then conclude the ingress section by a figure showing the end to end flow.
 
-==== curl
+.curl
 
 //`curl` is a powerful tool and it has many options to support versatile useful
 //features for testing HTTP protocol. 
