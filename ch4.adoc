@@ -951,7 +951,7 @@ supported:
 
 next we'll introduce how service is implemented in contrail environment.
 
-=== Contrail Service: ECMP Loadbalancer
+=== Contrail Service
 
 in chapter 3 we've introduced kubernetes default implementation of service
 through `kube-proxy`. in there we mentioned CNI providers can have its own
@@ -1484,7 +1484,7 @@ translated to podIP:targetPort `10.47.255.238:80` and vice versa.
 now you understand with FIP representing ClusterIP, NAT will happen in service.
 later we'll examine NAT again in the flow table.
 
-==== Scaling Backend Pods
+===== Scaling Backend Pods
 in chapter 3 clusterIP service example, we have created a sevice and a backend
 pod. to verify the ECMP, let's increase the replica to 2 to generate a second
 backend pod. this is a more realistic and rebost model: each pod will now be
@@ -1533,7 +1533,8 @@ image::https://user-images.githubusercontent.com/2038044/60973157-b2163d80-a2f5-
 we see the same FIP, but now it is associated with two podIP, each representing
 a seperate pod. 
 
-==== ECMP Routing Table: Control Node Perspective
+==== ECMP Routing Table
+===== Control Node Perspective
 
 first, to examine the ECMP, let's take a look at the routing table in the
 controller's routing instance.
@@ -1559,7 +1560,7 @@ indicate the presence of the running backend pods in itself. this route
 propagation is via XMPP. master(contrail controller) then reflect the routes to
 all other compute nodes.
 
-==== ECMP Routing Table: Compute Node Perspective
+=====Compute Node Perspective
 
 next, starting from the client pod node `cent222`, we'll look at the the pod's
 VRF table to understand how the packets are forwarded towards the backend pods
@@ -2273,7 +2274,7 @@ This page is served by a Contrail pod
 
 the kubernetes service is available from Internet!
 
-==== `Loadbalancer` Service ECMP
+===== Loadbalancer Service ECMP
 
 so far you've seen how loadbalancer type of service is exposed to the Internet
 and how the FIP did the "trick". in ClusterIP service section, you've also seen
