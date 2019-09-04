@@ -2942,9 +2942,9 @@ replicationcontroller/rc-webserver created
 
 the Ingress, one service and one Deployment object are now created.
 
-==== `Ingress` post examination
+===== `Ingress` post examination
 
-===== Ingress object
+====== Ingress object
 
 let's start to examine the Ingress object.
 
@@ -3441,7 +3441,7 @@ node. this applies to both Ingress public FIP route and internal VIP route
 advertisement.
 ****
 
-===== `Ingress` verification: from internal
+====== `Ingress` verification: from internal
 
 we've explored a lot about ingress loadbalancer and the related service, pod
 objects, etc. now it is time to verify the "end-to-end" test result. since the
@@ -3498,7 +3498,7 @@ full URL in HTTP payload that the Ingress loadbalancer is waiting for. without
 it the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
 so it will be treated same as with a unknown URL.
 
-===== `Ingress` verification: from external (Internet host)
+====== `Ingress` verification: from external (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to expose services to the Internet host, even though it
