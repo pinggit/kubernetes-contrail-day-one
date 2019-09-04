@@ -5915,7 +5915,7 @@ spec:
 throughout this book we'll use the first template to define our VNs in all
 examples.
 
-=== Multiple-Interface Pod
+=== Multiple Interface Pod in Detail
 
 with multiple VNs created, we can "attach" (you may also say "plug", or
 "insert") any of them into a pod, with a pod yaml file like this:
