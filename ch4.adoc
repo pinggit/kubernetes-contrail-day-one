@@ -6201,9 +6201,9 @@ you will see multiple-interfaces pod again in sevice-chaining example later on.
 in that example the pod will be based on Juniper CSRX image instead of a general
 docker image. but the basic idea remains the same.
 
-== service chaining with CSRX
+== Contrail Service Chaining with CSRX
 
-=== contrail service chaining introduction
+=== Contrail Service Chaining Introduction
 
 service chaining is the idea of forwarding traffic through multiple network
 entity in a certain order, each network entity do specific function such as
@@ -6228,7 +6228,8 @@ image::https://user-images.githubusercontent.com/2038044/63706136-ad9dd980-c7fc-
   POD would fail to be created 
 ====
 
-=== create VNs
+=== Bringing Up Client and CSRX Pods
+==== Create VNs
 
 so let’s start create two networks using this YAML files 
 
@@ -6322,7 +6323,7 @@ it in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
 
-=== create client pods
+==== Create Client Pods
 
 Create two ubuntu Pods, one in each network using the annotation object
 
@@ -6441,7 +6442,7 @@ Containers:
  ...<snipped>...
 ----
 
-=== create CSRX pod
+==== Create CSRX Pod
 
 create Juniper CSRX container that have one interface on the left network and
 one interface on the right network using this YAML file 
@@ -6520,7 +6521,7 @@ NOTE: each container has one interface belong to “cluster-wide-default” netw
 regardless the use of the annotations object because annotations object above
 creates and put one extra interface in a specific network 
 
-=== verify podIP
+==== Verify podIP
 
 .verify podIP
 
@@ -6621,7 +6622,7 @@ Physical interface: ge-0/0/0, Enabled, Physical link is Up
         Destination: 10.20.20.0/24, Local: 10.20.20.2
 ----
 
-=== ping test
+==== Ping Test
 
 From the Left POD try to ping the left POD, ping would fail as there is no route 
 
@@ -6662,7 +6663,7 @@ Total sessions: 0
 
 No session on the CSRX.  
 
-=== troubleshooting ping issue
+==== Troubleshooting Ping Issue
 
 Login to the compute node “cent22” that host this container to dump the traffic
 using tshark and check the routing To get the interface linking the containers 
@@ -6832,7 +6833,8 @@ selecting L2 ( which is equvilant to “rt --dump 6 --family bridge” command
 
 image::https://user-images.githubusercontent.com/2038044/60268936-86d62c00-98bb-11e9-9050-ca104b278a1a.png[]
 
-=== create service chaining
+=== Service Chaining
+==== Create Service Chaining
 
 Now lets utilize the CSRX to service chaining using contrail command GUI
 
@@ -6907,7 +6909,7 @@ do the same for the right network
 
 image::https://user-images.githubusercontent.com/2038044/60268955-89388600-98bb-11e9-9605-14fbc8d30fbe.png[]
 
-=== verify service chaining
+==== Verify Service Chaining
 
 Now lets check the effect of this service changing on routing 
 From the Contrail Controller module control node (http://10.85.188.16:8143 in
@@ -6944,7 +6946,7 @@ Total sessions: 2
 
 ----
 
-=== security policy
+==== Security Policy
 
 Now let try to create security policy on the CSRX to allow only http and https
 
