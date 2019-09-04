@@ -5198,10 +5198,12 @@ first shell one-liner starts a new test every 3 second, then the second one
 captures a specific flow entry every 0.2 second. 20 tests can be done in a 2
 minutes and we will capture some useful information in a short while.
 
-In this section we'll use the "script method" to captur the required information
+In this section we'll use the "script method" to capture the required information
 from compute nodes.
 
-=== Internet host: start the HTTP request
+=== Packet Flow Analysis
+
+==== Internet Host: Analyze HTTP Request
 
 .curl `-v`
 
@@ -5269,7 +5271,7 @@ now you've seen the verbose interactions curl performed under the hood, and you
 can understand the GET command and host head we sent in `telnet` test - in that
 test we were just emulating what `curl` would do but we just did it manually!
 
-=== from Internet Host to gateway router
+==== Internet Host to Gateway Router
 
 .Internet host routing table: default route
 
@@ -5297,7 +5299,7 @@ policies between VPN and Internet routing table, so that an Internet host which
 is not part of the VPN can also access the overlay networks in contrail.
 
 
-=== from gateway router to Ingress public FIP: MPLS over GRE
+==== Gateway router to Ingress Public FIP: MPLS over GRE
 //of active haproxy node: MPLS over GRE
 
 earlier in Ingress section we've seen gateway router's routing table, from the
@@ -5397,7 +5399,7 @@ overall the first flow entry confirms: the request packet from Internet host
 traverses gateway router, and via MPLSoGRE tunnel it hit the Ingress external
 VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
 
-=== from Ingress public FIP to Ingress podIP: FIP(NAT)
+==== Ingress Public FIP to Ingress Pod IP: FIP(NAT)
 //on active haproxy node: NAT
 ////
 ----
@@ -5460,7 +5462,7 @@ only knows how to reach the FIP and has no clues about the private Ingress
 internal VIP. it is vrouter that is doing the two way NAT translations in
 between.
 
-=== from Ingress podIP to service IP: MPLS over UDP
+==== Ingress Pod IP to Service IP: MPLS over UDP
 //on active haproxy node 
 
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
@@ -5536,7 +5538,7 @@ to reach the `service` the request is sent to a "destination node" `cent333`
 where all backend pod is sitting. next we'll look at what will happen in
 destination node.
 
-=== from service IP to backend pod IP: FIP(NAT)
+==== Service IP to Backend Pod IP: FIP(NAT)
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
@@ -5593,7 +5595,7 @@ shows:
 * original source port as webserver port `80`
 * destination IP as `Ingress` internal podIP `10.47.255.238`
 
-=== backend pod: receives the HTTP request
+==== Backend Pod: Analyze HTTP Request
 
 another `tcpdump` packet capture on the backend pod interface helps to reveal
 the packet interaction between the Ingress intenral IP and backend podID.
@@ -5653,7 +5655,7 @@ $ tcpdump -ni tapeth0-baa392
 ----
 ////
 
-=== returning traffic
+==== Return Traffic
 
 on the reverse direction, podIP runs webserver and responds with it's web page.
 the response follows the reverse path of the request:
