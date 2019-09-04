@@ -5092,8 +5092,8 @@ here are some of the available tools that we can use for this test:
 one behavior in the `curl` tool implementation is that when it runs in a
 shell terminal, it will always close the TCP session right after the HTTP response is
 returned. although this is a safe and clean behavior in practice, it may bring
-some difficulties to our test. in this lab we actually want to "hold" the HTTP
-transaction so we can look into the details.  However, a TCP flow entry in
+some difficulties to our test. in this lab we actually want to "hold" the TCP
+connection so we can look into the details.  However, a TCP flow entry in
 contrail `vrouter` is "bound" to the TCP connection - when TCP session closes
 the flow will also be cleared.  the problem is, `curl` get its job done "too
 fast". it establish the TCP connection, send HTTP request, get the response,
@@ -5380,8 +5380,8 @@ Id:89         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:7          Vrf:2
 
 //this flow table rephrases the same fact as what we've seen from gateway router's VRF table:
 
-This flow reflect the state of the "first" TCP connection between Internet host
-client and active haproxy. let's first look at the first entry in the capture:
+This flow reflect the state of the TCP connection originated from Internet host
+client to active haproxy. let's first look at the first entry in the capture:
 
 * the first flow entry displays the source and destination of the http request,
   it is coming from Internet host (`15.15.15.2`) and lands the `Ingress` FIP in
@@ -5450,17 +5450,17 @@ previous flow output.
   indicate source NAT - `SNAT`, source IP `10.47.255.238` which is the internal
   internal Ingress VIP will be translated to the Ingress external VIP.
   
-in summary, what the flow table of active haprox node `cent222` tells is that on
+in summary, what the flow table of active haproxy node `cent222` tells is that on
 receiving the packet destined to the Ingress FIP, vrouter on node `cent222`
 performs NAT operation and translates destination FIP (`101.101.101.1`) to the
-Ingress's internal VIP (`10.47.255.238`).  after that the packet lands the
-Ingress loadbalancer's VRF, where active haproxy process is listening. from this
-moment HTTP proxy operation will happen and we'll talk about it next.
+Ingress's internal VIP (`10.47.255.238`).  after that the packet lands the Ingress
+loadbalancer’s VRF and forwarded to the active haproxy's listening interface. from
+this moment HTTP proxy operation will happen and we'll talk about it next.
 
 NOTE: in vrouter flow, the second flow entry is also called a "reverse flow" of
 the first one. it is the flow entry vrouter uses to send returning packet
 towards Internet host.  from Ingress loadbalancer's perspective it only uses
-`10.47.255.248` assigned from the default pod network as its source IP, it does
+`10.47.255.238` assigned from the default pod network as its source IP, it does
 not knows anything about the FIP. same thing for the external Intenet host, it
 only knows how to reach the FIP and has no clues about the private Ingress
 internal VIP. it is vrouter that is doing the two way NAT translations in
@@ -5472,14 +5472,14 @@ between.
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
 
-* haproxy listening on the frontend IP (Ingress internal podIP/VIP) see the packet
+* haproxy listening on the frontend IP (Ingress internal podIP/VIP): Port see the packet
 * haproxy checks the ingress rule programmed in its config file, decides that
   the requests need to be proxied to service IP of `webservice-1`. 
 * vrouter checks the Ingress loadbalancer's VRF table and sees the prefix of
   `webservice-1` service IP is learned from a destination node `cent333`, which
   will be the next hop to forward the packet. 
 * between compute node the forwarding path is programmed with MPLSoUDP tunnel,
-  so vrouter pushes a MPLS label and send it through MPLS over UDP tunnel.
+  so vrouter sends it through MPLS over UDP tunnel with right MPLS Label.
 
 please note that all traffic from Ingress to service happens in overlay. between
 contrail compute nodes that means all overlay packets should be encapsulated in
@@ -5546,7 +5546,7 @@ destination node.
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
-again do the FIP NAT translation operations. it translates the service IP to the
+again do the NAT translation operations. it translates the service IP to the
 backend podIP `10.47.255.236`, pretty much the same way as what we've seen 
 in node `cent222`, where vrouter translate between Ingress public FIP with
 Ingress internal podIP.
@@ -5636,8 +5636,8 @@ $ tcpdump -ni tapeth0-baa392 -v
 ----
 
 this may not be very convincing in one aspect. the packet capture shows the
-communication is between loadbalancer IP and podIP, that part is fine. problem
-is this is solely from the pod's perspective "after" the NAT operation. it does
+communication is between loadbalancer IP and podIP, that part is fine. this is
+solely from the pod's perspective "after" the NAT operation. it does
 not shows what happens right before NAT.
 
 //TODO: add something here
@@ -5665,11 +5665,12 @@ on the reverse direction, podIP runs webserver and responds with it's web page.
 the response follows the reverse path of the request:
 
 * pod responds to loadbalancer frontend IP, across MPLSoUDP tunnel
-* vrouter on node `cent333` perform source NAT, translating podIP into service IP
+* vrouter on node `cent333` perform SNAT+SPAT, translating podIP:podPort into
+  serviceIP:servicePort
 * respond reaches to active haproxy running on node `cent222`
-* haproxy terminate the tcp connection with backend pod, "copies" the http
-  response, and "paste" into its connection with the remote Internet host
-* vrouter on node `cent222` perform source NAT, translating loadbalancer
+* haproxy "copies" the http response from backend pod, and "paste" into its connection
+  with the remote Internet host
+* vrouter on node `cent222` perform SNAT, translating loadbalancer
   frontend IP to FIP
 * response is sent to gateway router, which forwards to Internet host
 * Internet host gets the response.
