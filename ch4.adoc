@@ -5026,23 +5026,20 @@ we can have multiple ingress controllers along with contrail ingress
 controller. please refer Ingress section in chapter 3 which has the
 required info.
 
+=== Service vs Ingress Packet Flow 
+in contrail, eventough both `service` and `Ingress` are implemented based via
+`loadbalancers` (but with different `loadbalancer_provider` types). the forwarding
+mode for `service` and `Ingress` are quite different. with `service` forwarding
+it's "one hop" process: client sends request to the clusterIP or FIP, through NAT
+the request reaches the destination backend pod; while with `Ingress` forwarding,
+the traffic takes a "two hops" process to arrive the destination pod: the request
+first goes to the active haproxy, which then start a HTTP/HTTPS level proxy procedure
+and do the `service` forwarding to reach the final pod. NAT processing happens in both
+forwarding process, since both Ingress and service public FIP implementation relies on
+it. The next section will give a detailed view of packet flow in contrail with the
+help of ingress and service 
+
 == packet flow in contrail: an end to end view
-
-so far we've looked at `floating IP`, `service`, and `Ingress` in details.  You
-probably found that all these objects are related to each other in certain
-aspects. in contrail, both `service` and `Ingress` are implemented based on
-`loadbalancers` (but with different `loadbalancer_provider` types).
-conceptually, `Ingress` is designed based on `service`.  VIP of both type of
-loadbalancers are implemented based on `floating IP`.  
-
-however, the forwarding mode for `service` and `Ingress` are quite different.
-with `service` forwarding it's "one hop" process: client sends request to the
-clusterIP or FIP, through NAT the request reaches the destination backend pod;
-while with `Ingress` forwarding, the traffic takes a "two hops" process to
-arrive the destination pod: the request first goes to the active haproxy, which
-then start a HTTP/HTTPS level proxy procedure and do the `service` forwarding to
-reach the final pod. NAT processing happens in both forwarding process, since
-both Ingress and service public FIP implementation relies on it.
 
 //source NAT and source PAT take place in ingress direction, destination NAT and
 //destination PAT take places in egress direction
@@ -5051,7 +5048,7 @@ in order to undrestand the detail packet flow in contrail kubernetes
 environment, let's examine the end to end HTTP request from external Internet
 host to the destination pod in our `Ingress` lab setup. We'll examine the
 forwarding state step by step, starting from Internet host, through gateway
-router, then active haproxy node, to the final destination node and pod. 
+router, then active haproxy, backend service and to the final destination pod. 
 
 after this section, you will get a deep understanding to the packet flow and you
 will be able to troubleshoot the forwarding plane problems in contrail
