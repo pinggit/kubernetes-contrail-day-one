@@ -1,5 +1,5 @@
 // vim:set ft=asciidoc cc=80 tw=80:
-= Chapter 4: Kubernetes and Contrail integration 
+= Chapter 4: Kubernetes and Contrail Integration 
 :toc: right
 :toclevels: 3
 //:toc-placement: preamble
@@ -20,7 +20,7 @@ multiple interface pod is a highlight of contrail's advantages as one of
 kubernetes network CNI over other implementations, so we cover that also. in the
 end, we will demonstate service chain using Juniper CSRX container.
 
-== Contrail-Kubernetes architecture 
+== Contrail-Kubernetes Architecture 
 === Why contrail with Kubernetes ?
 
 Now after we have seen the main concepts of Kubernetes in chapter 2 and 3, what
@@ -87,9 +87,9 @@ Contrail could offer on top of that:
 In this chapter we will cover some of these aspects, but first let’s talk about
 Kubernetes/contrail architecture and the object mapping 
 
-=== contrail-kube-manager
+=== Contrail-Kube-Manager
 
-A new components of contrail has been added called `contrail-Kube-manager`,
+A new components of contrail has been added called `contrail-kube-manager`,
 abbreviated as `KM`. what it does basically is to watch kubernetes apiserver for
 interested kubernetes resources, and translates into Contrail controller object.
 the following figure illustratesthe basic work flow:
@@ -118,7 +118,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 ////
 
-=== kubernetes to contrail object mapping
+=== Kubernetes to Contrail Object Mapping
 
 So not much of change of the regular contrail that we have seen before and all
 of that is happening behind the scene.
@@ -143,7 +143,7 @@ of object mapping
 //image::https://user-images.githubusercontent.com/2038044/60748774-6bc08780-9f5f-11e9-91ae-2ec496cab987.png[]
 image::https://user-images.githubusercontent.com/2038044/63705887-1cc6fe00-c7fc-11e9-8c4f-733676cf663a.png[]
 
-== contrail command
+== Contrail Command
 Before getting into deeper, we just want to introduce contrail-command(CC) which
 is the new user interface (UI) available from contrail 5.0.1. throughout this book
 we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
@@ -163,9 +163,7 @@ the main menu, then from there you can select and jump into all other settings.
 Again our focus is not CC. we are trying to give base insight about CC which would be
 helpful for our primary goal of the book.
 
-== contrail namespaces and isolation
-
-=== namespace introduction
+== Namespaces and Isolation
 
 In chapter3 you`ve read about `namespace` or `NS` in kubernetes. in the
 beginning of this chapter we've mentioned object mappings between kubernetes and
@@ -217,7 +215,7 @@ cluster_network={}
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
 `NS`, `tenant`, `project` interchangeably.
 
-=== Non-isolated NS
+=== Non-Isolated NS
 
 you are aware that kubernetes basic networking requirement is a "flat"/"NATless"
 network - any pod can talk to any pod in any namespace, any cni providers should
@@ -357,7 +355,7 @@ routing instances for the isolated namespace. fundamentally that is how the
 
 in the following sections we'll verify how the routing isolation works.
 
-=== communication between pod in different namespaces
+=== Pods Communication across NS
 
 create a non-isolated namespace and an isolated namespace:
 
