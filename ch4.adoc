@@ -5669,9 +5669,7 @@ the response follows the reverse path of the request:
 * response is sent to gateway router, which forwards to Internet host
 * Internet host gets the response.
 
-== contrail multiple interface pod
-
-=== multiple interface pod introduction
+== Contrail Multiple Interface Pod
 
 in Kubernetes cluster, typically each pod only has one network interface (except
 the `loopback` interface). In reality, there are scenarios where multiple
@@ -5683,7 +5681,7 @@ management and tenant networks independent for isolation, and management purpose
 Multiple interfaces provide a way for containers to be connected to multiple devices
 in multiple networks simultaneously.
 
-=== contrail as a CNI
+=== Contrail as a CNI
 
 ////
 As you probably already know containers use namespaces to isolate resources and
@@ -5917,7 +5915,7 @@ spec:
 throughout this book we'll use the first template to define our VNs in all
 examples.
 
-=== multiple-interface pod
+=== Multiple-Interface Pod
 
 with multiple VNs created, we can "attach" (you may also say "plug", or
 "insert") any of them into a pod, with a pod yaml file like this:
@@ -5955,8 +5953,6 @@ defined in local NS, but also networks created on other namespaces using their
 fully scoped name. this is very useful - the same network does not has to be
 duplicated again and again in every NS that needs it, it can be defined just one
 time and then referred anywhere else.
-
-=== test multi-interface pod
 
 we've understood the basic theories and explored the various templates. now it's
 time to look at a "working example" in the real world. we'll start from
