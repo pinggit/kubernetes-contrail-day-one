@@ -1,5 +1,5 @@
 // vim:set ft=asciidoc cc=80 tw=80:
-= Chapter 4: Kubernetes and Contrail integration 
+= Chapter 4: Kubernetes and Contrail Integration 
 :toc: right
 :toclevels: 3
 //:toc-placement: preamble
@@ -20,8 +20,8 @@ multiple interface pod is a highlight of contrail's advantages as one of
 kubernetes network CNI over other implementations, so we cover that also. in the
 end, we will demonstate service chain using Juniper CSRX container.
 
-== Contrail-Kubernetes architecture 
-=== Why contrail with Kubernetes ?
+== Contrail-Kubernetes Architecture 
+=== Why Contrail with Kubernetes ?
 
 Now after we have seen the main concepts of Kubernetes in chapter 2 and 3, what
 could be the gain in adding Contrail to standard Kubernetes deployment ?
@@ -87,9 +87,9 @@ Contrail could offer on top of that:
 In this chapter we will cover some of these aspects, but first let’s talk about
 Kubernetes/contrail architecture and the object mapping 
 
-=== contrail-kube-manager
+=== Contrail-Kube-Manager
 
-A new components of contrail has been added called `contrail-Kube-manager`,
+A new components of contrail has been added called `contrail-kube-manager`,
 abbreviated as `KM`. what it does basically is to watch kubernetes apiserver for
 interested kubernetes resources, and translates into Contrail controller object.
 the following figure illustratesthe basic work flow:
@@ -118,7 +118,7 @@ image::https://user-images.githubusercontent.com/2038044/59642699-1a796100-9134-
 
 ////
 
-=== kubernetes to contrail object mapping
+=== Kubernetes to Contrail Object Mapping
 
 So not much of change of the regular contrail that we have seen before and all
 of that is happening behind the scene.
@@ -143,7 +143,7 @@ of object mapping
 //image::https://user-images.githubusercontent.com/2038044/60748774-6bc08780-9f5f-11e9-91ae-2ec496cab987.png[]
 image::https://user-images.githubusercontent.com/2038044/63705887-1cc6fe00-c7fc-11e9-8c4f-733676cf663a.png[]
 
-== contrail command
+== Contrail Command
 Before getting into deeper, we just want to introduce contrail-command(CC) which
 is the new user interface (UI) available from contrail 5.0.1. throughout this book
 we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
@@ -163,9 +163,7 @@ the main menu, then from there you can select and jump into all other settings.
 Again our focus is not CC. we are trying to give base insight about CC which would be
 helpful for our primary goal of the book.
 
-== contrail namespaces and isolation
-
-=== namespace introduction
+== Contrail Namespaces and Isolation
 
 In chapter3 you`ve read about `namespace` or `NS` in kubernetes. in the
 beginning of this chapter we've mentioned object mappings between kubernetes and
@@ -217,7 +215,7 @@ cluster_network={}
 NOTE: in the rest part of this book we will refer all these terms `namespace`,
 `NS`, `tenant`, `project` interchangeably.
 
-=== Non-isolated NS
+=== Non-Isolated NS
 
 you are aware that kubernetes basic networking requirement is a "flat"/"NATless"
 network - any pod can talk to any pod in any namespace, any cni providers should
@@ -357,7 +355,7 @@ routing instances for the isolated namespace. fundamentally that is how the
 
 in the following sections we'll verify how the routing isolation works.
 
-=== communication between pod in different namespaces
+=== Pods Communication across NS
 
 create a non-isolated namespace and an isolated namespace:
 
@@ -466,11 +464,11 @@ NOTE: pod-level isolation can be achieved via kubernetes network policy, or
 security groups in contrail. 
 this will be covered later in this chapter.
 
-== contrail floating IP
+== Contrail Floating IP
 
 //(with type of loadBalancer or nodePort) 
 
-=== overlay Internet access
+=== Overlay Internet Access
 
 we've discussed and tested the communication between pods in the same or
 different NS. so far we've only tested it **inside** of the same cluster. what
@@ -498,7 +496,7 @@ traffic, egress traffic, or both and default is bi-direction. in this book we
 focus on `floating IP` only. you can refer contrail documents for detail
 information about fabric SNAT and logical router.
 
-=== floating IP introduction
+=== Floating IP and FIP Pool
 
 `floating IP`, or `FIP` for short, is a "traditional" concept that contrail
 supports since very early releases. Essentially it is an openstack concept to
@@ -541,7 +539,7 @@ environment. But the usage of floating IP has been extended in kubernetes
 for accessing toward kubernetes `service` and `ingress` from external. 
 you can check later sections in this chapter for more details on this.
 
-=== creating FIP pool
+==== Create FIP Pool
 
 creating a FIP pool is a 3 steps process:
 
@@ -611,7 +609,7 @@ Overlay > Floating IP > Create
 TIP: in contrail UI, you can also set the "external" flag in VN "Advanced"
 options so that a FIP pool named "public" will automatically be created.
 
-=== FIP pool scope
+==== FIP Pool Scope
 
 there are different ways you can refer an floating IP pool in contrail
 kubernetes environment, and correspondingly the scope of the pools will also be
@@ -666,7 +664,7 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
-=== object level FIP pool
+===== Object FIP Pool
 
 let's first take a look at the object-specific FIP pool. here is an example:
 
@@ -692,7 +690,7 @@ project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`. since
 object level FIP pool is assigned for this specific object only, with this
 method each new object needs to be assigned a FIP pool explicitly.
 
-=== NS level FIP pool
+===== NS FIP Pool
 
 the next FIP pool scope is in NS level. each NS can define its own FIP
 pool.  same way as kubernetes annotations object is used to give a subnet to a
@@ -716,7 +714,7 @@ get a FIP allocated from this pool. In practice, most NS (especially
 those isolated NS) will need its own NS default pool so you will see this
 type of configuration very often in field.
 
-=== global level FIP pool
+===== Global FIP pool
 
 to specify a global level FIP pool, you need to give the full qualified pool
 name (domain > project > network > name) in contrail-kube-manager('KM') docker's
@@ -775,10 +773,10 @@ only to service and ingress objects. If the FIP has to be associated to a
 POD it has to be done manually. we'll talk about this in next section.
 
 
-=== creating FIP for PODS
+=== FIP for Pods
 
 once FIP pool is created and available, an FIP can be allocated from the FIP
-pool for the objects that requires one. this can be done by associating an FIP
+pool for the pods that requires one. this can be done by associating an FIP
 to a VMI (VM or pod interface),
 
 you can manually create a FIP out of a FIP pool in contrail UI, and then
@@ -793,7 +791,7 @@ image::https://user-images.githubusercontent.com/2038044/61014684-aa3ab580-a356-
 NOTE: make sure the FIP pool is shared to the project where FIP is going to be
 created.
 
-=== advertising FIP
+=== Advertising FIP
 
 once a FIP is associated to a pod interface, it will be advertised to the MP-BGP
 peers, which are typically gateway routers.
@@ -903,7 +901,7 @@ the FIP advertisement process is illustrated in this figure below:
 //image::https://user-images.githubusercontent.com/2038044/63262377-c5e98380-c253-11e9-996f-27eecb0df931.png[]
 image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
 
-== contrail services
+== Contrail Services
 
 in this section, we look at kubernetes `service` in contrail environment.
 specifically, we'll focus on `clusterIP` and `loadbalancer` type of services
@@ -915,7 +913,7 @@ based on in contrail, for the rest part of this section we will explore how
 `clusterIP` and `loadbalancer` service works in detail, each with a test we
 build in our testbed.
 
-=== kubernetes service introduction
+=== Kubernetes Service
 
 service is the core object in kubernetes. in chapter 3 you've learned what is
 kubernetes service and how to create a `service` object with yaml file.
@@ -953,7 +951,7 @@ supported:
 
 next we'll introduce how service is implemented in contrail environment.
 
-=== contrail service: ECMP loadbalancer
+=== Contrail Service
 
 in chapter 3 we've introduced kubernetes default implementation of service
 through `kube-proxy`. in there we mentioned CNI providers can have its own
@@ -966,7 +964,7 @@ be good to review the legacy openstack based loadbalancer concept in contrail.
 
 TIP: for brevity we'll sometimes also refer `loadbalancer` as `LB`.
 
-==== contrail openstack loadbalancer object
+==== Contrail Openstack Loadbalancer
 
 contrail loadbalancer is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
@@ -1035,7 +1033,7 @@ layer) "proxy" based. more about ingress will be discussed in later section.
 
 *****
 
-==== contrail sevice loadbalancer object
+==== Contrail Sevice Loadbalancer
 
 let's take a look at service loadbalancer and the related objects.
 
@@ -1130,7 +1128,7 @@ default the clusterIP is not reachable from external.
 
 ////
 
-==== navigating the service loadbalancer objects
+==== Contrail Loadbalancer Objects
 
 we've talked a lot about the contrail "loadbalancer object" and you may wonder
 what exactly it looks like. now we'll dig a little big deeper to look at the
@@ -1288,7 +1286,7 @@ is composed by connecting NS name with service name, hence we can tell the
 * `service-web-clusterip` 
 * `service-web-clusterip-mp`
 
-==== loadbalancer
+===== Loadbalancer
 
 click on the small triangle icon in left of the first loadbalancer object
 `ns-user-1-service-web-clusterip` to expand it, then click on `advanced json
@@ -1305,7 +1303,7 @@ of these objects are connected to each other and work together.
 .loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
 
-==== listener
+===== Listener
 
 click on the LB name and select "listener", then expand it and display the
 details with JSON format, you will get the listener details. the listener is
@@ -1321,7 +1319,7 @@ this book to explore different contrail objects.
 .listener
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
 
-==== pool and member
+===== Pool and Member
 just repeat the exploring process we will get down to the pool and two
 `members` in it. the member is with a port of `80`, which maps to the container
 targetPort in pod.
@@ -1339,9 +1337,9 @@ figure, we'll also give an example of a "multiple port service" in
 our setup.  we'll conclude the ClusterIP service section by inspecting the
 vrouter flow table to illustrate the service packet workflow.
 
-=== service testbed
+=== Contrail Service Setup
 
-before starting our investigation, let's look at our testbed. in this book we
+before starting our investigation, let's look at our setup. in this book we
 build a setup including the following devices, most of our case studies are
 based on it:
 
@@ -1365,7 +1363,7 @@ in appendix you will find all details about the setup. the prerequisites,
 software/hardware specifications, sample configuration files, and installation
 steps. following the steps you will be able to build a same setup in your lab.
 
-=== contrail ClusterIP service
+=== Contrail ClusterIP Service
 
 in chapter 3 we've demonstrated how to create and verify a clusterIP service. in
 this section we'll revisit the lab and look at some important details about
@@ -1486,7 +1484,7 @@ translated to podIP:targetPort `10.47.255.238:80` and vice versa.
 now you understand with FIP representing ClusterIP, NAT will happen in service.
 later we'll examine NAT again in the flow table.
 
-==== scale backend pods
+.Scaling Backend Pods
 in chapter 3 clusterIP service example, we have created a sevice and a backend
 pod. to verify the ECMP, let's increase the replica to 2 to generate a second
 backend pod. this is a more realistic and rebost model: each pod will now be
@@ -1535,7 +1533,8 @@ image::https://user-images.githubusercontent.com/2038044/60973157-b2163d80-a2f5-
 we see the same FIP, but now it is associated with two podIP, each representing
 a seperate pod. 
 
-==== ECMP routing table: control node perspective
+==== ECMP Routing Table
+===== Control Node Perspective
 
 first, to examine the ECMP, let's take a look at the routing table in the
 controller's routing instance.
@@ -1561,7 +1560,7 @@ indicate the presence of the running backend pods in itself. this route
 propagation is via XMPP. master(contrail controller) then reflect the routes to
 all other compute nodes.
 
-==== ECMP routing table: compute node perspective
+===== Compute Node Perspective
 
 next, starting from the client pod node `cent222`, we'll look at the the pod's
 VRF table to understand how the packets are forwarded towards the backend pods
@@ -1670,7 +1669,7 @@ vif0/8      OS: tapeth0-304431
 
 the output displays the corresponding local pod interface's name, IP, etc.
 
-==== clusterIP service ECMP workflow
+==== ClusterIP Service Workflow
 
 the clusterIP service's loadbalancer ECMP workflow is illustrated in this
 figure:
@@ -1700,7 +1699,7 @@ this is what happened in the forwarding plane:
 
 //TODO: this is forwarding flow only, also give control plane flow?
 
-==== multiple port service
+==== Multiple Port Service
 
 we've understood how the service layber 4 ECMP works and we've explored the LB
 objects in lab. remember in the figure showing the LB and relevant objects,
@@ -1838,7 +1837,7 @@ from cirros client pod is with the IP `10.47.255.237`.
 10.47.255.237 - - [04/Jul/2019 23:49:44] "GET / HTTP/1.1" 200 -
 ----
 
-==== the flow table
+==== Contrail Flow Table
 
 so far we've tested clusterIP service, and we see client request is sent towards
 the service IP. in contrail environment `vrouter` is the module that does all of
@@ -2006,9 +2005,9 @@ image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-
 
 //TODO: redraw with color
 
-=== contrail LoadBalancer service
+=== Contrail Loadbalancer Service
 
-in chapter 3 we've briefly talked about LoadBalancer service. in there we
+in chapter 3 we've briefly talked about `LoadBalancer` service. in there we
 mentioned if the goal is to expose the service to the external world outside of
 the cluster, we just specify `ServiceType` as `LoadBalancer` in the service yaml
 file. 
@@ -2028,7 +2027,7 @@ in this section we'll demonstrate how does the `LoadBalancer` type of service
 works in our end to end lab setup, which includes the kubernetes cluster, fabric
 switch, gateway router, and Internet host.
 
-==== external IP as FIP
+==== External IP as FIP
 
 //create `Loadbalancer` service
 
@@ -2121,7 +2120,7 @@ public FIP pool, which is advertised to the gateway router and acts as the
 outside-facing VIP. that is how the `loadbalancer` service expose itself to the
 external world.
 
-==== examine VRF table in gateway router
+==== Gateway Router VRF Table
 
 in "contrail floating IP" section you've learned how to advertise FIP. here
 we'll review the main concepts to understand how it works in contrail `service`
@@ -2201,7 +2200,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 * `gr-2/2/0.32771` is an interface representing the (MPLS over) GRE tunnel
   between the gateway router and node `cent222`.
 
-==== `Loadbalancer` service workflow
+==== Loadbalancer Service Workflow
 
 to summarize, the FIP given to the service as its external ip is advertised to
 gateway router, and get loaded in the router's VRF table. when Internet host
@@ -2238,7 +2237,7 @@ here is the full story:
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
   so the packets will be sent to the right backend pod.
 
-==== verify the `Loadbalancer` service
+===== Verify `Loadbalancer` Service
 
 To verify the end to end service access from Internet host to the backend pod, 
 we will login to the Internet host desktop and launch a browser, with URL
@@ -2275,7 +2274,7 @@ This page is served by a Contrail pod
 
 the kubernetes service is available from Internet!
 
-==== `Loadbalancer` service ECMP
+===== Loadbalancer Service ECMP
 
 so far you've seen how loadbalancer type of service is exposed to the Internet
 and how the FIP did the "trick". in ClusterIP service section, you've also seen
@@ -2364,7 +2363,7 @@ node where a backend pod is running. now we believe the router will perform
 ECMP load balancing between the two GRE tunnel, whenever it got service request
 toward the same FIP. let's check it out.
 
-==== verify the `Loadbalancer` service ECMP
+===== Verify `Loadbalancer` Service ECMP
 
 to verify the ECMP we'll just pull the webpage a few more time and we expect to
 see both podIP displayed eventually.
@@ -2482,7 +2481,7 @@ the end to end packet flow is illustrated here:
 .loadbalancer service ECMP
 image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
 
-== contrail ingress
+== Contrail Ingress
 
 ////
 in chapter 3 we've learned that Ingress maps URLs to services with `rules`. this
@@ -2503,7 +2502,7 @@ in this chapter we'll introduce details of ingress workflow in contrail
 implementation, then we'll use a few test cases to demonstrate and verify how
 ingress works exactly in contrail environment.
 
-=== contrail ingress loadbalancer
+=== Contrail Ingress Loadbalancer
 
 like contrail's `service` implementation, contrail `Ingress` is also implemented
 through loadbalancer, but with a different `loadbalancer_provider` attribute.
@@ -2525,7 +2524,7 @@ in this section we'll see `loadbalancer_provider` type is `opencontrail`
 for Ingress's `loadbalancer`. we'll also look into the similarities and differences
 between `service` loadbalancer and `Ingress` loadbalancer.
 
-=== contrail ingress workflow
+=== Contrail Ingress Workflow
 
 When an `Ingress` is configured in contrail kubernetes environment, the event
 will be noticed by other system components, and a lot of actions will be
@@ -2549,12 +2548,11 @@ in a high level here is the workflow:
     kubernetes nodes.
 
 as you can see, contrail implements `Ingress` with haproxy loadbalancer, this is
-what you've read in the section of "contrail kubernetes object mapping".  also
-as we've talked in chapter 3, "Ingress controller" is required to implement
-Ingress, and multiple "Ingress Controllers" is possible. in contrail environment
-the `contrail-kube-manager` plays `Ingress controller` role. it reads the
-Ingress rules that user input and programs them into the loadbalancer.
-furthermore:
+what you've read in the section of "contrail kubernetes object mapping".  in
+chapter 3, we've talked about "Ingress controller" , and multiple "Ingress
+Controllers" can coexist in contrail. in contrail environment the
+`contrail-kube-manager` plays `Ingress controller` role. it reads the Ingress
+rules that user input and programs them into the loadbalancer.  furthermore:
 
 * for each `Ingress` object, one loadbalancer will be created
 * two haproxy processes will be created for `Ingress`, and they are working in
@@ -2567,7 +2565,7 @@ furthermore:
 
 
 
-=== contrail Ingress traffic flow
+=== Contrail Ingress Traffic Flow
 
 client request, as a type of `overlay` traffic, may come from two sources
 depending on who initiates the request:
@@ -2665,7 +2663,7 @@ contrail supports all 3 types of ingress:
 
 we'll look into each type of ingress.
 
-=== Ingress testbed
+=== Ingress Setup
 
 in our lab we use the same testbed as what we use for `service` test:
 
@@ -2718,7 +2716,7 @@ ingress.extensions/ingress-sf created
 after these objects are created, we can proceed to look into each type of
 Ingress object. next we'll start from `single service Ingress`.
 
-=== `single service Ingress`
+=== Single Service Ingress
 
 single service Ingress is the most basic form of Ingress. it does not define any
 rules and its main usage is to expose service to the outside world. it will
@@ -2753,9 +2751,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `Ingress` objects definition
+==== `Ingress` Objects Definition
 
-===== `Ingress` definition
+===== `Ingress` Definition
 
 in our single service ingress test lab, we want to achieve this goal:
 
@@ -2781,7 +2779,7 @@ its "backend". all HTTP request will be dispatched to this service, and from
 there the request will reach a backend pod. next we'll look at the backend
 service.
 
-===== backend `service` definition
+===== Backend `service` Definition
 
 we can use exactly the same service as introduced in `service` example. 
 
@@ -2803,7 +2801,7 @@ NOTE: the service `type` is optional. with `Ingress`, `service` does not need to
 be exposed to external directly anymore. therefore `LoadBalancer` type of
 service is not required. 
 
-===== backend `pod` definition
+===== Backend `pod` Definition
 
 same as in `service` example, we can use exactly the same `webserver` deployment
 to launch backend pods:
@@ -2835,7 +2833,7 @@ spec:
         - containerPort: 80
 ----
 
-===== an "all in one" yaml file
+===== An "all in one" Yaml File
 
 as usual, we can create an individual yaml file for each of the objects. but
 considering in `Ingress`, these objects always need to be created and removed
@@ -2923,7 +2921,7 @@ TIP: During test process you may need to create and delete all objects as a
 whole very often, grouping multiple objects in one yaml file can be very
 convenient.
 
-===== deploy the single service Ingress
+===== Deploy the Single Service Ingress
 
 before applying the yaml file to get all objects created, let's take a quick
 look at our two nodes. we want to see if there is any `haproxy` process running
@@ -2948,9 +2946,9 @@ replicationcontroller/rc-webserver created
 
 the Ingress, one service and one Deployment object are now created.
 
-==== `Ingress` post examination
+==== `Ingress` Post Examination
 
-===== Ingress object
+===== Ingress Object
 
 let's start to examine the Ingress object.
 
@@ -3057,7 +3055,7 @@ let's hold the answer for now and continue to check service and pod
 object created from the all-in-one yaml file. we'll come back to this question
 shortly.
 
-===== service objects
+===== Service Objects
 
 ----
 $ kubectl get svc -o wide
@@ -3068,7 +3066,7 @@ service-web-clusterip  ClusterIP  10.97.226.91  <none>       8888/TCP  28m  app=
 the service is also created and allocated a clusterIP. we've seen
 this before and it looks nothing special. now look at the pods.
 
-===== backend and client pod
+===== Backend and Client Pod
 
 ----
 $ kubectl get pod -o wide --show-labels
@@ -3082,7 +3080,7 @@ learned how selector and label works in service-pod associations so there is
 nothing new here. next we'll examine the haproxy and try to make some sense out
 of the 2 IPs allocated to Ingress object.
 
-===== haproxy processes
+===== Haproxy Processes
 
 earlier before the Ingress is created, we were looking for haproxy process in
 node but could not see anything. let's check it again and see if any magic
@@ -3160,7 +3158,7 @@ $ docker exec -it vrouter_vrouter-agent_1 ps 16335
 ////
 
 
-===== Ingress loadbalancer objects
+===== Ingress Loadbalancer Objects
 
 ////
 .contrail object: SI, port tuple, VMI
@@ -3265,7 +3263,7 @@ operation, next we can further check its configuration file for the running
 parameters details.
 //configuration file and confirm the ingress rules are programmed properly.
 
-===== `haproxy.conf` file
+===== `haproxy.conf` File
 
 in each (compute) node, under `/var/lib/contrail/loadbalancer/haproxy/` folder
 there will be a subfolder for each loadbalancer uuid. the file structure looks
@@ -3349,7 +3347,7 @@ backend.
 
 through this configuration, the haproxy implemented our single service Ingress.
 
-===== gateway router VRF table
+===== Gateway Router VRF Table
 
 we've explored a lot inside of the cluster. now let's look at the gateway
 router's VRF table. 
@@ -3447,7 +3445,7 @@ node. this applies to both Ingress public FIP route and internal VIP route
 advertisement.
 ****
 
-==== `Ingress` verification: from internal
+===== `Ingress` Verification: Internal
 
 we've explored a lot about ingress loadbalancer and the related service, pod
 objects, etc. now it is time to verify the "end-to-end" test result. since the
@@ -3504,7 +3502,7 @@ full URL in HTTP payload that the Ingress loadbalancer is waiting for. without
 it the HTTP header will carry `Host: 10.47.255.238`, which has no matching rule,
 so it will be treated same as with a unknown URL.
 
-==== `Ingress` verification: from external (Internet host)
+===== `Ingress` Verification: External (Internet host)
 
 the more exciting part of the test is to visit the URLs from external. overall
 we hope `Ingress` meant to expose services to the Internet host, even though it
@@ -3584,7 +3582,7 @@ service "webservice-1" deleted
 replicationcontroller "Vwebserver-1-846c9ccb8b" deleted
 ----
 
-=== `simple fanout Ingress`
+=== Simple Fanout Ingress
 
 //TODO: adjust the TOC, default backend
 both `simple fanout Ingress` and `name-based virtual host Ingress` support "URL
@@ -3623,9 +3621,9 @@ whenever things go wrong, these are the components we need to examine as part of
 the troubleshooting flow
 ////
 
-==== `Ingress` objects definition
+==== `Ingress` Objects Definition
 
-===== `ingress` definition
+===== `ingress` Definition
 
 in our `simple fanout Ingress` test lab, we want to achieve these goals for host
 `www.juniper.net`:
@@ -4525,9 +4523,9 @@ $ curl -H 'Host:www.cisco.com' 101.101.101.1/dev | w3m -T text/html | cat
 No server is available to handle this request.
 ----
 
-=== `name based virtual hosting Ingress`
+=== Virtual Hosting Ingress
 
-`Name based virtual hosting Ingress` support routing HTTP traffic to multiple
+`Virtual Hosting Ingress` support routing HTTP traffic to multiple
 host names at the same IP address. based on the URL and rules, an Ingress
 loadbalancer directs traffic to different backend services, and each service
 direct traffic to its backend pods. 
@@ -5024,7 +5022,20 @@ $ curl 101.101.101.1 | w3m -T text/html | cat
                                     [giphy]
 ----
 
-== packet flow in contrail: an end to end view
+=== Service vs Ingress Traffic Flow
+
+in contrail, eventough both `service` and `Ingress` are implemented based via
+`loadbalancers` (but with different `loadbalancer_provider` types). the forwarding
+mode for `service` and `Ingress` are quite different. with `service` forwarding
+it's "one hop" process: client sends request to the clusterIP or FIP, through NAT
+the request reaches the destination backend pod; while with `Ingress` forwarding,
+the traffic takes a "two hops" process to arrive the destination pod: the request
+first goes to the active haproxy, which then start a HTTP/HTTPS level proxy procedure
+and do the `service` forwarding to reach the final pod. NAT processing happens in both
+forwarding process, since both Ingress and service public FIP implementation relies on
+it. The next section will give a detailed view of packet flow for traffics in contrail.
+
+== Packet Flow in Contrail: End to End View
 
 so far we've looked at `floating IP`, `service`, and `Ingress` in details.  You
 probably found that all these objects are related to each other in certain
@@ -5033,14 +5044,6 @@ aspects. in contrail, both `service` and `Ingress` are implemented based on
 conceptually, `Ingress` is designed based on `service`.  VIP of both type of
 loadbalancers are implemented based on `floating IP`.  
 
-however, the forwarding mode for `service` and `Ingress` are quite different.
-with `service` forwarding it's "one hop" process: client sends request to the
-clusterIP or FIP, through NAT the request reaches the destination backend pod;
-while with `Ingress` forwarding, the traffic takes a "two hops" process to
-arrive the destination pod: the request first goes to the active haproxy, which
-then start a HTTP/HTTPS level proxy procedure and do the `service` forwarding to
-reach the final pod. NAT processing happens in both forwarding process, since
-both Ingress and service public FIP implementation relies on it.
 
 //source NAT and source PAT take place in ingress direction, destination NAT and
 //destination PAT take places in egress direction
@@ -5049,15 +5052,13 @@ in order to undrestand the detail packet flow in contrail kubernetes
 environment, let's examine the end to end HTTP request from external Internet
 host to the destination pod in our `Ingress` lab setup. We'll examine the
 forwarding state step by step, starting from Internet host, through gateway
-router, then active haproxy node, to the final destination node and pod. 
+router, then active haproxy, backend service and to the final destination pod. 
 
 after this section, you will get a deep understanding to the packet flow and you
 will be able to troubleshoot the forwarding plane problems in contrail
 kubernetes environment. 
 
-=== testing methodology
-
-==== available tools
+=== Setup and Utils/Tools
 
 you've seen this figure in `Ingress` section:
 
@@ -5068,12 +5069,13 @@ earlier we looked at the external gateway router's VRF routing table and use the
 `protocol next hop` information to find out which node get the packet from the
 client. in practice, very often you need to find out the same from the cluster
 and nodes themselves. a contrail cluster typically comes with a group of
-built-in tools that you can use to inspect the packet flow and forwarding state.
+built-in utils that you can use to inspect the packet flow and forwarding state.
 in `service` section you've seen the usage of `flow`, `nh`, `vif`, etc. in this
-section we'll revisit these tools and introduce some more useful tools to
+section we'll revisit these utils and introduce some more useful utils/tools to
 demonstrate additional information about the packet flow.
 
-here are some of the available tools that we can use for this test:
+
+here are some of the available utils/tools that we can use for this test:
 
 * on any linux machine: 
   - `curl` (with debug option), `telnet` as HTTP client tool
@@ -5083,15 +5085,15 @@ here are some of the available tools that we can use for this test:
 
 //we'll then conclude the ingress section by a figure showing the end to end flow.
 
-==== curl
+.curl
 
 //`curl` is a powerful tool and it has many options to support versatile useful
 //features for testing HTTP protocol. 
 one behavior in the `curl` tool implementation is that when it runs in a
 shell terminal, it will always close the TCP session right after the HTTP response is
 returned. although this is a safe and clean behavior in practice, it may bring
-some difficulties to our test. in this lab we actually want to "hold" the HTTP
-transaction so we can look into the details.  However, a TCP flow entry in
+some difficulties to our test. in this lab we actually want to "hold" the TCP
+connection so we can look into the details.  However, a TCP flow entry in
 contrail `vrouter` is "bound" to the TCP connection - when TCP session closes
 the flow will also be cleared.  the problem is, `curl` get its job done "too
 fast". it establish the TCP connection, send HTTP request, get the response,
@@ -5202,10 +5204,12 @@ first shell one-liner starts a new test every 3 second, then the second one
 captures a specific flow entry every 0.2 second. 20 tests can be done in a 2
 minutes and we will capture some useful information in a short while.
 
-In this section we'll use the "script method" to captur the required information
+In this section we'll use the "script method" to capture the required information
 from compute nodes.
 
-=== Internet host: start the HTTP request
+=== Packet Flow Analysis
+
+==== Internet Host: Analyze HTTP Request
 
 .curl `-v`
 
@@ -5273,7 +5277,7 @@ now you've seen the verbose interactions curl performed under the hood, and you
 can understand the GET command and host head we sent in `telnet` test - in that
 test we were just emulating what `curl` would do but we just did it manually!
 
-=== from Internet Host to gateway router
+==== Internet Host to Gateway Router
 
 .Internet host routing table: default route
 
@@ -5301,7 +5305,7 @@ policies between VPN and Internet routing table, so that an Internet host which
 is not part of the VPN can also access the overlay networks in contrail.
 
 
-=== from gateway router to Ingress public FIP: MPLS over GRE
+==== Gateway router to Ingress Public FIP: MPLS over GRE
 //of active haproxy node: MPLS over GRE
 
 earlier in Ingress section we've seen gateway router's routing table, from the
@@ -5378,8 +5382,8 @@ Id:89         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:7          Vrf:2
 
 //this flow table rephrases the same fact as what we've seen from gateway router's VRF table:
 
-This flow reflect the state of the "first" TCP connection between Internet host
-client and active haproxy. let's first look at the first entry in the capture:
+This flow reflect the state of the TCP connection originated from Internet host
+client to active haproxy. let's first look at the first entry in the capture:
 
 * the first flow entry displays the source and destination of the http request,
   it is coming from Internet host (`15.15.15.2`) and lands the `Ingress` FIP in
@@ -5401,7 +5405,7 @@ overall the first flow entry confirms: the request packet from Internet host
 traverses gateway router, and via MPLSoGRE tunnel it hit the Ingress external
 VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
 
-=== from Ingress public FIP to Ingress podIP: FIP(NAT)
+==== Ingress Public FIP to Ingress Pod IP: FIP(NAT)
 //on active haproxy node: NAT
 ////
 ----
@@ -5448,36 +5452,37 @@ previous flow output.
   indicate source NAT - `SNAT`, source IP `10.47.255.238` which is the internal
   internal Ingress VIP will be translated to the Ingress external VIP.
   
-in summary, what the flow table of active haprox node `cent222` tells is that on
+in summary, what the flow table of active haproxy node `cent222` tells is that on
 receiving the packet destined to the Ingress FIP, vrouter on node `cent222`
 performs NAT operation and translates destination FIP (`101.101.101.1`) to the
-Ingress's internal VIP (`10.47.255.238`).  after that the packet lands the
-Ingress loadbalancer's VRF, where active haproxy process is listening. from this
-moment HTTP proxy operation will happen and we'll talk about it next.
+Ingress's internal VIP (`10.47.255.238`).  after that the packet lands the Ingress
+loadbalancer’s VRF and forwarded to the active haproxy's listening interface. from
+this moment HTTP proxy operation will happen and we'll talk about it next.
 
 NOTE: in vrouter flow, the second flow entry is also called a "reverse flow" of
 the first one. it is the flow entry vrouter uses to send returning packet
 towards Internet host.  from Ingress loadbalancer's perspective it only uses
-`10.47.255.248` assigned from the default pod network as its source IP, it does
+`10.47.255.238` assigned from the default pod network as its source IP, it does
 not knows anything about the FIP. same thing for the external Intenet host, it
 only knows how to reach the FIP and has no clues about the private Ingress
 internal VIP. it is vrouter that is doing the two way NAT translations in
 between.
 
-=== from Ingress podIP to service IP: MPLS over UDP
+==== Ingress Pod IP to Service IP: MPLS over UDP
 //on active haproxy node 
 
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
 
-* haproxy listening on the frontend IP (Ingress internal podIP/VIP) see the packet
+* haproxy listening on the frontend IP (Ingress internal podIP/VIP) and port 80
+  see the packet.
 * haproxy checks the ingress rule programmed in its config file, decides that
   the requests need to be proxied to service IP of `webservice-1`. 
 * vrouter checks the Ingress loadbalancer's VRF table and sees the prefix of
   `webservice-1` service IP is learned from a destination node `cent333`, which
   will be the next hop to forward the packet. 
 * between compute node the forwarding path is programmed with MPLSoUDP tunnel,
-  so vrouter pushes a MPLS label and send it through MPLS over UDP tunnel.
+  so vrouter sends it through MPLS over UDP tunnel with right MPLS Label.
 
 please note that all traffic from Ingress to service happens in overlay. between
 contrail compute nodes that means all overlay packets should be encapsulated in
@@ -5540,11 +5545,11 @@ to reach the `service` the request is sent to a "destination node" `cent333`
 where all backend pod is sitting. next we'll look at what will happen in
 destination node.
 
-=== from service IP to backend pod IP: FIP(NAT)
+==== Service IP to Backend Pod IP: FIP(NAT)
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
-again do the FIP NAT translation operations. it translates the service IP to the
+again do the NAT translation operations. it translates the service IP to the
 backend podIP `10.47.255.236`, pretty much the same way as what we've seen 
 in node `cent222`, where vrouter translate between Ingress public FIP with
 Ingress internal podIP.
@@ -5597,7 +5602,14 @@ shows:
 * original source port as webserver port `80`
 * destination IP as `Ingress` internal podIP `10.47.255.238`
 
-=== backend pod: receives the HTTP request
+==== Backend Pod: Analyze HTTP Request
+
+////
+this may not be very convincing in one aspect. the packet capture shows the
+communication is between loadbalancer IP and podIP, that part is fine. this is
+solely from the pod's perspective "after" the NAT operation. it does
+not shows what happens right before NAT.
+////
 
 another `tcpdump` packet capture on the backend pod interface helps to reveal
 the packet interaction between the Ingress intenral IP and backend podID.
@@ -5633,14 +5645,6 @@ $ tcpdump -ni tapeth0-baa392 -v
     10.47.255.236.http > 10.47.255.238.51968: Flags [.], cksum 0x1460 (incorrect -> 0x1cd5), ack 109, win 227, options [nop,nop,TS val 515781446 ecr 515783681], length 0
 ----
 
-this may not be very convincing in one aspect. the packet capture shows the
-communication is between loadbalancer IP and podIP, that part is fine. problem
-is this is solely from the pod's perspective "after" the NAT operation. it does
-not shows what happens right before NAT.
-
-//TODO: add something here
-
-
 ////
 ----
 $ tcpdump -ni tapeth0-baa392
@@ -5657,24 +5661,23 @@ $ tcpdump -ni tapeth0-baa392
 ----
 ////
 
-=== returning traffic
+==== Return Traffic
 
 on the reverse direction, podIP runs webserver and responds with it's web page.
 the response follows the reverse path of the request:
 
 * pod responds to loadbalancer frontend IP, across MPLSoUDP tunnel
-* vrouter on node `cent333` perform source NAT, translating podIP into service IP
+* vrouter on node `cent333` perform SNAT+SPAT, translating podIP:podPort into
+  serviceIP:servicePort
 * respond reaches to active haproxy running on node `cent222`
-* haproxy terminate the tcp connection with backend pod, "copies" the http
-  response, and "paste" into its connection with the remote Internet host
-* vrouter on node `cent222` perform source NAT, translating loadbalancer
+* haproxy "copies" the http response from backend pod, and "paste" into its connection
+  with the remote Internet host
+* vrouter on node `cent222` perform SNAT, translating loadbalancer
   frontend IP to FIP
 * response is sent to gateway router, which forwards to Internet host
 * Internet host gets the response.
 
-== contrail multiple interface pod
-
-=== multiple interface pod introduction
+== Contrail Multiple Interface Pod
 
 in Kubernetes cluster, typically each pod only has one network interface (except
 the `loopback` interface). In reality, there are scenarios where multiple
@@ -5686,7 +5689,7 @@ management and tenant networks independent for isolation, and management purpose
 Multiple interfaces provide a way for containers to be connected to multiple devices
 in multiple networks simultaneously.
 
-=== contrail as a CNI
+=== Contrail as a CNI
 
 ////
 As you probably already know containers use namespaces to isolate resources and
@@ -5920,7 +5923,7 @@ spec:
 throughout this book we'll use the first template to define our VNs in all
 examples.
 
-=== multiple-interface pod
+=== Multiple Interface Pod
 
 with multiple VNs created, we can "attach" (you may also say "plug", or
 "insert") any of them into a pod, with a pod yaml file like this:
@@ -5958,8 +5961,6 @@ defined in local NS, but also networks created on other namespaces using their
 fully scoped name. this is very useful - the same network does not has to be
 duplicated again and again in every NS that needs it, it can be defined just one
 time and then referred anywhere else.
-
-=== test multi-interface pod
 
 we've understood the basic theories and explored the various templates. now it's
 time to look at a "working example" in the real world. we'll start from
@@ -6208,9 +6209,9 @@ you will see multiple-interfaces pod again in sevice-chaining example later on.
 in that example the pod will be based on Juniper CSRX image instead of a general
 docker image. but the basic idea remains the same.
 
-== service chaining with CSRX
+== Contrail Service Chaining with CSRX
 
-=== contrail service chaining introduction
+=== Contrail Service Chaining Introduction
 
 service chaining is the idea of forwarding traffic through multiple network
 entity in a certain order, each network entity do specific function such as
@@ -6235,7 +6236,8 @@ image::https://user-images.githubusercontent.com/2038044/63706136-ad9dd980-c7fc-
   POD would fail to be created 
 ====
 
-=== create VNs
+=== Bringing Up Client and CSRX Pods
+==== Create VNs
 
 so let’s start create two networks using this YAML files 
 
@@ -6329,7 +6331,7 @@ it in domain “default-domain” and project “K8s-default”
 
 image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-11e9-965a-b50f91d811d1.png[]
 
-=== create client pods
+==== Create Client Pods
 
 Create two ubuntu Pods, one in each network using the annotation object
 
@@ -6448,7 +6450,7 @@ Containers:
  ...<snipped>...
 ----
 
-=== create CSRX pod
+==== Create CSRX Pod
 
 create Juniper CSRX container that have one interface on the left network and
 one interface on the right network using this YAML file 
@@ -6527,7 +6529,7 @@ NOTE: each container has one interface belong to “cluster-wide-default” netw
 regardless the use of the annotations object because annotations object above
 creates and put one extra interface in a specific network 
 
-=== verify podIP
+==== Verify podIP
 
 .verify podIP
 
@@ -6628,7 +6630,7 @@ Physical interface: ge-0/0/0, Enabled, Physical link is Up
         Destination: 10.20.20.0/24, Local: 10.20.20.2
 ----
 
-=== ping test
+==== Ping Test
 
 From the Left POD try to ping the left POD, ping would fail as there is no route 
 
@@ -6669,7 +6671,7 @@ Total sessions: 0
 
 No session on the CSRX.  
 
-=== troubleshooting ping issue
+==== Troubleshooting Ping Issue
 
 Login to the compute node “cent22” that host this container to dump the traffic
 using tshark and check the routing To get the interface linking the containers 
@@ -6839,7 +6841,8 @@ selecting L2 ( which is equvilant to “rt --dump 6 --family bridge” command
 
 image::https://user-images.githubusercontent.com/2038044/60268936-86d62c00-98bb-11e9-9050-ca104b278a1a.png[]
 
-=== create service chaining
+=== Service Chaining
+==== Create Service Chaining
 
 Now lets utilize the CSRX to service chaining using contrail command GUI
 
@@ -6914,7 +6917,7 @@ do the same for the right network
 
 image::https://user-images.githubusercontent.com/2038044/60268955-89388600-98bb-11e9-9605-14fbc8d30fbe.png[]
 
-=== verify service chaining
+==== Verify Service Chaining
 
 Now lets check the effect of this service changing on routing 
 From the Contrail Controller module control node (http://10.85.188.16:8143 in
@@ -6951,7 +6954,7 @@ Total sessions: 2
 
 ----
 
-=== security policy
+==== Security Policy
 
 Now let try to create security policy on the CSRX to allow only http and https
 
