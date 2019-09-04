@@ -21,7 +21,7 @@ kubernetes network CNI over other implementations, so we cover that also. in the
 end, we will demonstate service chain using Juniper CSRX container.
 
 == Contrail-Kubernetes Architecture 
-=== Why contrail with Kubernetes ?
+=== Why Contrail with Kubernetes ?
 
 Now after we have seen the main concepts of Kubernetes in chapter 2 and 3, what
 could be the gain in adding Contrail to standard Kubernetes deployment ?
@@ -464,11 +464,11 @@ NOTE: pod-level isolation can be achieved via kubernetes network policy, or
 security groups in contrail. 
 this will be covered later in this chapter.
 
-== contrail floating IP
+== Contrail Floating IP
 
 //(with type of loadBalancer or nodePort) 
 
-=== overlay Internet access
+=== Overlay Internet Access
 
 we've discussed and tested the communication between pods in the same or
 different NS. so far we've only tested it **inside** of the same cluster. what
@@ -496,7 +496,7 @@ traffic, egress traffic, or both and default is bi-direction. in this book we
 focus on `floating IP` only. you can refer contrail documents for detail
 information about fabric SNAT and logical router.
 
-=== floating IP introduction
+=== Floating IP Introduction
 
 `floating IP`, or `FIP` for short, is a "traditional" concept that contrail
 supports since very early releases. Essentially it is an openstack concept to
@@ -539,7 +539,7 @@ environment. But the usage of floating IP has been extended in kubernetes
 for accessing toward kubernetes `service` and `ingress` from external. 
 you can check later sections in this chapter for more details on this.
 
-=== creating FIP pool
+=== Create FIP Pool
 
 creating a FIP pool is a 3 steps process:
 
@@ -609,7 +609,7 @@ Overlay > Floating IP > Create
 TIP: in contrail UI, you can also set the "external" flag in VN "Advanced"
 options so that a FIP pool named "public" will automatically be created.
 
-=== FIP pool scope
+=== FIP Pool Scope
 
 there are different ways you can refer an floating IP pool in contrail
 kubernetes environment, and correspondingly the scope of the pools will also be
@@ -664,7 +664,7 @@ practical example:
 NOTE: Just keep in mind the rule of thumb - the most specific scope will always
 prevail.
 
-=== object level FIP pool
+=== Object FIP Pool
 
 let's first take a look at the object-specific FIP pool. here is an example:
 
@@ -690,7 +690,7 @@ project `k8s-ns-user-1`. the corresponding kubernetes NS is `ns-user-1`. since
 object level FIP pool is assigned for this specific object only, with this
 method each new object needs to be assigned a FIP pool explicitly.
 
-=== NS level FIP pool
+=== NS FIP Pool
 
 the next FIP pool scope is in NS level. each NS can define its own FIP
 pool.  same way as kubernetes annotations object is used to give a subnet to a
@@ -714,7 +714,7 @@ get a FIP allocated from this pool. In practice, most NS (especially
 those isolated NS) will need its own NS default pool so you will see this
 type of configuration very often in field.
 
-=== global level FIP pool
+=== Global FIP pool
 
 to specify a global level FIP pool, you need to give the full qualified pool
 name (domain > project > network > name) in contrail-kube-manager('KM') docker's
@@ -773,10 +773,10 @@ only to service and ingress objects. If the FIP has to be associated to a
 POD it has to be done manually. we'll talk about this in next section.
 
 
-=== creating FIP for PODS
+=== FIP for Pods
 
 once FIP pool is created and available, an FIP can be allocated from the FIP
-pool for the objects that requires one. this can be done by associating an FIP
+pool for the pods that requires one. this can be done by associating an FIP
 to a VMI (VM or pod interface),
 
 you can manually create a FIP out of a FIP pool in contrail UI, and then
@@ -791,7 +791,7 @@ image::https://user-images.githubusercontent.com/2038044/61014684-aa3ab580-a356-
 NOTE: make sure the FIP pool is shared to the project where FIP is going to be
 created.
 
-=== advertising FIP
+=== Advertising FIP
 
 once a FIP is associated to a pod interface, it will be advertised to the MP-BGP
 peers, which are typically gateway routers.
