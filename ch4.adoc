@@ -163,7 +163,7 @@ the main menu, then from there you can select and jump into all other settings.
 Again our focus is not CC. we are trying to give base insight about CC which would be
 helpful for our primary goal of the book.
 
-== Namespaces and Isolation
+== Contrail Namespaces and Isolation
 
 In chapter3 you`ve read about `namespace` or `NS` in kubernetes. in the
 beginning of this chapter we've mentioned object mappings between kubernetes and
@@ -901,7 +901,7 @@ the FIP advertisement process is illustrated in this figure below:
 //image::https://user-images.githubusercontent.com/2038044/63262377-c5e98380-c253-11e9-996f-27eecb0df931.png[]
 image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
 
-== contrail services
+== Contrail Services
 
 in this section, we look at kubernetes `service` in contrail environment.
 specifically, we'll focus on `clusterIP` and `loadbalancer` type of services
@@ -913,7 +913,7 @@ based on in contrail, for the rest part of this section we will explore how
 `clusterIP` and `loadbalancer` service works in detail, each with a test we
 build in our testbed.
 
-=== kubernetes service introduction
+=== Kubernetes Service
 
 service is the core object in kubernetes. in chapter 3 you've learned what is
 kubernetes service and how to create a `service` object with yaml file.
@@ -951,7 +951,7 @@ supported:
 
 next we'll introduce how service is implemented in contrail environment.
 
-=== contrail service: ECMP loadbalancer
+=== Contrail Service: ECMP Loadbalancer
 
 in chapter 3 we've introduced kubernetes default implementation of service
 through `kube-proxy`. in there we mentioned CNI providers can have its own
@@ -964,7 +964,7 @@ be good to review the legacy openstack based loadbalancer concept in contrail.
 
 TIP: for brevity we'll sometimes also refer `loadbalancer` as `LB`.
 
-==== contrail openstack loadbalancer object
+==== Contrail Openstack Loadbalancer
 
 contrail loadbalancer is an relatively "old" feature that is supported since version 1.x.
 it enables the creation of a pool of VMs serving applications, sharing one
@@ -1033,7 +1033,7 @@ layer) "proxy" based. more about ingress will be discussed in later section.
 
 *****
 
-==== contrail sevice loadbalancer object
+==== Contrail Sevice Loadbalancer
 
 let's take a look at service loadbalancer and the related objects.
 
@@ -1128,7 +1128,7 @@ default the clusterIP is not reachable from external.
 
 ////
 
-==== navigating the service loadbalancer objects
+==== Contrail Service Loadbalancer Objects
 
 we've talked a lot about the contrail "loadbalancer object" and you may wonder
 what exactly it looks like. now we'll dig a little big deeper to look at the
@@ -1286,7 +1286,7 @@ is composed by connecting NS name with service name, hence we can tell the
 * `service-web-clusterip` 
 * `service-web-clusterip-mp`
 
-==== loadbalancer
+==== Loadbalancer
 
 click on the small triangle icon in left of the first loadbalancer object
 `ns-user-1-service-web-clusterip` to expand it, then click on `advanced json
@@ -1303,7 +1303,7 @@ of these objects are connected to each other and work together.
 .loadbalancer
 image::https://user-images.githubusercontent.com/2038044/60685370-bca58280-9e70-11e9-8030-2746766082c8.png[]
 
-==== listener
+==== Listener
 
 click on the LB name and select "listener", then expand it and display the
 details with JSON format, you will get the listener details. the listener is
@@ -1319,7 +1319,7 @@ this book to explore different contrail objects.
 .listener
 image::https://user-images.githubusercontent.com/2038044/60685556-b368e580-9e71-11e9-820f-47fb25aacee4.png[]
 
-==== pool and member
+==== Pool and Member
 just repeat the exploring process we will get down to the pool and two
 `members` in it. the member is with a port of `80`, which maps to the container
 targetPort in pod.
@@ -1337,9 +1337,9 @@ figure, we'll also give an example of a "multiple port service" in
 our setup.  we'll conclude the ClusterIP service section by inspecting the
 vrouter flow table to illustrate the service packet workflow.
 
-=== service testbed
+=== Contrail Service Setup
 
-before starting our investigation, let's look at our testbed. in this book we
+before starting our investigation, let's look at our setup. in this book we
 build a setup including the following devices, most of our case studies are
 based on it:
 
@@ -1363,7 +1363,7 @@ in appendix you will find all details about the setup. the prerequisites,
 software/hardware specifications, sample configuration files, and installation
 steps. following the steps you will be able to build a same setup in your lab.
 
-=== contrail ClusterIP service
+=== Contrail ClusterIP Service
 
 in chapter 3 we've demonstrated how to create and verify a clusterIP service. in
 this section we'll revisit the lab and look at some important details about
@@ -1484,7 +1484,7 @@ translated to podIP:targetPort `10.47.255.238:80` and vice versa.
 now you understand with FIP representing ClusterIP, NAT will happen in service.
 later we'll examine NAT again in the flow table.
 
-==== scale backend pods
+==== Scaling Backend Pods
 in chapter 3 clusterIP service example, we have created a sevice and a backend
 pod. to verify the ECMP, let's increase the replica to 2 to generate a second
 backend pod. this is a more realistic and rebost model: each pod will now be
@@ -1533,7 +1533,7 @@ image::https://user-images.githubusercontent.com/2038044/60973157-b2163d80-a2f5-
 we see the same FIP, but now it is associated with two podIP, each representing
 a seperate pod. 
 
-==== ECMP routing table: control node perspective
+==== ECMP Routing Table: Control Node Perspective
 
 first, to examine the ECMP, let's take a look at the routing table in the
 controller's routing instance.
@@ -1559,7 +1559,7 @@ indicate the presence of the running backend pods in itself. this route
 propagation is via XMPP. master(contrail controller) then reflect the routes to
 all other compute nodes.
 
-==== ECMP routing table: compute node perspective
+==== ECMP Routing Table: Compute Node Perspective
 
 next, starting from the client pod node `cent222`, we'll look at the the pod's
 VRF table to understand how the packets are forwarded towards the backend pods
@@ -1668,7 +1668,7 @@ vif0/8      OS: tapeth0-304431
 
 the output displays the corresponding local pod interface's name, IP, etc.
 
-==== clusterIP service ECMP workflow
+==== ClusterIP Service Workflow
 
 the clusterIP service's loadbalancer ECMP workflow is illustrated in this
 figure:
@@ -1698,7 +1698,7 @@ this is what happened in the forwarding plane:
 
 //TODO: this is forwarding flow only, also give control plane flow?
 
-==== multiple port service
+==== Multiple Port Service
 
 we've understood how the service layber 4 ECMP works and we've explored the LB
 objects in lab. remember in the figure showing the LB and relevant objects,
@@ -1836,7 +1836,7 @@ from cirros client pod is with the IP `10.47.255.237`.
 10.47.255.237 - - [04/Jul/2019 23:49:44] "GET / HTTP/1.1" 200 -
 ----
 
-==== the flow table
+==== Contrail Flow Table
 
 so far we've tested clusterIP service, and we see client request is sent towards
 the service IP. in contrail environment `vrouter` is the module that does all of
@@ -2004,9 +2004,9 @@ image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-
 
 //TODO: redraw with color
 
-=== contrail LoadBalancer service
+=== Contrail Loadbalancer Service
 
-in chapter 3 we've briefly talked about LoadBalancer service. in there we
+in chapter 3 we've briefly talked about `LoadBalancer` service. in there we
 mentioned if the goal is to expose the service to the external world outside of
 the cluster, we just specify `ServiceType` as `LoadBalancer` in the service yaml
 file. 
@@ -2026,7 +2026,7 @@ in this section we'll demonstrate how does the `LoadBalancer` type of service
 works in our end to end lab setup, which includes the kubernetes cluster, fabric
 switch, gateway router, and Internet host.
 
-==== external IP as FIP
+==== External IP as FIP
 
 //create `Loadbalancer` service
 
@@ -2119,7 +2119,7 @@ public FIP pool, which is advertised to the gateway router and acts as the
 outside-facing VIP. that is how the `loadbalancer` service expose itself to the
 external world.
 
-==== examine VRF table in gateway router
+==== Gateway Router VRF Table
 
 in "contrail floating IP" section you've learned how to advertise FIP. here
 we'll review the main concepts to understand how it works in contrail `service`
@@ -2199,7 +2199,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 * `gr-2/2/0.32771` is an interface representing the (MPLS over) GRE tunnel
   between the gateway router and node `cent222`.
 
-==== `Loadbalancer` service workflow
+==== Loadbalancer Service Workflow
 
 to summarize, the FIP given to the service as its external ip is advertised to
 gateway router, and get loaded in the router's VRF table. when Internet host
@@ -2236,7 +2236,7 @@ here is the full story:
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
   so the packets will be sent to the right backend pod.
 
-==== verify the `Loadbalancer` service
+===== Verify `Loadbalancer` Service
 
 To verify the end to end service access from Internet host to the backend pod, 
 we will login to the Internet host desktop and launch a browser, with URL
@@ -2273,7 +2273,7 @@ This page is served by a Contrail pod
 
 the kubernetes service is available from Internet!
 
-==== `Loadbalancer` service ECMP
+==== `Loadbalancer` Service ECMP
 
 so far you've seen how loadbalancer type of service is exposed to the Internet
 and how the FIP did the "trick". in ClusterIP service section, you've also seen
@@ -2362,7 +2362,7 @@ node where a backend pod is running. now we believe the router will perform
 ECMP load balancing between the two GRE tunnel, whenever it got service request
 toward the same FIP. let's check it out.
 
-==== verify the `Loadbalancer` service ECMP
+===== Verify `Loadbalancer` Service ECMP
 
 to verify the ECMP we'll just pull the webpage a few more time and we expect to
 see both podIP displayed eventually.
