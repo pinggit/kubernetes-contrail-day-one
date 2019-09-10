@@ -8,6 +8,7 @@
 :highlightjs-theme: googlecode
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
+:listing-caption: Example
 
 This chapter introduces kubernetes, what it is, basic terminologies and the key
 concepts. You will learn most of the frequently referred components in
@@ -258,7 +259,9 @@ running in each, it is time to look at how things works together in figure 2.1
 //image::https://user-images.githubusercontent.com/2038044/46121001-c7473300-c1df-11e8-90c0-425b94957df1.png[]
 
 .kubernetes architecture
-image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
+//image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
+//image::https://user-images.githubusercontent.com/2038044/64628362-43ba2e00-d3bf-11e9-8610-9b58dcd859b9.png[]
+image::https://user-images.githubusercontent.com/2038044/64628544-94ca2200-d3bf-11e9-9600-3dad2923dd21.png[]
 
 //Figure 2.1 Kubernetes Architecture
 
@@ -590,6 +593,7 @@ in this example you are also seeing "nested" YAML data structure:
 before we dive into more details of the yaml file, let's finish the pod
 creation:
 
+.create pods
 ----
 $ kubectl create -f pod-2containers.yaml
 pod/pod-1 created
@@ -629,6 +633,7 @@ here is a brief line-by-line comments about what the yaml config says:
 
 to get more details of what is running inside of the pod:
 
+.`describe` a pod
 ----
 $ kubectl describe pod pod-1 | grep -iC1 container
 IP:                 10.47.255.233
@@ -670,12 +675,13 @@ image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-
 if you login to node `cent222`, you will see the docker containers running inside
 of the pod:
 
+.`pause` pod
 ----
 $ docker ps | grep -E "ID|pod-1"
-CONTAINER ID  IMAGE                       COMMAND                  CREATED             STATUS             PORTS NAMES
-e2d76084a1d5  pingdocker/redis-db         "redis-server /etc/r…"   About a minute ago  Up About a minute        k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
-694f5eb781e7  pingdocker/apache-frontend  "apache2-foreground"     About a minute ago  Up About a minute        k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
-7abae4273cfd  k8s.gcr.io/pause:3.1        "/pause"                 About a minute ago  Up About a minute        k8s_POD_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+CONTAINER ID  IMAGE                       COMMAND                  ... PORTS NAMES
+e2d76084a1d5  pingdocker/redis-db         "redis-server /etc/r…"   ... k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+694f5eb781e7  pingdocker/apache-frontend  "apache2-foreground"     ... k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+7abae4273cfd  k8s.gcr.io/pause:3.1        "/pause"                 ... k8s_POD_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
 ----
 
 the third container with image name `k8s.gcr.io/pause` is a special container
@@ -695,13 +701,16 @@ image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-
 //TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
 
-    #login to pod-1's container apache 
-    root@test1:~# kubectl exec -it pod-1 -c apache bash
-    root@pod-1:/var/www/html#
+.login to a container
+----
+#login to pod-1's container apache 
+root@test1:~# kubectl exec -it pod-1 -c apache bash
+root@pod-1:/var/www/html#
 
-    #login to pod-1's container db 
-    root@test1:~# kubectl exec -it pod-1 -c db bash
-    [ root@pod-1:/data ]$ 
+#login to pod-1's container db 
+root@test1:~# kubectl exec -it pod-1 -c db bash
+[ root@pod-1:/data ]$ 
+----
 
 NOTE: if you ever played with docker you will immediately realized that this is
 pretty neat. remember the containers were launched at one of the "node", with
@@ -776,6 +785,7 @@ command:
 from container `apache`, start a TCP connection toward redis port that container
 `db` is listening, using `localhost` IP address:
 
+.start `curl` from `apache` container
 ----
 root@pod-1:/var/www/html# curl localhost:6379
 ^Z
@@ -788,6 +798,7 @@ root@pod-1:/var/www/html# bg
 now monitor the TCP connection state: the connection is established
 successfully.
 
+.monitor connections
 ----
 root@pod-1:/var/www/html# ss -at
 State      Recv-Q Send-Q    Local Address:Port    Peer Address:Port
@@ -810,15 +821,18 @@ as a quick example, assuming you have enabled the auto-completion feature for
 kubectl, you can list all your current environment supported options by logging
 into the master and typing `kubectl`, followed by two `tab` keystrokes.
 
-    root@test1:~# kubectl<TAB><TAB>
-    alpha          attach         completion     create         exec
-    logs           proxy          set            wait annotate  auth
-    config         delete         explain        options        replace
-    taint          api-resources  autoscale      convert        describe       
-    patch          rollout        top            api-versions   certificate    
-    drain          get            plugin         run            uncordon apply
-    cluster-info   cp             edit           label          port-forward
-    scale          version        expose         cordon
+.kubectl tab completion
+----
+root@test1:~# kubectl<TAB><TAB>
+alpha          attach         completion     create         exec
+logs           proxy          set            wait annotate  auth
+config         delete         explain        options        replace
+taint          api-resources  autoscale      convert        describe       
+patch          rollout        top            api-versions   certificate    
+drain          get            plugin         run            uncordon apply
+cluster-info   cp             edit           label          port-forward
+scale          version        expose         cordon
+----
 
 NOTE: to setup auto-completion for kubectl command, follow the instruction from
 help of `completion` option: `kubectl completion -h`
