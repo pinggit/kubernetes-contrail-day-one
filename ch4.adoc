@@ -6471,7 +6471,8 @@ metadata:
 spec:
   containers:
   - name: csrx1-sc
-    image: csrx
+    image: hub.juniper.net/security/csrx:18.1R1.9
+    #image: csrx
     ports:
     - containerPort: 22
     imagePullPolicy: Never
@@ -6479,9 +6480,15 @@ spec:
     tty: true
     securityContext:
       privileged: true
+  imagePullSecrets:
+  - name: secret-jnpr
 
 # kubectl create -f csrx1-sc.yaml
 ----
+
+NOTE: in order for kubernetes to pull the image from juniper private registry, a
+secret is required. refer to chapter 3 `secret` section for the configuration of
+secret object `secret-jnpr` that we referred here in csrx yaml file.
 
 Confirm the interface placement in the correct network 
 
