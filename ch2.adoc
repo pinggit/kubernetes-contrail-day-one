@@ -546,12 +546,12 @@ metadata:               <3>
       name: pod-1       <6>
 spec:                   <7>
   containers:           <8>
-  - name: apach         <9>
-    image: pingdocker/apache-frontend <10>
+  - name: apache         <9>
+    image: contrailk8sdayone/apache <10>
     ports:              <11>
     - containerPort: 80 <12>
   - name: db            <13>
-    image: pingdocker/redis-db  <14>
+    image: contrailk8sdayone/redis-db  <14>
     ports:                      <15>
     - containerPort: 6379       <16>
 ----
@@ -640,21 +640,21 @@ IP:                 10.47.255.233
 Containers:
   apache:
     Container ID:   docker://489e67aec14890092378a1e47b27d40b26c1e051b93958db037091212f7db76e
-    Image:          pingdocker/apache-frontend
+    Image:          contrailk8sdayone/apache
 --
   db:
     Container ID:   docker://b5492678744548f7c394e89e26af185f576273d23ab7ee91161340fad417ca60
-    Image:          pingdocker/redis-db
+    Image:          contrailk8sdayone/redis-db
 --
   Ready             True
   ContainersReady   True
   PodScheduled      True
 --
-  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "pingdocker/apache-frontend"
+  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "contrailk8sdayone/apache"
   Normal  Created    <invalid>  kubelet, cent222   Created container
   Normal  Started    <invalid>  kubelet, cent222   Started container
-  Normal  Pulling    <invalid>  kubelet, cent222   pulling image "pingdocker/redis-db"
-  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "pingdocker/redis-db"
+  Normal  Pulling    <invalid>  kubelet, cent222   pulling image "contrailk8sdayone/redis-db"
+  Normal  Pulled     <invalid>  kubelet, cent222   Successfully pulled image "contrailk8sdayone/redis-db"
   Normal  Created    <invalid>  kubelet, cent222   Created container
   Normal  Started    <invalid>  kubelet, cent222   Started container
 ----
@@ -679,8 +679,8 @@ of the pod:
 ----
 $ docker ps | grep -E "ID|pod-1"
 CONTAINER ID  IMAGE                       COMMAND                  ... PORTS NAMES
-e2d76084a1d5  pingdocker/redis-db         "redis-server /etc/r…"   ... k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
-694f5eb781e7  pingdocker/apache-frontend  "apache2-foreground"     ... k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+e2d76084a1d5  contrailk8sdayone/redis-db  "redis-server /etc/r…"   ... k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+694f5eb781e7  contrailk8sday/apache       "apache2-foreground"     ... k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
 7abae4273cfd  k8s.gcr.io/pause:3.1        "/pause"                 ... k8s_POD_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
 ----
 

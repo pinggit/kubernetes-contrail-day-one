@@ -2826,7 +2826,7 @@ spec:
     spec:
       containers:
       - name: webserver
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -2882,7 +2882,7 @@ spec:
     spec:
       containers:
       - name: webserver
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -3724,7 +3724,7 @@ spec:
     spec:
       containers:
       - name: webserver-1
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -3753,7 +3753,7 @@ spec:
     spec:
       containers:
       - name: webserver-2
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -3827,7 +3827,7 @@ spec:
     spec:
       containers:
       - name: webserver-1
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -3852,7 +3852,7 @@ spec:
     spec:
       containers:
       - name: webserver-2
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -4674,7 +4674,7 @@ spec:
     spec:
       containers:
       - name: webserver-1
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -4699,7 +4699,7 @@ spec:
     spec:
       containers:
       - name: webserver-2
-        image: contrailk8sdayone/contrail-frontend-app
+        image: contrailk8sdayone/contrail-webserver
         securityContext:
            privileged: true
         ports:
@@ -6349,7 +6349,7 @@ metadata:
 spec:
   containers:
     - name: ubuntu-left-pod-sc
-      image: contrailk8sdayone/ubuntu:latest
+      image: contrailk8sdayone/ubuntu
       securityContext:
           privileged: true
           capabilities:
@@ -6370,7 +6370,7 @@ metadata:
 spec:
   containers:
     - name: ubuntu-right-pod-sc
-      image: contrailk8sdayone/ubuntu:latest
+      image: contrailk8sdayone/ubuntu
       securityContext:
           privileged: true
           capabilities:
@@ -6413,7 +6413,7 @@ IP:                 10.47.255.249
 Containers:
   ubuntu-left-pod-sc:
     Container ID:   docker://2f9a22568d844c68a1c4a45de4a81478958233052e08d4473742827482b244cd
-    Image:          contrailk8sdayone/ubuntu:latest
+    Image:          contrailk8sdayone/ubuntu
     Image ID:       docker-pullable://contrailk8sdayone/ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
    
 ...<snipped>...
@@ -6444,7 +6444,7 @@ IP:                 10.47.255.252
 Containers:
   ubuntu-right-pod-sc:
     Container ID:   docker://4e0b6fa085905be984517a11c3774517d01f481fa43aadd76a633ef15c58cbfe
-    Image:          contrailk8sdayone/ubuntu:latest
+    Image:          contrailk8sdayone/ubuntu
     Image ID:       docker-pullable://contrailk8sdayone/ubuntu@sha256:fa2930cb8f4b766e5b335dfa42de510ecd30af6433ceada14cdaae8de9065d2a
   
  ...<snipped>...

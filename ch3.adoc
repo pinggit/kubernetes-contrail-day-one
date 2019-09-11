@@ -359,7 +359,7 @@ spec:
     spec:
       containers:
       - name: myweb
-        image: kubeguide/tomcat-app:v1
+        image: contrailk8sdayone/tomcat-app:v1
         ports:
         - containerPort: 8080
 ----
@@ -493,7 +493,7 @@ spec:
     spec:
       containers:
       - name: myweb
-        image: kubeguide/tomcat-app:v1
+        image: contrailk8sdayone/tomcat-app:v1
         ports:
         - containerPort: 8080
         env:
@@ -573,19 +573,37 @@ object `DEPLOY - deployment` and explore the features coming from it.
 simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
 yaml file of a deployment object:
 
-    $ cat myweb-deployment.yaml
-    apiVersion: apps/v1
-    kind: Deployment    #<---
+----
+$ cat deployment-myweb.yaml
+apiVersion: apps/v1
+kind: Deployment   #<--- everything else remains the same as replicaset
+metadata:
+  name: myweb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myweb
+    matchExpressions:
+      - {key: app, operator: In, values: [myweb]}
+  template:
     metadata:
-      name: myweb
-    ...(everything else remains the same as replicaset)...
+      labels:
+        app: myweb
+    spec:
+      containers:
+      - name: myweb
+        image: contrailk8sdayone/tomcat-app:v1
+        ports:
+        - containerPort: 8080
 
-    $ kubectl create -f myweb-deployment.yaml
-    deployment.extensions/myweb created
+$ kubectl create -f deployment-myweb.yaml
+deployment.extensions/myweb created
 
-    $ kubectl get deployment
-    NAME                   DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
-    deployment.apps/myweb  1        1        1           1          21s
+$ kubectl get deployment
+NAME                   DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+deployment.apps/myweb  1        1        1           1          21s
+----
 
 Actually the deployment is a relatively higher level of abstraction than RC and RS.
 deployment does not create a pod directly, the `describe` command reveals this:
@@ -605,7 +623,7 @@ deployment does not create a pod directly, the `describe` command reveals this:
       Labels:  app=myweb
       Containers:
        myweb:
-        Image:      kubeguide/tomcat-app:v1
+        Image:      contrailk8sdayone/tomcat-app:v1
         Port:       8080/TCP
         Host Port:  0/TCP
         Environment:
