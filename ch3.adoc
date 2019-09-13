@@ -1608,11 +1608,13 @@ so let’s understand different type of services:
 === ClusterIP Service
 
 the `ClusterIP` type of service is the simplest one. it is the default mode if
-the `ServiceType` is not specified. the kubernetes official website gives this
-diagram to illustrate how clusterIP service works:
+the `ServiceType` is not specified. this diagram below illustrates how clusterIP
+service works:
 
 //image::https://user-images.githubusercontent.com/2038044/60740886-56cefe80-9f35-11e9-8b16-a61108660d6e.png[]
-image::https://user-images.githubusercontent.com/2038044/63464025-5ed2f700-c42c-11e9-8cc1-18d5ef827719.png[]
+//image::https://user-images.githubusercontent.com/2038044/63464025-5ed2f700-c42c-11e9-8cc1-18d5ef827719.png[]
+//image::https://user-images.githubusercontent.com/2038044/64742662-fa570500-d4ca-11e9-8515-bd6f24331231.png[]
+image::https://user-images.githubusercontent.com/2038044/64743145-a9e0a700-d4cc-11e9-9159-310e83a15a07.png[]
 
 ClusterIP service is exposed on a `clusterIP` and a service port. when client
 pods need to access the service it sends request toward this `clusterIP` and
@@ -1814,7 +1816,9 @@ NodePort service exposes a service on each node's ip at a static port. It maps
 a static port on each node with a port of the application the POD as shown in 
 the diagram 
  
-image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
+//image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
+image::https://user-images.githubusercontent.com/2038044/64743278-3be8af80-d4cd-11e9-8b7b-852188578ed2.png[]
+
 there is 2 very important parts in this services YAML file ports and selector.
 
 targetPort is the actual port used by the application in here its port 80 as we
@@ -2261,7 +2265,8 @@ figure below shows the dependency between the 3 kubernetes object: `Ingress`,
 `service` and `pod`:
 
 .Ingress
-image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
+//image::https://user-images.githubusercontent.com/2038044/60773060-5c5f4c80-a0cd-11e9-88bb-58c239a442c4.png[]
+image::https://user-images.githubusercontent.com/2038044/64744114-83246f80-d4d0-11e9-9598-0bce8dbeda13.png[]
 
 in practice there are other things you need to understand.  in reality to handle
 the ingress rules, you need at least another component called `ingress

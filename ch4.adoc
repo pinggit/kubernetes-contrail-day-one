@@ -310,7 +310,8 @@ top-level object, followed by project/tenant and followed by virtual-networks.
 this can be illustrated in below diagram:
 
 .NS and VN
-image::https://user-images.githubusercontent.com/2038044/63223271-13e18700-c181-11e9-8fe4-987cf935a05b.png[]
+//image::https://user-images.githubusercontent.com/2038044/63223271-13e18700-c181-11e9-8fe4-987cf935a05b.png[]
+image::https://user-images.githubusercontent.com/2038044/64745160-bbc64800-d4d4-11e9-9360-cc0811f99441.png[]
 
 here is the yaml file to create an isolated namespace:
 
@@ -1707,7 +1708,8 @@ we saw that one LB may having 2 or more LB listeners. each listener has an
 individual backend pool that has one or multiple member(s). 
 
 .service loadbalancer
-image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
+//image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
+image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
 
 in kubernetes, this 1:N mapping between loadbalancer and listeners indicates
 a `multiple port service` - one service with multiple ports.
@@ -2001,7 +2003,8 @@ the complete end to end traffic flow is illustrated here:
 .clusterIP service traffic flow (NAT)
 //image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
 //image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
-image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-11e9-813a-a6aa3989c09d.png[]
+//image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-11e9-813a-a6aa3989c09d.png[]
+image::https://user-images.githubusercontent.com/2038044/64745576-67bc6300-d4d6-11e9-8919-f8b1ea0d8f8f.png[]
 
 //TODO: redraw with color
 
@@ -2211,7 +2214,8 @@ the packet flow is illustrated in this figure:
 
 .`loadbalancer` service workflow
 //image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
-image::https://user-images.githubusercontent.com/2038044/63638336-e8fda400-c654-11e9-8938-d98901633b6b.png[]
+//image::https://user-images.githubusercontent.com/2038044/63638336-e8fda400-c654-11e9-8938-d98901633b6b.png[]
+image::https://user-images.githubusercontent.com/2038044/64745664-b36f0c80-d4d6-11e9-8019-f901f1c4fb5a.png[]
 
 here is the full story:
 
@@ -2378,6 +2382,9 @@ This page is served by a Contrail pod
   Hostname = webserver-846c9ccb8b-xkjpw
 ----
 
+TIP: `lynx` is another "terminal" web browser pretty much similar with the
+`w3m` that we used earlier.
+
 the only webpage we got is from the first backend pod `10.47.255.236`,
 `webserver-846c9ccb8b-xkjpw`, running in node `cent222`. the other one never show up.
 so the expected ECMP does not happen yet. when we examine the route again with
@@ -2422,6 +2429,8 @@ labroot@camaro# set routing-instances k8s-test routing-options multipath vpn-une
 
 now check the VRF table again:
 
+////
+raw capture:
 ----
 labroot@camaro# run show route table k8s-test.inet.0 101.101.101.252/32
 Jun 26 20:09:21
@@ -2438,6 +2447,26 @@ k8s-test.inet.0: 27 destinations, 54 routes (27 active, 0 holddown, 0 hidden)
                     validation-state: unverified, > via gr-2/2/0.32771, Push 52
                    #[Multipath/255] 00:00:04, metric 100, metric2 0
                        via gr-2/1/0.32771, Push 72
+                     > via gr-2/2/0.32771, Push 52
+----
+////
+
+----
+labroot@camaro# run show route table k8s-test.inet.0 101.101.101.252/32
+Jun 26 20:09:21
+
+k8s-test.inet.0: 27 destinations, 54 routes (27 active, 0 holddown, 0 hidden)
+@ = Routing Use Only, # = Forwarding Use Only
++ = Active Route, - = Last Active, * = Both
+
+101.101.101.252/32 @[BGP/170] 00:00:04, MED 100, localpref 200, from 10.169.25.19
+                       AS path: ?
+                    validation-state: unverified, > via gr-2/3/0.32771, Push 72
+                    [BGP/170] 00:00:52, MED 100, localpref 200, from 10.169.25.19
+                       AS path: ?
+                    validation-state: unverified, > via gr-2/2/0.32771, Push 52
+                   #[Multipath/255] 00:00:04, metric 100, metric2 0
+                       via gr-2/3/0.32771, Push 72
                      > via gr-2/2/0.32771, Push 52
 ----
 
@@ -2479,7 +2508,9 @@ This page is served by a Contrail pod
 the end to end packet flow is illustrated here:
 
 .loadbalancer service ECMP
-image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
+//image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
+//image::https://user-images.githubusercontent.com/2038044/64746240-da2e4280-d4d8-11e9-862e-2d68166dced3.png[]
+image::https://user-images.githubusercontent.com/2038044/64795236-c2dc6d00-d54b-11e9-9074-8076978ed18d.png[]
 
 == Contrail Ingress
 
@@ -2609,15 +2640,16 @@ cluster:
 
 //TODO: lost the drawing, need to redraw, and give text explain
 .Ingress traffic flow: access from internal
-image::https://user-images.githubusercontent.com/2038044/61061849-0b9c6c00-a3cb-11e9-8788-cb1c1dedafc4.png[]
+//image::https://user-images.githubusercontent.com/2038044/61061849-0b9c6c00-a3cb-11e9-8788-cb1c1dedafc4.png[]
+image::https://user-images.githubusercontent.com/2038044/64801404-7185ab00-d556-11e9-8d2b-37555ace5f01.png[]
 
 here is the end to end service request flow when accessing from Internet host:
 
 .Ingress traffic flow: access from external
 //image::https://user-images.githubusercontent.com/2038044/60410376-09017180-9b96-11e9-927e-4cf1d98f2cef.png[]
 //image::https://user-images.githubusercontent.com/2038044/61061268-eb1fe200-a3c9-11e9-9d36-191955b766e1.png[]
-image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
+image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
 
 ////
 . the "haproxy driver" will create a service instance (SI) with
@@ -2669,7 +2701,8 @@ in our lab we use the same testbed as what we use for `service` test:
 
 //TODO: redraw with color
 .Ingress testbed
-image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
+//image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
+image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
 
 .Ingress test preparation
 
@@ -4159,237 +4192,7 @@ together to privde this type of flexibility.
 
 ==== `Ingress` verification: from internal
 
-===== problem of old method
-
-we'll compose similar curl commands to test `simple fanout Ingress`. this time
-we give different paths and see how Ingress distribute them.
-
-----
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
-<title>404 Not Found</title>
-<h1>Not Found</h1>
-<p>The requested URL was not found on the server.  If you entered the URL
-manually please check your spelling and try again.</p>
-----
-
-it doesn't work!
-
-the reason is our webserver coming with the backend pods does not support the
-`path` `dev` or `qa` in the URL. 
-
-[TIP]
-=====
-checking the webserver's code reveals the issue:
-
-----
-$ kubectl exec -it webserver-1-846c9ccb8b-wns77 bash
-root@webserver-1-846c9ccb8b-wns77:/app# ls
-Dockerfile  app.py  requirements.txt  static
-root@webserver-1-846c9ccb8b-wns77:/app# cat app.py
-# Simple Web-Server
-from flask import Flask
-import subprocess
-app = Flask(__name__)
-def workers():
-    cmd_ip = 'ifconfig | sed -n 2p | cut -d ":" -f2 | cut -d " " -f1 | tr -d "\n"'
-    cmd_hostname = 'hostname | tr -d "\n"'
-    ip_addr = str(subprocess.check_output(cmd_ip, shell=True))
-    hostname = str(subprocess.check_output(cmd_hostname, shell=True))
-    return '''
-<html>
-<style>
-  h1   {color:green}
-  h2   {color:red}
-</style>
-  <div align="center">
-  <head>
-    <title>Contrail Pod</title>
-  </head>
-  <body>
-    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b> pod</h2><br><h3>IP address = ''' + ip_addr + '''<br>Hostname = ''' + hostname + '''</h3>
-    <img src="/static/giphy.gif">
-  </body>
-  </div>
-</html>
-'''
-@app.route('/')                 #<---
-def root():
-    return workers()
-@app.route('/contrail')         #<---
-def contrail():
-    return workers()
-if __name__ == '__main__':
-    app.run(debug=True,host='0.0.0.0', port=80)
-----
-
-in the code only path `/` and `/contrail` is supported.
-
-=====
-
-===== workaround
-
-there are several ways to workaround the problem:
-
-* change the current server code and restart the server
-* create a new server that supports URLs with the 2 paths
-
-in this section we will demonstrate how to use an existing python module to
-create a HTTP server, and make it to serve the "path" that we give in the URL:
-
-* in each backend pods we'll create a new HTTP server.
-* the server is created from python module `SimpleHTTPServer` coming with
-  the webserver image of each pods.
-* to avoid confliction, the new HTTP servers will listen on a different port
-  other than default port `80`, which had been used by the existing server
-  process.
-* accordingly, we update the `targetPort` (from `80` to `90`) of `service` in
-  order to deliver the request to the new HTTP server.
-  
-NOTE: don't forget to delete the old services and create the new ones with the
-updated parameters.
-
-===== create web pages
-
-in order to make the webserver responding to the URL with given paths, we can
-create some web pages with file names being same as the `path`: `dev`, `qa`,
-`abc` and etc. to make the test to return consistent output with the one
-returned by the old server, we simply use the same template for our web page.
-make sure to change the IP address and Hostname to the value of the pod that
-this file is going to be copied to. for example pod `webserver-1-846c9ccb8b-wns77` is
-with IP `10.47.255.236`, so we generate a file `dev` for this pod:
-
-.generate a webpage `dev`
-----
-cat <<EOF > dev
-<html>
-<style>
-  h1   {color:green}
-  h2   {color:red}
-</style>
-  <div align="center">
-  <head>
-    <title>Contrail Pod</title>
-  </head>
-  <body>
-    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
-    pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    webserver-1-846c9ccb8b-wns77</h3>
-    <img src="/static/giphy.gif">
-  </body>
-  </div>
-</html>
-EOF
-----
-
-.copy the webpage into the backend pod
-
-----
-$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/dev
-$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/qa
-$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/abc
-$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- ls -lt
-total 24
--rw-r--r--. 1 root root 364 Aug 13 06:26 abc    #<---
--rw-r--r--. 1 root root 364 Aug 13 06:26 dev    #<---
--rw-r--r--. 1 root root 364 Aug 13 06:26 qa     #<---
--rw-r--r--. 1 root root 937 Apr 21  2017 app.py
-drwxr-xr-x. 2 root root  23 Apr 21  2017 static
--rw-r--r--. 1 root root 254 Apr  6  2017 Dockerfile
--rw-r--r--. 1 root root   6 Apr  6  2017 requirements.txt
-----
-
-similarly, just change the IP and Hostname of this webpage to the vaule of the
-other backend pod and then copy into it:
-
-//$ sed 's/10.47.255.236/10.47.255.235/g; s/webserver-846c9ccb8b-wns77/Vwebserver-2-846c9ccb8b-t75d8/g' dev > dev2
-
-----
-$ sed 's/10.47.255.236/10.47.255.235/g' dev > temp
-$ sed 's/webserver-1-846c9ccb8b-wns77/webserver-2-846c9ccb8b-t75d8/g' temp > dev2
-$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/dev
-$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/qa
-$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/abc
-$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- ls -lt
-total 24
--rw-r--r--. 1 root root 366 Aug 13 06:39 abc    #<---
--rw-r--r--. 1 root root 366 Aug 13 06:39 dev    #<---
--rw-r--r--. 1 root root 366 Aug 13 06:39 qa     #<---
--rw-r--r--. 1 root root 937 Apr 21  2017 app.py
-drwxr-xr-x. 2 root root  23 Apr 21  2017 static
--rw-r--r--. 1 root root 254 Apr  6  2017 Dockerfile
--rw-r--r--. 1 root root   6 Apr  6  2017 requirements.txt
-----
-
-TIP: we create a page `abc` that has no corresponding path to test the scenario
-when incoming HTTP request contains an "unknown" path.
-
-===== start new web server
-
-for each pod open a seperate terminal, then start a web server with python
-module `SimpleHTTPServer`, listening on port 90:
-
-----
-$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- python -m SimpleHTTPServer 90
-Serving HTTP on 0.0.0.0 port 90 ...
-$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- python -m SimpleHTTPServer 90
-Serving HTTP on 0.0.0.0 port 90 ...
-----
-
-////
-create some files with name being same as the `paths`: `dev`, `qa`, and `abc`.
-
-----
-kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > dev"
-kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > qa"
-kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > abc"
-kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > dev"
-kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > qa"
-kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > abc"
-----
-
-////
-
-===== the new all-in-one yaml file
-
-the last step before testing our Ingress is to update the previous services
-`targetPort` 80 in the "all-in-one" yaml file with the new HTTP server's port
-90. delete the current services and apply the updated all-in-one yaml file
-again:
-
-.updated yaml file ingress-simple-fanout2.yaml (diff only)
-----
-$ diff ingress-simple-fanout.yaml ingress-simple-fanout2.yaml
-26c26
-<     targetPort: 80
----
->     targetPort: 90
-38c38
-<     targetPort: 80
----
->     targetPort: 90
-----
-
-.delete the old services and apply yaml file again
-----
-$ kubectl delete svc/webservice-1
-service "webservice-1" deleted
-
-$ kubectl delete svc/webservice-2
-service "webservice-2" deleted
-
-$ kubectl apply -f ingress/ingress-simple-fanout2.yaml
-ingress.extensions/ingress-sf unchanged
-service/webservice-1 created    #<---
-service/webservice-2 created    #<---
-deployment.extensions/webserver-1 unchanged
-deployment.extensions/webserver-2 unchanged
-----
-
-only the two services are updated and deleted, so when we apply the new yaml
-file, only these two objects are recreated - all other objects keep unchanged.
-
-===== test the URL with different paths
+.from inside of the cluster
 
 ----
 $ kubectl exec -it cirros -- \
@@ -5063,7 +4866,8 @@ kubernetes environment.
 you've seen this figure in `Ingress` section:
 
 .Ingress traffic flow: access from external
-image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
+//image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
+image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
 
 earlier we looked at the external gateway router's VRF routing table and use the
 `protocol next hop` information to find out which node get the packet from the
@@ -5211,6 +5015,9 @@ from compute nodes.
 
 ==== Internet Host: Analyze HTTP Request
 
+.Internet Host: send a HTTP request
+image::https://user-images.githubusercontent.com/2038044/64836098-93167f00-d5b6-11e9-9bc2-e4b380867d33.png[]
+
 .curl `-v`
 
 earlier we've used `curl` tool a lot to trigger HTTP requests for our test.
@@ -5307,6 +5114,9 @@ is not part of the VPN can also access the overlay networks in contrail.
 
 ==== Gateway router to Ingress Public FIP: MPLS over GRE
 //of active haproxy node: MPLS over GRE
+
+.gateway router to Ingress public FIP
+image::https://user-images.githubusercontent.com/2038044/64836185-f7d1d980-d5b6-11e9-9aa3-90866cb36dd3.png[]
 
 earlier in Ingress section we've seen gateway router's routing table, from the
 "protocol next hop" we can find out that the packet will be sent to active
@@ -5406,6 +5216,10 @@ traverses gateway router, and via MPLSoGRE tunnel it hit the Ingress external
 VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
 
 ==== Ingress Public FIP to Ingress Pod IP: FIP(NAT)
+
+.Ingress public FIP to Ingress Pod IP
+image::https://user-images.githubusercontent.com/2038044/64836244-25b71e00-d5b7-11e9-88d4-269942f99163.png[]
+
 //on active haproxy node: NAT
 ////
 ----
@@ -5470,6 +5284,9 @@ between.
 
 ==== Ingress Pod IP to Service IP: MPLS over UDP
 //on active haproxy node 
+
+.Ingress pod IP to service IP
+image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
 
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
@@ -5546,6 +5363,9 @@ where all backend pod is sitting. next we'll look at what will happen in
 destination node.
 
 ==== Service IP to Backend Pod IP: FIP(NAT)
+
+.service IP to backend pod IP
+image::https://user-images.githubusercontent.com/2038044/64836348-79296c00-d5b7-11e9-9757-2cdc4028c41d.png[]
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
@@ -7054,4 +6874,236 @@ Jun 14 23:07:34 csrx1-sc flowd-0x2[374]: RT_FLOW: RT_FLOW_SESSION_CREATE: sessio
 Jun 14 23:07:35 csrx1-sc flowd-0x2[374]: RT_FLOW: RT_FLOW_SESSION_CLOSE: session closed TCP FIN: 10.10.10.1/47190->10.20.20.1/80 0x0 junos-http 10.10.10.1/47190->10.20.20.1/80 0x0 N/A N/A N/A N/A 6 only-http-s trust untrust 5434 14(940) 12(12452) 2 UNKNOWN UNKNOWN N/A(N/A) ge-0/0/1.0 UNKNOWN N/A N/A -1
 ----
 
+////
 
+===== problem of old method
+
+we'll compose similar curl commands to test `simple fanout Ingress`. this time
+we give different paths and see how Ingress distribute them.
+
+----
+$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server.  If you entered the URL
+manually please check your spelling and try again.</p>
+----
+
+it doesn't work!
+
+the reason is our webserver coming with the backend pods does not support the
+`path` `dev` or `qa` in the URL. 
+
+[TIP]
+=====
+checking the webserver's code reveals the issue:
+
+----
+$ kubectl exec -it webserver-1-846c9ccb8b-wns77 bash
+root@webserver-1-846c9ccb8b-wns77:/app# ls
+Dockerfile  app.py  requirements.txt  static
+root@webserver-1-846c9ccb8b-wns77:/app# cat app.py
+# Simple Web-Server
+from flask import Flask
+import subprocess
+app = Flask(__name__)
+def workers():
+    cmd_ip = 'ifconfig | sed -n 2p | cut -d ":" -f2 | cut -d " " -f1 | tr -d "\n"'
+    cmd_hostname = 'hostname | tr -d "\n"'
+    ip_addr = str(subprocess.check_output(cmd_ip, shell=True))
+    hostname = str(subprocess.check_output(cmd_hostname, shell=True))
+    return '''
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b> pod</h2><br><h3>IP address = ''' + ip_addr + '''<br>Hostname = ''' + hostname + '''</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+'''
+@app.route('/')                 #<---
+def root():
+    return workers()
+@app.route('/contrail')         #<---
+def contrail():
+    return workers()
+if __name__ == '__main__':
+    app.run(debug=True,host='0.0.0.0', port=80)
+----
+
+in the code only path `/` and `/contrail` is supported.
+
+=====
+
+===== workaround
+
+there are several ways to workaround the problem:
+
+* change the current server code and restart the server
+* create a new server that supports URLs with the 2 paths
+
+in this section we will demonstrate how to use an existing python module to
+create a HTTP server, and make it to serve the "path" that we give in the URL:
+
+* in each backend pods we'll create a new HTTP server.
+* the server is created from python module `SimpleHTTPServer` coming with
+  the webserver image of each pods.
+* to avoid confliction, the new HTTP servers will listen on a different port
+  other than default port `80`, which had been used by the existing server
+  process.
+* accordingly, we update the `targetPort` (from `80` to `90`) of `service` in
+  order to deliver the request to the new HTTP server.
+  
+NOTE: don't forget to delete the old services and create the new ones with the
+updated parameters.
+
+===== create web pages
+
+in order to make the webserver responding to the URL with given paths, we can
+create some web pages with file names being same as the `path`: `dev`, `qa`,
+`abc` and etc. to make the test to return consistent output with the one
+returned by the old server, we simply use the same template for our web page.
+make sure to change the IP address and Hostname to the value of the pod that
+this file is going to be copied to. for example pod `webserver-1-846c9ccb8b-wns77` is
+with IP `10.47.255.236`, so we generate a file `dev` for this pod:
+
+.generate a webpage `dev`
+----
+cat <<EOF > dev
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
+    pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
+    webserver-1-846c9ccb8b-wns77</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+EOF
+----
+
+.copy the webpage into the backend pod
+
+----
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/dev
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/qa
+$ kubectl cp dev Vwebserver-1-846c9ccb8b-wns77:/app/abc
+$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- ls -lt
+total 24
+-rw-r--r--. 1 root root 364 Aug 13 06:26 abc    #<---
+-rw-r--r--. 1 root root 364 Aug 13 06:26 dev    #<---
+-rw-r--r--. 1 root root 364 Aug 13 06:26 qa     #<---
+-rw-r--r--. 1 root root 937 Apr 21  2017 app.py
+drwxr-xr-x. 2 root root  23 Apr 21  2017 static
+-rw-r--r--. 1 root root 254 Apr  6  2017 Dockerfile
+-rw-r--r--. 1 root root   6 Apr  6  2017 requirements.txt
+----
+
+similarly, just change the IP and Hostname of this webpage to the vaule of the
+other backend pod and then copy into it:
+
+//$ sed 's/10.47.255.236/10.47.255.235/g; s/webserver-846c9ccb8b-wns77/Vwebserver-2-846c9ccb8b-t75d8/g' dev > dev2
+
+----
+$ sed 's/10.47.255.236/10.47.255.235/g' dev > temp
+$ sed 's/webserver-1-846c9ccb8b-wns77/webserver-2-846c9ccb8b-t75d8/g' temp > dev2
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/dev
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/qa
+$ kubectl cp dev2 Vwebserver-2-846c9ccb8b-t75d8:/app/abc
+$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- ls -lt
+total 24
+-rw-r--r--. 1 root root 366 Aug 13 06:39 abc    #<---
+-rw-r--r--. 1 root root 366 Aug 13 06:39 dev    #<---
+-rw-r--r--. 1 root root 366 Aug 13 06:39 qa     #<---
+-rw-r--r--. 1 root root 937 Apr 21  2017 app.py
+drwxr-xr-x. 2 root root  23 Apr 21  2017 static
+-rw-r--r--. 1 root root 254 Apr  6  2017 Dockerfile
+-rw-r--r--. 1 root root   6 Apr  6  2017 requirements.txt
+----
+
+TIP: we create a page `abc` that has no corresponding path to test the scenario
+when incoming HTTP request contains an "unknown" path.
+
+===== start new web server
+
+for each pod open a seperate terminal, then start a web server with python
+module `SimpleHTTPServer`, listening on port 90:
+
+----
+$ kubectl exec -it Vwebserver-1-846c9ccb8b-wns77 -- python -m SimpleHTTPServer 90
+Serving HTTP on 0.0.0.0 port 90 ...
+$ kubectl exec -it Vwebserver-2-846c9ccb8b-t75d8 -- python -m SimpleHTTPServer 90
+Serving HTTP on 0.0.0.0 port 90 ...
+----
+
+////
+create some files with name being same as the `paths`: `dev`, `qa`, and `abc`.
+
+----
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > dev"
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > qa"
+kubectl exec -it Vwebserver-1-846c9ccb8b-s2zn9 -- bash -c "echo Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249 > abc"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > dev"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > qa"
+kubectl exec -it Vwebserver-2-846c9ccb8b-k9x26 -- bash -c "echo Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248 > abc"
+----
+
+////
+
+===== the new all-in-one yaml file
+
+the last step before testing our Ingress is to update the previous services
+`targetPort` 80 in the "all-in-one" yaml file with the new HTTP server's port
+90. delete the current services and apply the updated all-in-one yaml file
+again:
+
+.updated yaml file ingress-simple-fanout2.yaml (diff only)
+----
+$ diff ingress-simple-fanout.yaml ingress-simple-fanout2.yaml
+26c26
+<     targetPort: 80
+---
+>     targetPort: 90
+38c38
+<     targetPort: 80
+---
+>     targetPort: 90
+----
+
+.delete the old services and apply yaml file again
+----
+$ kubectl delete svc/webservice-1
+service "webservice-1" deleted
+
+$ kubectl delete svc/webservice-2
+service "webservice-2" deleted
+
+$ kubectl apply -f ingress/ingress-simple-fanout2.yaml
+ingress.extensions/ingress-sf unchanged
+service/webservice-1 created    #<---
+service/webservice-2 created    #<---
+deployment.extensions/webserver-1 unchanged
+deployment.extensions/webserver-2 unchanged
+----
+
+only the two services are updated and deleted, so when we apply the new yaml
+file, only these two objects are recreated - all other objects keep unchanged.
+
+////
