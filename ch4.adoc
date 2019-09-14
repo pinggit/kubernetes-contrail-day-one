@@ -143,11 +143,45 @@ of object mapping
 //image::https://user-images.githubusercontent.com/2038044/60748774-6bc08780-9f5f-11e9-91ae-2ec496cab987.png[]
 image::https://user-images.githubusercontent.com/2038044/63705887-1cc6fe00-c7fc-11e9-8c4f-733676cf663a.png[]
 
-== Contrail Command
-Before getting into deeper, we just want to introduce contrail-command(CC) which
+== Contrail Lab environment
+
+=== Contrail Setup
+
+before starting our investigation, let's look at our setup. in this book we
+build a setup including the following devices, most of our case studies are
+based on it:
+
+* one cenos server running as k8s `master` and contrail controllers
+* two cenos servers, each running as a k8s `node` and contrail vrouter
+* one Juniper QFX switch running as the underlay "leaf"
+* one Juniper MX router running as a gateway router, or a "spine"
+* one centos server runs as an Internet host machine
+
+the digaram is here:
+
+//image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
+image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
+
+TIP: To minimize the resource utilization, all "servers" are actually centos
+virtual machines created by vmware ESXI hypervisor running in one physical HP
+server.
+
+in appendix you will find all details about the setup. the prerequisites,
+software/hardware specifications, sample configuration files, and installation
+steps. following the steps you will be able to build a same setup in your lab.
+
+=== Contrail Command
+
+Before getting into deeper, we just want to introduce briefly contrail-command(CC) which
 is the new user interface (UI) available from contrail 5.0.1. throughout this book
 we use both CC and old UI to demonstrate most of lab studies. just keep in mind that
 in the future CC will be the only UI and the "legacy" one will be deprecated. 
+
+detail information about CC is available in Juniper documentation website so we
+won't elaborate it here.  to access CC use this URL in web browser:
+https://Contrail-Command-Server-IP-Address:9091 the "Contrail-Command-Server"
+can be the same or different server as kubernetes master or contrail controller
+node. in our setup we've installed them in same server.
 
 in CC, the functions and settings are groups in a a "main menu". it is also the
 entry point from where you can navigate through different functions. 
@@ -556,7 +590,7 @@ kubernetes integration a FIP-VN can now be created in a "kubernetes style":
 .create a public FIP-VN named `vn-ns-default`
 
 ----
-$ cat vn-ns-default.yaml
+#vn-ns-default.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -698,6 +732,7 @@ pool.  same way as kubernetes annotations object is used to give a subnet to a
 VN, it is also used to specify a FIP pool. the yaml file looks:
 
 ----
+#ns-user-1-default-pool.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -901,6 +936,57 @@ the FIP advertisement process is illustrated in this figure below:
 .FIP advertisement
 //image::https://user-images.githubusercontent.com/2038044/63262377-c5e98380-c253-11e9-996f-27eecb0df931.png[]
 image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
+
+=== summarization
+
+in this section we created the following objects:
+
+. NS: `ns-user-1`
+. FIP-VN: `vn-ns-default`
+. FIP-pool: `pool-ns-default`
+. client pod: `cirros`
+
+what will hold all of our test objects is the `ns-user-1` NS/project, which
+refers to a NS level pool `pool-ns-default` that is to be created manually.  the
+NS level pool is based on a VN `vn-ns-default` that has subnet `101.101.101/24`.
+FIP for objects created in NS `ns-user-1` will be assigned from this subnet. 
+//a pod `cirros` is needed to start the internal HTTP request towards the Ingress.
+
+[NOTE]
+====
+if you have yaml files ready for the NS, FIP-VN and cirros pod, to create these
+object:
+
+----
+$ kubectl apply -f ns/ns-user-1-default-pool.yaml
+namespace/ns-user-1 created
+$ kubectl apply -f vn/vn-ns-default.yaml
+networkattachmentdefinition.k8s.cni.cncf.io/vn-ns-default created
+----
+//$ kubectl apply -f pod/pod-cirros.yaml
+//pod/cirros created
+
+TIP: the FIP-pool needs to be created seperately in contrail UI. refer "contrail
+floating IP" section for the details.
+
+====
+
+////
+----
+$ kubectl apply -f ingress/ingress-simple-fanout.yaml
+ingress.extensions/ingress-sf created
+----
+////
+
+//in order to create and test Service and Ingress, we will also need to create the following
+//objects in our setup before creating Service and Ingress:
+
+with these objects we now have a NS associated with a FIP pool. from inside of
+this NS we can proceed to create and study more other kubernetes objects. Next
+we'll look at `Service`.
+
+NOTE: In this book, all tests that we are going to demonstrate in `service` and
+`Ingress` section will be created under this `ns-user-1` NS.
 
 == Contrail Services
 
@@ -1337,32 +1423,6 @@ mapping between loadbalancer and listener shown in the loadbalancer object
 figure, we'll also give an example of a "multiple port service" in
 our setup.  we'll conclude the ClusterIP service section by inspecting the
 vrouter flow table to illustrate the service packet workflow.
-
-=== Contrail Service Setup
-
-before starting our investigation, let's look at our setup. in this book we
-build a setup including the following devices, most of our case studies are
-based on it:
-
-* one cenos server running as k8s `master` and contrail controllers
-* two cenos servers, each running as a k8s `node` and contrail vrouter
-* one Juniper QFX switch running as the underlay "leaf"
-* one Juniper MX router running as a gateway router, or a "spine"
-* one centos server runs as an Internet host machine
-
-the digaram is here:
-
-//image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
-image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
-
-
-NOTE: To minimize the resource utilization, all "servers" are actually centos
-virtual machines created by vmware ESXI hypervisor running in one physical HP
-server. this is also the same testbed for ingress.
-
-in appendix you will find all details about the setup. the prerequisites,
-software/hardware specifications, sample configuration files, and installation
-steps. following the steps you will be able to build a same setup in your lab.
 
 === Contrail ClusterIP Service
 
@@ -2694,60 +2754,6 @@ contrail supports all 3 types of ingress:
 * name-based virtual hosting ingress.
 
 we'll look into each type of ingress.
-
-=== Ingress Setup
-
-in our lab we use the same testbed as what we use for `service` test:
-
-//TODO: redraw with color
-.Ingress testbed
-//image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
-image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
-
-.Ingress test preparation
-
-in order to create and test Ingress, we will also need to create the following
-objects in our setup before creating Ingress:
-
-. NS: `ns-user-1`
-. FIP-VN: `vn-ns-default`
-. FIP-pool: `pool-ns-default`
-. client pod: `cirros`
-
-what will hold all of our test objects is the `ns-user-1` NS/project, which
-refers to a NS level pool `pool-ns-default` that is to be created manually.  the
-NS level pool is based on a VN `vn-ns-default` that has subnet `101.101.101/24`.
-later on you will see FIP for Ingress get assigned from this subnet. a pod
-`cirros` is needed to start the internal HTTP request towards the Ingress.
-
-[NOTE]
-====
-if you have yaml files ready for the NS, FIP-VN and cirros pod, to create these
-object:
-
-----
-$ kubectl apply -f ns/ns-user-1-default-pool.yaml
-namespace/ns-user-1 created
-$ kubectl apply -f vn/vn-ns-default.yaml
-networkattachmentdefinition.k8s.cni.cncf.io/vn-ns-default created
-$ kubectl apply -f pod/pod-cirros.yaml
-pod/cirros created
-----
-
-the FIP-pool needs to be created seperately in contrail UI. refer "contrail
-floating IP" section for the details
-
-====
-
-////
-----
-$ kubectl apply -f ingress/ingress-simple-fanout.yaml
-ingress.extensions/ingress-sf created
-----
-////
-
-after these objects are created, we can proceed to look into each type of
-Ingress object. next we'll start from `single service Ingress`.
 
 === Single Service Ingress
 
