@@ -1630,12 +1630,12 @@ Id:87         Type:Composite      Fmly: AF_INET  Rid:0  Ref_cnt:2          Vrf:2
               Valid Hash Key Parameters: Proto,SrcIP,SrcPort,DstIp,DstPort
               Sub NH(label): 51(43) 37(28)              #<---
 
-Id:43         Type:Tunnel         Fmly: AF_INET  Rid:0  Ref_cnt:18         Vrf:0
+Id:51         Type:Tunnel         Fmly: AF_INET  Rid:0  Ref_cnt:18         Vrf:0
               Flags:Valid, MPLSoUDP, Etree Root,        #<---
               Oif:0 Len:14 Data:00 50 56 9e e6 66 00 50 56 9e 62 25 08 00
               Sip:10.169.25.20 Dip:10.169.25.21
 
-Id:28         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:5          Vrf:2
+Id:37         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:5          Vrf:2
               Flags:Valid, Etree Root,
               EncapFmly:0806 Oif:8 Len:14               #<---
               Encap Data: 02 30 51 c0 fc 9e 00 00 5e 00 01 00 08 00
@@ -1646,12 +1646,12 @@ some important information to highlight from this capture:
 * NHID 87 is an "ECMP composite nexthop"
 * the ECMP nexthop contains 2 "sub" nexthops: nexthop 43 and nexthop 28, each
   representing a seperate path towards the backend pods
-* nexthop 43 represents a "MPLSoUDP" tunnel toward backend pod in the remote
+* nexthop 51 represents a "MPLSoUDP" tunnel toward backend pod in the remote
   node, the tunnel is established from current node `cent222`, with source IP
   being local fabric IP `10.169.25.20`, to the other node `cent333` whose fabric
   IP is `10.169.25.21`. if you recall where our two backend pods are located,
   this is the forwarding path between the 2 nodes.
-* nexthop 28 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
+* nexthop 37 represents a "local" path, towards vif 0/8 (`Oif:8`), which is the
   local backend pod's interface. 
 
 to resolve the vrouter `vif` interface,  use `vif --get 8` command:
@@ -1679,8 +1679,8 @@ figure:
 //image::https://user-images.githubusercontent.com/2038044/60762382-97f60a00-a02c-11e9-81ad-b1f05d815571.png[]
 //image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-11e9-8cec-41d5e177bfb9.png[]
 //image::https://user-images.githubusercontent.com/2038044/63705462-3287f380-c7fb-11e9-9055-a9f3002708b2.png[]
-image::https://user-images.githubusercontent.com/2038044/63705594-885c9b80-c7fb-11e9-897b-ee55e0d7a70f.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/63705594-885c9b80-c7fb-11e9-897b-ee55e0d7a70f.png[]
+image::https://user-images.githubusercontent.com/2038044/64903204-b575ce80-d682-11e9-88fc-139869511aeb.png[]
 
 this is what happened in the forwarding plane:
 
