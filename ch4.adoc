@@ -5172,13 +5172,13 @@ Listing flows matching ([15.15.15.2]:*)
 
     Index                Source:Port/Destination:Port                      Proto(V)
  ----------------------------------------------------------------------------------
-   114272<=>459264       15.15.15.2:58282                                    6 (2->2)
+   114272<=>459264       15.15.15.2:42786                                    6 (2->2)
                          101.101.101.1:80
 (Gen: 3, K(nh):89, Action:N(D), Flags:, TCP:SSrEEr, QOS:-1, S(nh):61,
  Stats:2/112,  SPort 50985, TTL 0, Sinfo 192.168.0.204)
 
    459264<=>114272       10.47.255.238:80                                    6 (2->5)
-                         15.15.15.2:58282
+                         15.15.15.2:42786
 (Gen: 1, K(nh):89, Action:N(S), Flags:, TCP:SSrEEr, QOS:-1, S(nh):89,
  Stats:1/74,  SPort 60289, TTL 0, Sinfo 8.0.0.0)
 
@@ -5210,6 +5210,13 @@ client to active haproxy. let's first look at the first entry in the capture:
 * `TCP:SSrEEr` is TCP flags showing the state of this the TCP connection.
   vrouter detected the `SYN` (`S`), `SYN-ACK` (`Sr`), so bidirectional
   connection is established (`EEr`).
+
+////
+TODO: why 2->2, should be 2-5?
+* `Proto(V)` indicates the protocol type of the traffic that reaches the
+  vrouter's corresponding VRF. in this case protocol `6` means `TCP` because
+  this is HTTP request. `(2->2)` indicates the packet come ?
+////
 
 overall the first flow entry confirms: the request packet from Internet host
 traverses gateway router, and via MPLSoGRE tunnel it hit the Ingress external
@@ -5301,24 +5308,33 @@ the haproxy.  what the haproxy supposes to do is:
 * between compute node the forwarding path is programmed with MPLSoUDP tunnel,
   so vrouter sends it through MPLS over UDP tunnel with right MPLS Label.
 
+.Ingress loadbalancer's VRF table
+image::https://user-images.githubusercontent.com/2038044/64873035-46fb2700-d616-11e9-866f-a252a0f5c2c3.png[]
+
 please note that all traffic from Ingress to service happens in overlay. between
 contrail compute nodes that means all overlay packets should be encapsulated in
 MPLS over UDP tunnel. to verify haproxy process packet processing details, we
 capture packets on the physical interface of node `cent222`, where the active
 haproxy process is running.
 
+with a wireshark display filter `ip.addr == 10.47.255.238`, we can get the
+underlay TCP flow:
+
+.packet capture on active haproxy node `cent222` fabric interface
+
 //image::https://user-images.githubusercontent.com/2038044/60518123-e1ea9300-9cae-11e9-82ec-d341e32e42c8.png[]
-image::https://user-images.githubusercontent.com/2038044/60539848-aadea680-9cdb-11e9-8896-c4824d17dd9d.png[]
+//image::https://user-images.githubusercontent.com/2038044/60539848-aadea680-9cdb-11e9-8896-c4824d17dd9d.png[]
+image::https://user-images.githubusercontent.com/2038044/64902003-ee577880-d66d-11e9-8aaf-f4aab850f7b5.png[]
 
 from the wireshark screenshot, we see clearly that:
 
-* frame 38-40, Ingress private podIP established a new TCP connection toward
+* frame 43-45, Ingress private podIP established a new TCP connection toward
   service IP and port, this happens in overlay.
-* frame 41, on the new TCP connection, haproxy start a HTTP request to the
+* frame 46, on the new TCP connection, haproxy start a HTTP request to the
   service IP. 
-* frame 44, the HTTP response returns back.
+* frame 50, the HTTP response returns back.
 
-frame 41 is also the one we use as an example to show the packet encapsulation.
+frame 46 is also the one we use as an example to show the packet encapsulation.
 you will see this IP packet containing the HTTP request is MPLS-labeled, and it
 is embedded inside of a UDP datagram. the "outer" source and destination IP of
 the packet are `10.169.25.20` (compute node `cent222`) and `10.169.25.21`
@@ -5353,8 +5369,28 @@ layer) loadbalancing. what it does is:
   "paste" into the new TCP connection with its backend. precisely speaking, the
   http request is "proxied", not "forwarded".
 
-//capture on haproxy interface
+extending the wireshark display filter to include both `15.15.15.2` and
+`101.101.101.1` will discover the "whole story":
+
+.packet capture on active haproxy node `cent222` fabric interface: the "whole story"
 //image::https://user-images.githubusercontent.com/2038044/60540296-d1e9a800-9cdc-11e9-8914-fbe4fc59ae60.png[]
+//image::https://user-images.githubusercontent.com/2038044/64901844-bea77100-d66b-11e9-9ee2-9a8436bd9a55.png[]
+image::https://user-images.githubusercontent.com/2038044/64902086-0e3b6c00-d66f-11e9-83bd-9aac0842d545.png[]
+
+* frame 39-41: Internet host established a TCP connection toward Ingress
+  external public FIP
+* frame 42: Internet host send HTTP request
+* frame 43-52: active haproxy establish a new TCP connection toward service,
+  send the HTTP request, retrieve the HTTP response, and close the connection
+* frame 53-54: active haproxy send the HTTP response back to Internet host
+* frame 55-57: Internet host close the HTTP connection
+
+here we use frame 42 to display the MPLS over GRE encapsulation between active
+haproxy node cent222 and gateway router. comparing with frame 46 in the previous
+screenshot, you will notice this is a different label. the MPLS label carried in
+the GRE tunnel will be stripped before vrouter deliever the packet to the active
+haproxy. a new label will be assigned when active haproxy start a new TCP
+session to the remote node.
 
 at the moment we know the http request is "proxied" to haproxy's backend.
 according to Ingress configuration that backend is a kubernetes `service`. now,
@@ -5393,11 +5429,11 @@ Listing flows matching ([10.47.255.238]:*)
     Index                Source:Port/Destination:Port                      Proto(V)
  ----------------------------------------------------------------------------------
    403188<=>462132       10.47.255.236:80                                    6 (2->4)
-                         10.47.255.238:57760
+                         10.47.255.238:54500
 (Gen: 1, K(nh):23, Action:N(SPs), Flags:, TCP:SSrEEr, QOS:-1, S(nh):23,
  Stats:2/140,  SPort 52190, TTL 0, Sinfo 4.0.0.0)
 
-   462132<=>403188       10.47.255.238:57760                                 6 (2->2)
+   462132<=>403188       10.47.255.238:54500                                 6 (2->2)
                          10.99.225.17:8888
 (Gen: 1, K(nh):23, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):26,
  Stats:3/271,  SPort 65421, TTL 0, Sinfo 10.169.25.20)
@@ -5437,13 +5473,13 @@ the packet interaction between the Ingress intenral IP and backend podID.
 ----
 $ tcpdump -ni tapeth0-baa392 -v
 12:01:07.701956 IP (tos 0x0, ttl 63, id 32663, offset 0, flags [DF], proto TCP (6), length 60)
-    10.47.255.238.51968 > 10.47.255.236.http: Flags [S], cksum 0xd88d (correct), seq 2129282145, win 29200, options [mss 1420,sackOK,TS val 515783670 ecr 0,nop,wscale 7], length 0
+    10.47.255.238.54500 > 10.47.255.236.http: Flags [S], cksum 0xd88d (correct), seq 2129282145, win 29200, options [mss 1420,sackOK,TS val 515783670 ecr 0,nop,wscale 7], length 0
 12:01:07.702012 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
-    10.47.255.236.http > 10.47.255.238.51968: Flags [S.], cksum 0x1468 (incorrect -> 0x8050), seq 3925744891, ack 2129282146, win 28960, options [mss 1460,sackOK,TS val 515781436 ecr 515783670,nop,wscale 7], length 0
+    10.47.255.236.http > 10.47.255.238.54500: Flags [S.], cksum 0x1468 (incorrect -> 0x8050), seq 3925744891, ack 2129282146, win 28960, options [mss 1460,sackOK,TS val 515781436 ecr 515783670,nop,wscale 7], length 0
 12:01:07.702300 IP (tos 0x0, ttl 63, id 32664, offset 0, flags [DF], proto TCP (6), length 52)
-    10.47.255.238.51968 > 10.47.255.236.http: Flags [.], cksum 0x1f57 (correct), ack 1, win 229, options [nop,nop,TS val 515783671 ecr 515781436], length 0
+    10.47.255.238.54500 > 10.47.255.236.http: Flags [.], cksum 0x1f57 (correct), ack 1, win 229, options [nop,nop,TS val 515783671 ecr 515781436], length 0
 12:01:07.702304 IP (tos 0x0, ttl 63, id 32665, offset 0, flags [DF], proto TCP (6), length 159)
-    10.47.255.238.51968 > 10.47.255.236.http: Flags [P.], cksum 0x6fac (correct), seq 1:108, ack 1, win 229, options [nop,nop,TS val 515783671 ecr 515781436], length 107: HTTP, length: 107
+    10.47.255.238.54500 > 10.47.255.236.http: Flags [P.], cksum 0x6fac (correct), seq 1:108, ack 1, win 229, options [nop,nop,TS val 515783671 ecr 515781436], length 107: HTTP, length: 107
         GET / HTTP/1.1
         User-Agent: curl/7.29.0
         Accept: */*
@@ -5451,18 +5487,18 @@ $ tcpdump -ni tapeth0-baa392 -v
         X-Forwarded-For: 15.15.15.2
 
 12:01:07.702336 IP (tos 0x0, ttl 64, id 12224, offset 0, flags [DF], proto TCP (6), length 52)
-    10.47.255.236.http > 10.47.255.238.51968: Flags [.], cksum 0x1460 (incorrect -> 0x1eee), ack 108, win 227, options [nop,nop,TS val 515781436 ecr 515783671], length 0
+    10.47.255.236.http > 10.47.255.238.54500: Flags [.], cksum 0x1460 (incorrect -> 0x1eee), ack 108, win 227, options [nop,nop,TS val 515781436 ecr 515783671], length 0
 12:01:07.711882 IP (tos 0x0, ttl 64, id 12225, offset 0, flags [DF], proto TCP (6), length 69)
-    10.47.255.236.http > 10.47.255.238.51968: Flags [P.], cksum 0x1471 (incorrect -> 0x5f06), seq 1:18, ack 108, win 227, options [nop,nop,TS val 515781446 ecr 515783671], length 17: HTTP, length: 17
+    10.47.255.236.http > 10.47.255.238.54500: Flags [P.], cksum 0x1471 (incorrect -> 0x5f06), seq 1:18, ack 108, win 227, options [nop,nop,TS val 515781446 ecr 515783671], length 17: HTTP, length: 17
         HTTP/1.0 200 OK
 12:01:07.712032 IP (tos 0x0, ttl 64, id 12226, offset 0, flags [DF], proto TCP (6), length 550)
-    10.47.255.236.http > 10.47.255.238.51968: Flags [FP.], cksum 0x1652 (incorrect -> 0x1964), seq 18:516, ack 108, win 227, options [nop,nop,TS val 515781446 ecr 515783671], length 498: HTTP
+    10.47.255.236.http > 10.47.255.238.54500: Flags [FP.], cksum 0x1652 (incorrect -> 0x1964), seq 18:516, ack 108, win 227, options [nop,nop,TS val 515781446 ecr 515783671], length 498: HTTP
 12:01:07.712152 IP (tos 0x0, ttl 63, id 32666, offset 0, flags [DF], proto TCP (6), length 52)
-    10.47.255.238.51968 > 10.47.255.236.http: Flags [.], cksum 0x1ec7 (correct), ack 18, win 229, options [nop,nop,TS val 515783681 ecr 515781446], length 0
+    10.47.255.238.54500 > 10.47.255.236.http: Flags [.], cksum 0x1ec7 (correct), ack 18, win 229, options [nop,nop,TS val 515783681 ecr 515781446], length 0
 12:01:07.712192 IP (tos 0x0, ttl 63, id 32667, offset 0, flags [DF], proto TCP (6), length 52)
-    10.47.255.238.51968 > 10.47.255.236.http: Flags [F.], cksum 0x1ccb (correct), seq 108, ack 517, win 237, options [nop,nop,TS val 515783681 ecr 515781446], length 0
+    10.47.255.238.54500 > 10.47.255.236.http: Flags [F.], cksum 0x1ccb (correct), seq 108, ack 517, win 237, options [nop,nop,TS val 515783681 ecr 515781446], length 0
 12:01:07.712202 IP (tos 0x0, ttl 64, id 12227, offset 0, flags [DF], proto TCP (6), length 52)
-    10.47.255.236.http > 10.47.255.238.51968: Flags [.], cksum 0x1460 (incorrect -> 0x1cd5), ack 109, win 227, options [nop,nop,TS val 515781446 ecr 515783681], length 0
+    10.47.255.236.http > 10.47.255.238.54500: Flags [.], cksum 0x1460 (incorrect -> 0x1cd5), ack 109, win 227, options [nop,nop,TS val 515781446 ecr 515783681], length 0
 ----
 
 ////
@@ -5533,8 +5569,8 @@ into a bridge, assigning IP, configuring routes, and so on.
 
 //TODO: need redraw
 .container and veth pair
-image::https://user-images.githubusercontent.com/2038044/60554760-ee9ad580-9d06-11e9-9628-f01af759f6e1.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/60554760-ee9ad580-9d06-11e9-9628-f01af759f6e1.png[]
+image::https://user-images.githubusercontent.com/2038044/64902914-47c7a380-d67e-11e9-8f2d-b3197fb003e4.png[]
 
 there are many such CNI plugin implementations that are publicly available
 today. contrail is one of them.  for a comprehensive list you can check
