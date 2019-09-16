@@ -537,7 +537,7 @@ learning process.
 .POD configuration file in YAML format
 
 ----
-$ cat pod-2containers.yaml
+# pod-2containers.yaml
 apiVersion: v1          <1>
 kind: Pod               <2>
 metadata:               <3>
@@ -555,6 +555,8 @@ spec:                   <7>
     ports:                      <15>
     - containerPort: 6379       <16>
 ----
+
+//tested. with same image (apache) both listening same port it won't work.
 
 YAML uses 3 basic data types:
 

@@ -420,36 +420,94 @@ ns-isolated       Active   79s
 ns-non-isolated   Active   73s
 ----
 
-in both NS and the default NS, create a deployment to launch a pod:
+in both NS and the default NS, create a webserver deployment to launch a
+webserver pod:
+
+////
+----
+#deployment-cirros.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: cirros
+  name: cirros1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: cirros
+  template:
+    metadata:
+      labels:
+        run: cirros
+    spec:
+      containers:
+      - image: cirros
+        imagePullPolicy: Always
+        name: cirros
+      restartPolicy: Always
+----
+////
 
 ----
-$ kubectl apply -f deployment-cirros.yaml -n default
-deployment.extensions/cirros created
+#deploy-webserver-do.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webserver
+    matchExpressions:
+      - {key: app, operator: In, values: [webserver]}
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+    spec:
+      containers:
+      - name: webserver
+        image: contrailk8sdayone/contrail-webserver
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
 
-$ kubectl apply -f deployment-cirros.yaml -n ns-non-isolated
-deployment.extensions/cirros created
+----
+$ kubectl apply -f deploy-webserver-do.yaml -n default
+deployment.extensions/webserver created
 
-$ kubectl apply -f deployment-cirros.yaml -n ns-isolated
-deployment.extensions/cirros created
+$ kubectl apply -f deploy-webserver-do.yaml -n ns-non-isolated
+deployment.extensions/webserver created
+
+$ kubectl apply -f deploy-webserver-do.yaml -n ns-isolated
+deployment.extensions/webserver created
 
 $ kubectl get pod -o wide -n default
-NAME                     READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-cirros-85fc7dd848-tjfn6  1/1    Running  0         13s  10.47.255.242  cent333  <none>
+NAME                        READY  STATUS   ... IP             NODE     ...
+webserver-85fc7dd848-tjfn6  1/1    Running  ... 10.47.255.242  cent333  ...
 
-$ kubectl get pod -o wide -n ns-non-isolated
-NAME                     READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-cirros-85fc7dd848-nrxq6  1/1    Running  0         23s  10.47.255.248  cent222  <none>
+$ kubectl get pod -o wide -n ns-non-isolated... 
+NAME                        READY  STATUS   ... IP             NODE     ...
+webserver-85fc7dd848-nrxq6  1/1    Running  ... 10.47.255.248  cent222  ...
 
 $ kubectl get pod -o wide -n ns-isolated
-NAME                     READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-cirros-85fc7dd848-6l7j2  1/1    Running  0         8s   10.47.255.239  cent222  <none>
+NAME                        READY  STATUS   ... IP             NODE     ...
+webserver-85fc7dd848-6l7j2  1/1    Running  ... 10.47.255.239  cent222  ...
 ----
 
 ping between all pods in 3 namespaces
 
 ----
 #default ns to non-isolated new ns: succeed
-$ kubectl -n default exec -it cirros1-85fc7dd848-tjfn6 -- ping 10.47.255.248
+$ kubectl -n default exec -it webserver-85fc7dd848-tjfn6 -- ping 10.47.255.248
 PING 10.47.255.248 (10.47.255.248): 56 data bytes
 64 bytes from 10.47.255.248: seq=0 ttl=63 time=1.600 ms
 ^C
@@ -458,7 +516,7 @@ PING 10.47.255.248 (10.47.255.248): 56 data bytes
 round-trip min/avg/max = 1.600/1.600/1.600 ms
 
 #default ns to isolated new ns: fail
-$ kubectl -n default exec -it cirros1-85fc7dd848-tjfn6 -- ping 10.47.255.239
+$ kubectl -n default exec -it webserver-85fc7dd848-tjfn6 -- ping 10.47.255.239
 PING 10.47.255.239 (10.47.255.239): 56 data bytes
 ^C
 --- 10.47.255.239 ping statistics ---
@@ -475,13 +533,13 @@ with the power of the `deployment` we can quickly test it out: in isolated NS
 and ping between the 2 pods:
 
 ----
-$ kubectl scale deployment cirros --replicas=2
+$ kubectl scale deployment webserver --replicas=2
 $ kubectl get pod -o wide -n ns-isolated
-NAME                     READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-cirros-85fc7dd848-6l7j2  1/1    Running  0         8s   10.47.255.239  cent222  <none>
-cirros-85fc7dd848-215k8  1/1    Running  0         8s   10.47.255.238  cent333  <none>
+NAME                        READY  STATUS   RESTARTS  AGE  IP             NODE   
+webserver-85fc7dd848-6l7j2  1/1    Running  0         8s   10.47.255.239  cent222
+webserver-85fc7dd848-215k8  1/1    Running  0         8s   10.47.255.238  cent333
 
-$ kubectl -n ns-isolated exec -it cirros-85fc7dd848-6l7j2 -- ping 10.47.255.238
+$ kubectl -n ns-isolated exec -it webserver-85fc7dd848-6l7j2 -- ping 10.47.255.238
 PING 10.47.255.238 (10.47.255.238): 56 data bytes
 64 bytes from 10.47.255.238: seq=0 ttl=63 time=1.470 ms
 ^C
@@ -944,7 +1002,7 @@ in this section we created the following objects:
 . NS: `ns-user-1`
 . FIP-VN: `vn-ns-default`
 . FIP-pool: `pool-ns-default`
-. client pod: `cirros`
+//. client pod: `cirros`
 
 what will hold all of our test objects is the `ns-user-1` NS/project, which
 refers to a NS level pool `pool-ns-default` that is to be created manually.  the
@@ -954,7 +1012,7 @@ FIP for objects created in NS `ns-user-1` will be assigned from this subnet.
 
 [NOTE]
 ====
-if you have yaml files ready for the NS, FIP-VN and cirros pod, to create these
+if you have yaml files ready for the NS and FIP-VN, to create these
 object:
 
 ----
@@ -1436,7 +1494,7 @@ illustrate the contrail service loadbalancer implementation details.
 this is the yaml file we used to create a `clusterIP` service:
 
 ----
-$ cat service-web-clusterip.yaml
+#service-web-clusterip.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1460,7 +1518,7 @@ service-web-clusterip  ClusterIP  10.105.139.153  <none>       8888/TCP  45m  ap
 ----
 $ kubectl get pod -o wide --show-labels
 NAME                        READY  STATUS   ...  IP             NODE     ...  LABELS
-cirros                      1/1    Running  ...  10.47.255.237  cent222  ...  app=cirros
+client                      1/1    Running  ...  10.47.255.237  cent222  ...  app=client
 webserver-846c9ccb8b-g27kg  1/1    Running  ...  10.47.255.238  cent333  ...  app=webserver
 ----
 
@@ -1562,7 +1620,7 @@ deployment.extensions/webserver scaled
 
 $ kubectl get pod -o wide --show-labels
 NAME                        READY  STATUS   ... IP             NODE     ... LABELS
-cirros                      1/1    Running  ... 10.47.255.237  cent222  ... app=cirros
+client                      1/1    Running  ... 10.47.255.237  cent222  ... app=client
 webserver-846c9ccb8b-7btnj  1/1    Running  ... 10.47.255.236  cent222  ... app=webserver
 webserver-846c9ccb8b-g27kg  1/1    Running  ... 10.47.255.238  cent333  ... app=webserver
 
@@ -1573,8 +1631,8 @@ service-web-clusterip   ClusterIP   10.105.139.153   <none>        8888/TCP   45
 
 immediately after you create a new webserver pod by scaling the deployment with
 `replicas 2`, a new pod is launched.  we end up having 2 backend pods now, one
-is running in same node `cent222` as the client cirros pod, or a "local" node
-for cirros pod; the other one is running in the other node `cent333` - the
+is running in same node `cent222` as the client pod, or a "local" node
+for client pod; the other one is running in the other node `cent333` - the
 "remote" node from client pod's perspective.  and the `endpoint` objects get
 updated to reflect the current set of backend pods behind the `service`.
 
@@ -1744,10 +1802,10 @@ image::https://user-images.githubusercontent.com/2038044/64903204-b575ce80-d682-
 
 this is what happened in the forwarding plane:
 
-* a client pod `cirros` located in node `cent222` needs to access a service
+* a client pod located in node `cent222` needs to access a service
   `service-web-clusterip`, it sends a packet towards the service's clusterIP
   `10.105.139.153` and port `8888`
-* `cirros` sends the packet to `node222` vrouter based on the default route.
+* `client` sends the packet to `node222` vrouter based on the default route.
 * vrouter on `node222` got the packet, it checks its corresponding VRF table, get a
   "Composite" nexthop ID `87`, which resolves to two sub-nexthops `51` and `37`,
   representing a remote and local backend pod respectively. this indicates ECMP.
@@ -1832,7 +1890,7 @@ turns out that is not the case.
 service port 8888 works:
 
 ----
-$ kubectl exec -it cirros -- curl 10.101.102.27:8888 | w3m -T text/html | cat
+$ kubectl exec -it client -- curl 10.101.102.27:8888 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.238
@@ -1843,7 +1901,7 @@ $ kubectl exec -it cirros -- curl 10.101.102.27:8888 | w3m -T text/html | cat
 service port 9999 doesn't work:
 
 ----
-$ kubectl exec -it cirros -- curl 10.101.102.27:9999 | w3m -T text/html | cat
+$ kubectl exec -it client -- curl 10.101.102.27:9999 | w3m -T text/html | cat
 command terminated with exit code 7
 curl: (7) Failed to connect to 10.101.102.27 port 9999: Connection refused
 ----
@@ -1875,11 +1933,11 @@ Serving HTTP on 0.0.0.0 port 90 ...
 ----
 
 now the `targetPort` is on, we can start the request towards service port `9999`
-again from the `cirros` pod. this time it succeed and get the returned webpage
+again from the `client` pod. this time it succeed and get the returned webpage
 from python SimpleHTTPServer.
 
 ----
-$ kubectl exec -it cirros -- curl 10.103.87.232:9999 | w3m -T text/html | cat
+$ kubectl exec -it client -- curl 10.103.87.232:9999 | w3m -T text/html | cat
 
 Directory listing for /
  ━━━━━━━━━━━━━━━━━━━━━
@@ -1893,7 +1951,7 @@ Directory listing for /
 
 for each incoming request the `SimpleHTTPServer` logs one line output, with an
 IP address showing where the request came from. in our case the request coming
-from cirros client pod is with the IP `10.47.255.237`.
+from client pod is with the IP `10.47.255.237`.
 
 ----
 10.47.255.237 - - [04/Jul/2019 23:49:44] "GET / HTTP/1.1" 200 -
@@ -1904,7 +1962,7 @@ from cirros client pod is with the IP `10.47.255.237`.
 so far we've tested clusterIP service, and we see client request is sent towards
 the service IP. in contrail environment `vrouter` is the module that does all of
 the packet forwarding job. when the `vrouter` in client pod gets the packet, it
-looks up the corresponding VRF table in vrouter module for the client pod(`cirros`),
+looks up the corresponding VRF table in vrouter module for the client pod(`client`),
 gets the nexthop and resolves the correct egress interface and proper encapsulation.
 in our test so far, the client and backend pods are in 2 different nodes, the source
 `vrouter` decides the packets need to be sent in MPLSoUDP tunnel, towards the node
@@ -1946,11 +2004,11 @@ section we will demonstrate a different method with a one-liner shell script.
 
 ====
 
-now in the cirros pod curl URL, instead of just give root path `/` to list the
+now in the client pod curl URL, instead of just give root path `/` to list the
 files in folder, we try to pull the file: `file.txt`
 
 ----
-$ kubectl exec -it cirros -- curl 10.103.87.232:9999/file.txt
+$ kubectl exec -it client -- curl 10.103.87.232:9999/file.txt
 ----
 
 in server pod we see the log indicating the file downloading starts:
@@ -1993,7 +2051,7 @@ Listing flows matching ([10.47.255.237]:*)
 
 highlights in this output:
 
-* cirros client starts TCP connection from its pod IP `10.47.255.237` and a
+* client starts TCP connection from its pod IP `10.47.255.237` and a
   rondom source port, towards the service IP `10.103.87.232` and server port
   `9999`
 * the flow TCP flag `SSrEEr` indicates the session is established
@@ -2040,7 +2098,7 @@ Listing flows matching ([10.47.255.237]:*)
 
 let's look at the second flow entry first - the IPs looks same as the one we
 just saw in client side capture.  traffic lands vrouter fabric interface from
-remote cirros client node, across MPLSoUDP tunnel. destination IP and port are
+remote client node, across MPLSoUDP tunnel. destination IP and port are
 service IP and service port respectively. it seems nothing special here.
 
 however, the flow `Action` now is set to `N(DPd)`, not `F`. according to the
@@ -2774,7 +2832,7 @@ create are:
 
 ////
 additionally, a "client" pod is needed to test the ingress from inside of the
-cluster. we can use the same `cirros` pod we've used in earlier examples as
+cluster. we can use the same `client` pod we've used in earlier examples as
 cluster-internal client.
 
 besides that, there are 2 components running in the background:
@@ -3110,7 +3168,7 @@ this before and it looks nothing special. now look at the pods.
 ----
 $ kubectl get pod -o wide --show-labels
 NAME                        READY  STATUS   ... IP             NODE     ... LABELS
-cirros                      1/1    Running  ... 10.47.255.237  cent222  ... app=cirros
+client                      1/1    Running  ... 10.47.255.237  cent222  ... app=client
 webserver-846c9ccb8b-9nfdx  1/1    Running  ... 10.47.255.236  cent333  ... app=webserver
 ----
 
@@ -3495,7 +3553,7 @@ of it.
 .from inside of cluster
 
 ----
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -3503,7 +3561,7 @@ $ kubectl exec -it cirros -- \
                          Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.cisco.com' 10.47.255.238 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -3511,14 +3569,14 @@ $ kubectl exec -it cirros -- \
                          Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
 curl -H 'Host:www.google.com' 10.47.255.238 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
                                     [giphy]
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
 curl 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -3643,7 +3701,7 @@ create are:
 * 2 backend services objects
 * each service requires at least one pod as backend
 
-we use the same `cirros` pod as cluster-internal client we've used in previous
+we use the same `client` pod as cluster-internal client we've used in previous
 examples.
 
 ////
@@ -4014,7 +4072,7 @@ webservice-2   ClusterIP   10.100.156.38   <none>        8888/TCP   85m   app=we
 ----
 $ kubectl get pod -o wide
 NAME                          READY  STATUS   ... AGE  IP             NODE    ..
-cirros                        1/1    Running  ... 44d  10.47.255.237  cent222 ..
+client                        1/1    Running  ... 44d  10.47.255.237  cent222 ..
 webserver-1-846c9ccb8b-wns77  1/1    Running  ... 13m  10.47.255.236  cent333 ..
 webserver-2-846c9ccb8b-t75d8  1/1    Running  ... 13m  10.47.255.235  cent333 ..
 
@@ -4201,7 +4259,7 @@ together to privde this type of flexibility.
 .from inside of the cluster
 
 ----
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/dev | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -4209,7 +4267,7 @@ $ kubectl exec -it cirros -- \
                          Hostname = webserver-1-846c9ccb8b-wns77
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/qa | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -4217,17 +4275,17 @@ $ kubectl exec -it cirros -- \
                         Hostname = Vwebserver-2-846c9ccb8b-t75d8
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/abc | w3m -T text/html | cat
 503 Service Unavailable
 No server is available to handle this request.
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/ | w3m -T text/html | cat
 503 Service Unavailable
 No server is available to handle this request.
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.cisco.com' 10.47.255.238/ | w3m -T text/html | cat
 503 Service Unavailable
 No server is available to handle this request.
@@ -4235,18 +4293,18 @@ No server is available to handle this request.
 
 ////
 ----
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
+$ kubectl exec -it client -- curl -H 'Host:www.juniper.net' 10.47.255.238/dev
 Vwebserver-1-846c9ccb8b-s2zn9:10.47.255.249
 
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/qa
+$ kubectl exec -it client -- curl -H 'Host:www.juniper.net' 10.47.255.250/qa
 Vwebserver-2-846c9ccb8b-k9x26:10.47.255.248
 
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250/abc
+$ kubectl exec -it client -- curl -H 'Host:www.juniper.net' 10.47.255.250/abc
 <html><body><h1>503 Service Unavailable</h1>
 No server is available to handle this request.
 </body></html>
 
-$ kubectl exec -it cirros -- curl -H 'Host:www.juniper.net' 10.47.255.250
+$ kubectl exec -it client -- curl -H 'Host:www.juniper.net' 10.47.255.250
 <html><body><h1>503 Service Unavailable</h1>
 No server is available to handle this request.
 </body></html>
@@ -4350,7 +4408,7 @@ create are same as previous `simple fanout Ingress`:
 * 2 backend services objects
 * each service requires at least one pod as backend
 
-//again we use the same `cirros` pod as cluster-internal HTTP client we've used in
+//again we use the same `client` pod as cluster-internal HTTP client we've used in
 //earlier examples.
 
 ////
@@ -4730,14 +4788,14 @@ Next we'll verify these behaviors.
 ////
 we've explored a lot about ingress configuration and objects examination, now it
 is time to verify the test result. since the `Ingress` serves both inside and
-outside of the cluster, our verification will start from the cirros pod
+outside of the cluster, our verification will start from the client pod
 inside of cluster, then from the Internet host outside of it.
 ////
 
 .from inside of cluster
 
 ----
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -4745,14 +4803,14 @@ $ kubectl exec -it cirros -- \
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.cisco.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
                         Hostname = Vwebserver-2-846c9ccb8b-m2272
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl -H 'Host:www.google.com' 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -4760,7 +4818,7 @@ $ kubectl exec -it cirros -- \
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
                                     [giphy]
 
-$ kubectl exec -it cirros -- \
+$ kubectl exec -it client -- \
     curl 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
@@ -5939,9 +5997,9 @@ is easier to tell how the VN was created(from kubernetes or from the UI
 manually), what will it be used for, etc. also potential VN name conflicts can
 be avoided across multiple kubernetes clusters.
 
-here is yaml file of the `cirros` pod - a container version of the
-classis cirros VM.
+here is yaml file of a multiple interfaces pod:
 
+////
 ----
 apiVersion: v1
 kind: Pod
@@ -5961,6 +6019,27 @@ spec:
     imagePullPolicy: Always
   restartPolicy: Always
 ----
+////
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webserver-mv
+  labels:
+    app: webserver-mv
+  annotations:
+   k8s.v1.cni.cncf.io/networks: '[
+       { "name": "vn-left-1" },
+       { "name": "vn-right-1" }
+   ]'
+spec:
+  containers:
+  - name: webserver-mv
+    image: contrailk8sdayone/contrail-webserver
+    imagePullPolicy: Always
+  restartPolicy: Always
+----
 
 in pod annotations under metadata, we insert 2 VNs: `vn-left-1` and
 `vn-right-1`. Now guess how many interfaces will the pod has on bootup?  you may
@@ -5969,17 +6048,17 @@ pod and verify:
 
 ----
 $ kubectl get pod -o wide
-NAME    READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-cirros  1/1    Running  0         20s  10.47.255.238  cent222  <none>
+NAME          READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+webserver-mv  1/1    Running  0         20s  10.47.255.238  cent222  <none>
 
-$ kubectl describe pod cirros
-Name:               cirros
+$ kubectl describe pod webserver-mv
+Name:               webserver-mv
 Namespace:          ns-user-1
 Priority:           0
 PriorityClassName:  <none>
 Node:               cent222/10.85.188.20
 Start Time:         Wed, 26 Jun 2019 12:51:30 -0400
-Labels:             app=cirros
+Labels:             app=webserver-mv
 Annotations:        k8s.v1.cni.cncf.io/network-status:
                       [
                           {
@@ -6024,7 +6103,7 @@ it.
 we can "login to" the pod, list the interfaces and verify the IP and MAC.
 
 ----
-$ kubectl exec -it cirros sh
+$ kubectl exec -it webserver-mv sh
 / # ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00

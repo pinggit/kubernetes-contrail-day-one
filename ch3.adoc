@@ -59,9 +59,9 @@ cent111  NotReady  <none>  2h   v1.9.2   <none>
 cent333  Ready     <none>  2h   v1.9.2   stage=testing
 ----
 
-now let’s lunch a basic Nginx POD tagged with stage=testing in the nodeSelector
+now let’s lunch a basic Nginx POD tagged with stage=testing in the `nodeSelector`
 and confirm it will land on a node tagged with stage=testing. kube-scheduler uses
-labels mentioned in the nodeSelector section of the pod yaml to select the node to
+labels mentioned in the `nodeSelector` section of the pod yaml to select the node to
 launch the pod.
 
 [NOTE]
@@ -71,8 +71,9 @@ resource requirements, hardware/software/policy constraints, affinity and anti-a
 specifications, data locality, inter-workload interference and deadlines.
 ====
 
+////
 ----
-[root@cent111]# cat > web-server.yaml
+# web-server.yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -86,14 +87,39 @@ spec:
   nodeSelector:
     stage: testing
 
-[root@cent111]# kubectl create -f web-server.yaml
+$ kubectl create -f web-server.yaml
 pod "wordpress" created
 
-[root@cent111]# kubectl get pods --output=wide
+$ kubectl get pods --output=wide
 NAME        READY     STATUS    RESTARTS   AGE       IP              NODE
 wordpress   1/1       Running   0          48s       10.47.255.238   cent333
 ----
+////
 
+----
+#pod-webserver-do-label.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: contrail-webserver
+  labels:
+    app: webserver
+spec:
+  containers:
+  - name: contrail-webserver
+    image: contrailk8sdayone/contrail-webserver
+  nodeSelector:
+    stage: testing
+----
+
+----
+$ kubectl create -f web-server.yaml
+pod "contrail-webserver" created
+
+$ kubectl get pods --output=wide
+NAME                 READY     STATUS    RESTARTS   AGE       IP              NODE
+contrail-webserver   1/1       Running   0          48s       10.47.255.238   cent333
+----
 
 NOTE: You can assign POD to certain node without label by adding the argument
 nodeName: nodeX under spec in the YAML file where nodeX is the name of the node  
@@ -130,11 +156,13 @@ bootstapped with `kubeadm` tool only.
 
 === Create NS
 
-creating a NS is pretty simple. just kubectl command does the magic. you dont
+creating a NS is pretty simple. just `kubectl` command does the magic. you dont
 need to have a yaml file.
 
-    root@test3:~# kubectl create ns dev
-    namespace/dev created
+----
+root@test3:~# kubectl create ns dev
+namespace/dev created
+----
     
 ////
 to create a NS is pretty simple, you can avoid the need to give a yaml file by
@@ -156,12 +184,14 @@ when done, press ctr-d to submit the stdin buffer content into kubectl.
 
 new namespace dev is now created
 
-    root@test3:~# kubectl get ns
-    NAME          STATUS    AGE
-    default       Active    15d
-    dev           Active    5s  #<-----
+----
+root@test3:~# kubectl get ns
+NAME          STATUS    AGE
+default       Active    15d
+dev           Active    5s  #<-----
+----
     
-now `webserver1` pod in `dev` NS won't conflict with `webserver1` pod in `sales`
+now a `webserver1` pod in `dev` NS won't conflict with a `webserver1` pod in `sales`
 NS.
 
 ----
@@ -218,15 +248,17 @@ metadata:
 now create a pod in it:
 
 ----
-$ kubectl create -f pod-nginx.yaml -n dev
-pod/nginx created
+$ kubectl create -f pod-webserver-do.yaml -n dev
+pod/contrail-webserver created
 ----
 
 it works fine. now create a second pod in it:
 
 ----
-$ kubectl create -f pod-2containers.yaml -n dev
-Error from server (Forbidden): error when creating "pod/pod-2containers.yaml": pods "pod-1" is forbidden: exceeded quota: quota-onepod, requested: pods=1, used: pods=1, limited: pods=1
+$ kubectl create -f pod-2containers-do.yaml -n dev
+Error from server (Forbidden): error when creating
+"pod/pod-2containers-do.yaml": pods "pod-1" is forbidden: exceeded quota:
+quota-onepod, requested: pods=1, used: pods=1, limited: pods=1
 ----
 
 immediately we run into an error saying "exceeded quota".
@@ -236,7 +268,7 @@ this new pod will be created after the quota is removed:
 ----
 $ kubectl delete quota quota-onepod -n dev
 resourcequota "quota-onepod" deleted
-$ kubectl create -f pod/pod-2containers.yaml -n dev
+$ kubectl create -f pod/pod-2containers-do.yaml -n dev
 pod/pod-1 created
 ----
 
@@ -342,6 +374,7 @@ already has the objects to address this exact demand and the right answer are `R
 let's look at how it works with an example. first create a yaml file for a RC
 object named `myweb`.
 
+////
 ----
 #myweb-rc.yaml
 apiVersion: v1
@@ -363,10 +396,38 @@ spec:
         ports:
         - containerPort: 8080
 ----
+////
+
+----
+#rc-webserver-do.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 3
+  selector:
+    app: webserver
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+    spec:
+      containers:
+      - name: webserver
+        image: contrailk8sdayone/contrail-webserver
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
 
 again, `kind` indicates the object type that this yaml file is to define, here
 it is a RC instead of a pod. in `metadata` it is showing the RC's `name` as
-`myweb`.  in `spec` is the detail specification of this RC object. `replicas` 3
+`rc-webserver`.  in `spec` is the detail specification of this RC object. `replicas` 3
 indicates a same pod will be cloned to make sure the total number of
 pods created by the RC is always 3. `template` gives information about
 the containers that will run in the pod, same as what you saw in a `pod` yaml
@@ -374,30 +435,30 @@ file.
 
 now use this yaml file to create the RC object:
 
-    kubectl create -f myweb-rc.yaml
-    replicationcontroller "myweb" created
+    kubectl create -f rc-webserver-do.yaml
+    replicationcontroller "webserver" created
 
 if you are quick enough, you may capture the intermediate status when the new
 pods are being created:
 
     $ kubectl get pod
-    NAME          READY     STATUS              RESTARTS   AGE
-    myweb-5ggv6   1/1       Running             0          9s
-    myweb-lbj89   0/1       ContainerCreating   0          9s
-    myweb-m6nrx   0/1       ContainerCreating   0          9s
+    NAME                 READY     STATUS              RESTARTS   AGE
+    webserver-5ggv6   1/1       Running             0          9s
+    webserver-lbj89   0/1       ContainerCreating   0          9s
+    webserver-m6nrx   0/1       ContainerCreating   0          9s
    
 
 eventually you will see 3 pods launched:
 
     $ kubectl get rc
-    NAME            DESIRED   CURRENT   READY   AGE
-    myweb           3         3         3       3m29s
+    NAME                DESIRED   CURRENT   READY   AGE
+    webserver           3         3         3       3m29s
 
     $ kubectl get pod
-    NAME          READY     STATUS    RESTARTS   AGE
-    myweb-5ggv6   1/1       Running   0          21m
-    myweb-lbj89   1/1       Running   0          21m
-    myweb-m6nrx   1/1       Running   0          21m
+    NAME              READY     STATUS    RESTARTS   AGE
+    webserver-5ggv6   1/1       Running   0          21m
+    webserver-lbj89   1/1       Running   0          21m
+    webserver-m6nrx   1/1       Running   0          21m
  
 RC works with pod directly. the workflows are shown in this diagram:
 
@@ -420,21 +481,21 @@ better when you learn kubernetes `service`.
 you can evalaute rc's impact by deleting one of the pod. to delete a resource with
 `kubectl`, use `kubectl delete` sub-command:
 
-    $ kubectl delete pod myweb-5ggv6
-    pod "myweb-5ggv6" deleted
+    $ kubectl delete pod rc-webserver-5ggv6
+    pod "webserver-5ggv6" deleted
 
     $ kubectl get pod
-    NAME          READY     STATUS        RESTARTS   AGE
-    myweb-5ggv6   0/1       Terminating   0          22m        #<---
-    myweb-5v9w6   1/1       Running       0          2s         #<---
-    myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          22m
+    NAME              READY     STATUS        RESTARTS   AGE
+    webserver-5ggv6   0/1       Terminating   0          22m        #<---
+    webserver-5v9w6   1/1       Running       0          2s         #<---
+    webserver-lbj89   1/1       Running       0          22m
+    webserver-m6nrx   1/1       Running       0          22m
 
     $ kubectl get pod
-    NAME          READY     STATUS        RESTARTS   AGE
-    myweb-5v9w6   1/1       Running       0          5s
-    myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          22m
+    NAME              READY     STATUS        RESTARTS   AGE
+    webserver-5v9w6   1/1       Running       0          5s
+    webserver-lbj89   1/1       Running       0          22m
+    webserver-m6nrx   1/1       Running       0          22m
 
 as you can see, when one pod is being "Terminating", immediately a new pod is
 spawned. eventually the old pod will go away and new pod will be up and running.
@@ -443,24 +504,24 @@ total number of running pod remains unchanged.
 you can also scale up/down replicas with `rc`. for example to scale "up" from
 number of 3 to 5:
 
-    $ kubectl scale rc myweb --replica=5
-    replicationcontroller/myweb scaled
+    $ kubectl scale rc webserver --replica=5
+    replicationcontroller/webserver scaled
     
     $ kubectl get pod
-    NAME          READY     STATUS              RESTARTS   AGE
-    myweb-5v9w6   1/1       Running             0          8s
-    myweb-lbj89   1/1       Running             0          22m
-    myweb-m6nrx   1/1       Running             0          22m
-    myweb-hnnlj   0/1       ContainerCreating   0          2s
-    myweb-kbgwm   1/1       ContainerCreating   0          2s
+    NAME              READY     STATUS              RESTARTS   AGE
+    webserver-5v9w6   1/1       Running             0          8s
+    webserver-lbj89   1/1       Running             0          22m
+    webserver-m6nrx   1/1       Running             0          22m
+    webserver-hnnlj   0/1       ContainerCreating   0          2s
+    webserver-kbgwm   1/1       ContainerCreating   0          2s
     
     $ kubectl get pod
-    NAME          READY     STATUS        RESTARTS   AGE
-    myweb-5v9w6   1/1       Running       0          10s
-    myweb-lbj89   1/1       Running       0          22m
-    myweb-m6nrx   1/1       Running       0          22m
-    myweb-hnnlj   1/1       Running       0          5s
-    myweb-kbgwm   1/1       Running       0          5s
+    NAME              READY     STATUS        RESTARTS   AGE
+    webserver-5v9w6   1/1       Running       0          10s
+    webserver-lbj89   1/1       Running       0          22m
+    webserver-m6nrx   1/1       Running       0          22m
+    webserver-hnnlj   1/1       Running       0          5s
+    webserver-kbgwm   1/1       Running       0          5s
 
 there are other benefits with RC. actually since this abstraction is so popular
 and heavily used in practice that, two very similar objects `RS` - `ReplicaSet`
@@ -473,6 +534,7 @@ exploring more RC features for now and move our focus to these 2 new objects.
 `ReplicaSet`, or `RS` object, is pretty much the same thing as a `RC` object,
 with just one major exception - the looks of `selector`.
 
+////
 ----
 $ cat myweb-rs.yaml
 apiVersion: apps/v1
@@ -504,61 +566,98 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "123456"
 ----
+////
+
+----
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 3
+  selector:
+    matchLabels:                                        #<---
+      app: webserver                                    #<---
+    matchExpressions:                                   #<---
+      - {key: app, operator: In, values: [webserver]}   #<---
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+    spec:
+      containers:
+      - name: webserver
+        image: contrailk8sdayone/contrail-webserver
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
+
 
 RC uses "Equality-based" selector only while RS support extra selector format -
 "set-based". function-wise the two forms of selector do the same job - to
 "select" the pod with a matching "label".
 
-    #RS:
-    selector:
-      matchLabels:                                 
-        app: myweb                                 
-      matchExpressions:                            
-        - {key: app, operator: In, values: [myweb]}
+----
+#RS selector
+matchLabels:
+  app: webserver
+matchExpressions:
+  - {key: app, operator: In, values: [webserver]}
 
-    #RC:
-    selector:
-      app: myweb
+#RC selector
+app: webserver
+----
 
-    $ kubectl create -f myweb-rs.yaml
-    replicaset.extensions/myweb created
+----
+$ kubectl create -f rs-webserver.yaml
+replicaset.extensions/webserver created
 
-    $ kubectl get pod
-    NAME                         READY   STATUS    RESTARTS   AGE
-    myweb-lkwvt                  1/1     Running   0          8s
+$ kubectl get pod
+NAME                         READY   STATUS    RESTARTS   AGE
+webserver-kt9zx              1/1     Running   0          8s
+----
 
 a RS is created and it launchs a pod, just same as what a RC would do.
 if you compare the `kubectl describe` on the 2 objects:
 
-    $ kubectl describe rs myweb                                        
-    ......
-    Selector:     app=myweb,app in (myweb)      #<---
-    ......
-      Type    Reason            Age   From                   Message   
-      ----    ------            ----  ----                   -------   
-      Normal  SuccessfulCreate  15s   replicaset-controller  Created pod: myweb-kt9zx
+----
+$ kubectl describe rs webserver                                        
+......
+Selector:     app=webserver,app in (webserver)      #<---
+......
+  Type    Reason            Age   From                   Message   
+  ----    ------            ----  ----                   -------   
+  Normal  SuccessfulCreate  15s   replicaset-controller  Created pod: webserver-kt9zx
 
-    $ kubectl describe rc myweb
-    ......
-    Selector:     app=myweb                     #<---
-    ......
-      Type    Reason            Age   From                    Message
-      ----    ------            ----  ----                    -------
-      Normal  SuccessfulCreate  19s   replication-controller  Created pod: myweb-tbbhc
+$ kubectl describe rc webserver
+......
+Selector:     app=webserver                         #<---
+......
+  Type    Reason            Age   From                    Message
+  ----    ------            ----  ----                    -------
+  Normal  SuccessfulCreate  19s   replication-controller  Created pod: webserver-tbbhc
+----
 
 as you see, most part of the output are the same, with only exception of
 selector format. you can also scale the RS same way as you do with RC:
 
-    $ kubectl scale rs myweb --replicas=5
-    replicaset.extensions/myweb scaled
+----
+$ kubectl scale rs webserver --replicas=5
+replicaset.extensions/webserver scaled
 
-    $ kubectl get pod
-    NAME                         READY   STATUS    RESTARTS   AGE
-    myweb-4jvvx                  1/1     Running   0          3m30s
-    myweb-722pf                  1/1     Running   0          3m30s
-    myweb-8z8f8                  1/1     Running   0          3m30s
-    myweb-lkwvt                  1/1     Running   0          4m28s
-    myweb-ww9tn                  1/1     Running   0          3m30s
+$ kubectl get pod
+NAME             READY   STATUS    RESTARTS   AGE
+webserver-4jvvx  1/1     Running   0          3m30s
+webserver-722pf  1/1     Running   0          3m30s
+webserver-8z8f8  1/1     Running   0          3m30s
+webserver-lkwvt  1/1     Running   0          4m28s
+webserver-ww9tn  1/1     Running   0          3m30s
+----
 
 == Deployment 
 
@@ -573,6 +672,7 @@ object `DEPLOY - deployment` and explore the features coming from it.
 simply changing `kind` attribute from `ReplicaSet` to `deployment` we get the
 yaml file of a deployment object:
 
+////
 ----
 $ cat deployment-myweb.yaml
 apiVersion: apps/v1
@@ -596,49 +696,127 @@ spec:
         image: contrailk8sdayone/tomcat-app:v1
         ports:
         - containerPort: 8080
+----
+////
 
-$ kubectl create -f deployment-myweb.yaml
-deployment.extensions/myweb created
+----
+#deploy-webserver-do.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webserver
+    matchExpressions:
+      - {key: app, operator: In, values: [webserver]}
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+    spec:
+      containers:
+      - name: webserver
+        image: contrailk8sdayone/contrail-webserver
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
+
+create a Deploy:
+
+----
+$ kubectl create -f deploy-webserver-do.yaml
+deployment.extensions/webserver created
 
 $ kubectl get deployment
-NAME                   DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
-deployment.apps/myweb  1        1        1           1          21s
+NAME                       DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+deployment.apps/webserver  1        1        1           1          21s
 ----
+
+NOTE: make sure deleting the RS that you created in earlier section to avoid
+confusions.
 
 Actually the deployment is a relatively higher level of abstraction than RC and RS.
 deployment does not create a pod directly, the `describe` command reveals this:
 
-    $ kubectl describe deployments myweb
-    Name:                   myweb
-    Namespace:              default
-    CreationTimestamp:      Sat, 25 May 2019 16:00:26 -0400
-    Labels:                 app=myweb
-    Annotations:            deployment.kubernetes.io/revision: 1
-    Selector:               app=myweb,app in (myweb)
-    Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
-    StrategyType:           RollingUpdate
-    MinReadySeconds:        0
-    RollingUpdateStrategy:  1 max unavailable, 1 max surge
-    Pod Template:
-      Labels:  app=myweb
-      Containers:
-       myweb:
-        Image:      contrailk8sdayone/tomcat-app:v1
-        Port:       8080/TCP
-        Host Port:  0/TCP
-        Environment:
-          MYSQL_SERVICE_HOST:   mysql
-          MYSQL_SERVICE_PORT:   3306
-          MYSQL_ROOT_PASSWORD:  123456
-        Mounts:                 <none>
-      Volumes:                  <none>
-    Conditions:
-      Type           Status  Reason
-      ----           ------  ------
-      Available      True    MinimumReplicasAvailable
-    OldReplicaSets:  <none>
-    NewReplicaSet:   myweb-c586fd645 (1/1 replicas created)     #<---
-    Events:          <none>
+////
+----
+$ kubectl describe deployments webserver
+Name:                   webserver
+Namespace:              default
+CreationTimestamp:      Sat, 25 May 2019 16:00:26 -0400
+Labels:                 app=webserver
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               app=webserver,app in (webserver)
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  1 max unavailable, 1 max surge
+Pod Template:
+  Labels:  app=webserver
+  Containers:
+   webserver:
+    Image:      contrailk8sdayone/tomcat-app:v1
+    Port:       8080/TCP
+    Host Port:  0/TCP
+    Environment:
+      MYSQL_SERVICE_HOST:   mysql
+      MYSQL_SERVICE_PORT:   3306
+      MYSQL_ROOT_PASSWORD:  123456
+    Mounts:                 <none>
+  Volumes:                  <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   webserver-c586fd645 (1/1 replicas created)     #<---
+Events:          <none>
+----
+////
+
+----
+$ kubectl describe deployments.
+Name:                   webserver
+Namespace:              default
+CreationTimestamp:      Sat, 14 Sep 2019 23:17:17 -0400
+Labels:                 app=webserver
+Annotations:            deployment.kubernetes.io/revision: 5
+                        kubectl.kubernetes.io/last-applied-configuration:
+                          {"apiVersion":"apps/v1","kind":"Deployment",
+                          "metadata":{"annotations":{},"labels":{"app":"webserver"},
+                          "name":"webserver","namespace":"defa...
+Selector:               app=webserver,app in (webserver)
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=webserver
+  Containers:
+   webserver:
+    Image:        contrailk8sdayone/contrail-webserver
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   webserver-7c7c458cc5 (1/1 replicas created)    #<---
+Events:          <none>
+----
 
 ////
     $ kubectl get all | grep myweb
@@ -646,6 +824,7 @@ deployment does not create a pod directly, the `describe` command reveals this:
     replicaset.apps/myweb-c586fd645  1    1        1  21s
     pod/myweb-c586fd645-b2ft8        1/1  Running  0  21s
 ////
+
 
 === Deployment Work Flow
 
@@ -671,53 +850,86 @@ You might still be wondering why you need `RS` as one more layer sitting between
 deployment object. in this section we'll demonstrate the feature with a test
 case, then we'll explain how it works.
 
+//https://ryaneschinger.com/blog/rolling-updates-kubernetes-replication-controllers-vs-deployments/
+NOTE: in fact, a similar "rolling update" feature exists for the old RC object.
+the implementation has quite a few drawbacks comparing with the new version
+supported by Deployment. in this book we'll focus on the new implementation.
+
 ==== evalaute rolling update
 
 suppose we have a nginx-deployment, with `replica=3` an pod image `1.7.9`.
 later we want to upgrade the image from version `1.7.9` to new image version
-`1.9.1`. with `kuberctl` we can use `set image` option and specify the new
+`1.9.1`. 
+
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+----
+
+with `kuberctl` we can use `set image` option and specify the new
 version number to trigger the update:
 
-    $ kubectl set image deployment/nginx-deployment nginx=nginx:1.9.1
-    deployment.extensions/nginx-deployment image updated
+----
+$ kubectl set image deployment/nginx-deployment nginx=nginx:1.9.1
+deployment.extensions/nginx-deployment image updated
+----
 
-now chck the deployment information again:
+now check the deployment information again:
 
-    $ kubectl describe deployment/nginx-deployment
-    Name:                   nginx-deployment
-    Namespace:              default
-    CreationTimestamp:      Tue, 11 Sep 2018 20:49:45 -0400
-    Labels:                 app=nginx
-    Annotations:            deployment.kubernetes.io/revision=2
-    Selector:               app=nginx
-    Replicas:               3 desired | 1 updated | 4 total | 3 available | 1 unavailable
-    StrategyType:           RollingUpdate
-    MinReadySeconds:        0
-    RollingUpdateStrategy:  25% max unavailable, 25% max surge
-    Pod Template:
-      Labels:  app=nginx
-      Containers:
-       nginx:
-        Image:        nginx:1.9.1       #<------
-        Port:         80/TCP
-        Host Port:    0/TCP
-        Environment:  <none>
-        Mounts:       <none>
-      Volumes:        <none>
-    Conditions:
-      Type           Status  Reason
-      ----           ------  ------
-      Available      True    MinimumReplicasAvailable
-      Progressing    True    ReplicaSetUpdated
-    OldReplicaSets:  nginx-deployment-67594d6bf6 (3/3 replicas created)
-    NewReplicaSet:   nginx-deployment-6fdbb596db (1/1 replicas created)
-    Events:
-      Type    Reason             Age   From                   Message
-      ----    ------             ----  ----                   -------
-      Normal  ScalingReplicaSet  4m    deployment-controller  Scaled up replica
-      set nginx-deployment-67594d6bf6 to 3  #<---
-      Normal  ScalingReplicaSet  7s    deployment-controller  Scaled up replica
-      set nginx-deployment-6fdbb596db to 1  #<---
+----
+$ kubectl describe deployment/nginx-deployment
+Name:                   nginx-deployment
+Namespace:              default
+CreationTimestamp:      Tue, 11 Sep 2018 20:49:45 -0400
+Labels:                 app=nginx
+Annotations:            deployment.kubernetes.io/revision=2
+Selector:               app=nginx
+Replicas:               3 desired | 1 updated | 4 total | 3 available | 1 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx
+  Containers:
+   nginx:
+    Image:        nginx:1.9.1       #<------
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    ReplicaSetUpdated
+OldReplicaSets:  nginx-deployment-67594d6bf6 (3/3 replicas created)
+NewReplicaSet:   nginx-deployment-6fdbb596db (1/1 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  4m    deployment-controller  Scaled up replica
+  set nginx-deployment-67594d6bf6 to 3  #<---
+  Normal  ScalingReplicaSet  7s    deployment-controller  Scaled up replica
+  set nginx-deployment-6fdbb596db to 1  #<---
+----
 
 two changes we can observe here:
 
@@ -726,35 +938,43 @@ two changes we can observe here:
 
 and with the new RS with `replica` being 1, a new pod ("the fourth one") is now generated
 
-    $ kubectl get pods
-    NAME                                READY     STATUS              RESTARTS   AGE
-    nginx-deployment-67594d6bf6-88wqk   1/1       Running             0          4m
-    nginx-deployment-67594d6bf6-m4fbj   1/1       Running             0          4m
-    nginx-deployment-67594d6bf6-td2xn   1/1       Running             0          4m
-    nginx-deployment-6fdbb596db-4b8z7   0/1       ContainerCreating   0          17s        #<------
+----
+$ kubectl get pods
+NAME                                READY     STATUS              RESTARTS   AGE
+nginx-deployment-67594d6bf6-88wqk   1/1       Running             0          4m
+nginx-deployment-67594d6bf6-m4fbj   1/1       Running             0          4m
+nginx-deployment-67594d6bf6-td2xn   1/1       Running             0          4m
+nginx-deployment-6fdbb596db-4b8z7   0/1       ContainerCreating   0          17s        #<------
+----
 
 the new pod is with new image:
 
-    $ kubectl describe pod/nginx-deployment-6fdbb596db-4b8z7 | grep Image:
-    ...(snipped)...
-        Image:          nginx:1.9.1     #<---
-    ...(snipped)...
+----
+$ kubectl describe pod/nginx-deployment-6fdbb596db-4b8z7 | grep Image:
+...(snipped)...
+    Image:          nginx:1.9.1     #<---
+...(snipped)...
+----
 
 while the old pod is still with old image
 
-    $ kubectl describe pod/nginx-deployment-67594d6bf6-td2xn | grep Image:
-    ...(snipped)...
-        Image:          nginx:1.7.9     #<------
-    ...(snipped)...
+----
+$ kubectl describe pod/nginx-deployment-67594d6bf6-td2xn | grep Image:
+...(snipped)...
+    Image:          nginx:1.7.9     #<------
+...(snipped)...
+----
 
 wait and keep checking the pods status, eventually all old pods are terminated
-and 3 new pods are running - the pod name confirms they are new ones:
+and 3 new pods are running - the new pod name confirms they are new ones:
 
-    $ kubectl get pods
-    NAME                                READY     STATUS    RESTARTS   AGE
-    nginx-deployment-6fdbb596db-4b8z7   1/1       Running   0          1m
-    nginx-deployment-6fdbb596db-bsw25   1/1       Running   0          18s
-    nginx-deployment-6fdbb596db-n9tpg   1/1       Running   0          21s
+----
+$ kubectl get pods
+NAME                                READY     STATUS    RESTARTS   AGE
+nginx-deployment-6fdbb596db-4b8z7   1/1       Running   0          1m
+nginx-deployment-6fdbb596db-bsw25   1/1       Running   0          18s
+nginx-deployment-6fdbb596db-n9tpg   1/1       Running   0          21s
+----
 
 so the "update" is done and all pods are now running with new version of the
 image. 
@@ -1085,6 +1305,7 @@ in a container:
 here we'll demonstrate using secret to generate environmental variables in
 container:
 
+////
 ----
 #pod-cirros-secret.yaml
 apiVersion: v1
@@ -1114,18 +1335,47 @@ spec:
           key: password
   restartPolicy: Always
 ----
+////
+
+
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: contrail-webserver-secret
+  labels:
+    app: webserver
+spec:
+  containers:
+  - name: contrail-webserver-secret
+    image: contrailk8sdayone/contrail-webserver
+    #envFrom:
+    #- secretRef:
+    #    name: test-secret
+    env:
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: secret-opaque
+          key: username
+    - name: SECRET_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: secret-opaque
+          key: password
+----
 
 spawn the pod and container from this yaml file:
 
 ----
-$ kubectl apply -f pod/pod-cirros-secret.yaml
-pod/cirros-secret created
+$ kubectl apply -f pod/pod-webserver-do-secret.yaml
+pod/contrail-webserver-secret created
 ----
 
 login the container and verify the generated environmental variables:
 
 ----
-$ kubectl exec -it cirros-secret -- printenv | grep SECRET
+$ kubectl exec -it contrail-webserver-secret -- printenv | grep SECRET
 SECRET_USERNAME=username1
 SECRET_PASSWORD=password1
 ----
@@ -1190,7 +1440,7 @@ type: kubernetes.io/dockerconfigjson
 not surprisingly, we don't see any sensitive information in the form of
 cleartext, there is a `data` portion of the output where we see a very long
 string as the value of key `.dockerconfigjson`. it seems to has a transformed
-look from the original data, but at least it does not that "sensitive" anymore
+look from the original data, but at least it is not that "sensitive" anymore
 now - overall one purpose of using secret is to improve the system security.
 
 however, the transformation is done by "encoding", not "encryption", so there is
@@ -1383,6 +1633,7 @@ then put the base64 encoded value of .docker/config.json file as `data` in below
 yaml file:
 
 ----
+#secret-jnpr.yaml
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/dockerconfigjson
@@ -1510,14 +1761,6 @@ Events:
 19h  Normal  Started    Pod   Started container
 ----
 
-=== TLS secret
-//https://software.danielwatrous.com/generate-tls-secret-for-kubernetes/
-//TODO
-
-==== create tls secret
-
-==== refer tls secret
-
 === Secret Benefits
 
 as you can see from our test, the Secret objects is created independently of the
@@ -1628,7 +1871,7 @@ from external.
 let's create our first service, with service type `clusterIP`. 
 
 ----
-$ cat service-web-clusterip.yaml
+#service-web-clusterip.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1673,9 +1916,10 @@ label.
 
 we can define a pod directly, but given the benefits of RC and deployment over
 pod as we've introduced earlier, use RC or deployment is more pratical. later on
-you will understand this is the right choice. in our example we define a RC
-object named `rc-webserver`.
+you will understand this is the right choice. in our example we define a
+Deployment object named `webserver`.
 
+////
 ----
 $ cat rc-webserver.yaml
 apiVersion: v1
@@ -1702,18 +1946,49 @@ spec:
         ports:
         - containerPort: 80
 ----
+////
 
-the RC `rc-webserver` has a label `app: webserver`, matching the SELECTOR in
+----
+#deploy-webserver-do.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+  labels:
+    app: webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webserver
+    matchExpressions:
+      - {key: app, operator: In, values: [webserver]}
+  template:
+    metadata:
+      name: webserver
+      labels:
+        app: webserver
+    spec:
+      containers:
+      - name: webserver
+        image: contrailk8sdayone/contrail-webserver
+        securityContext:
+           privileged: true
+        ports:
+        - containerPort: 80
+----
+
+the Deployment `webserver` has a label `app: webserver`, matching the SELECTOR in
 defined in our service. `replicas: 1` instruct RC controller to launch only 1
 pod at the moment.
 
 ----
-$ kubectl apply -f rc-webserver.yaml
-replicationcontroller/rc-webserver created
+$ kubectl apply -f deploy-webserver-do.yaml
+deployment.extensions/webserver created
 
 $ kubectl get pod -o wide -l 'app=webserver'
-NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-rc-webserver-vl6zs  1/1    Running  0         24s  10.47.255.238  cent333  <none>
+NAME                        READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
+webserver-7c7c458cc5-vl6zs  1/1    Running  0         24s  10.47.255.238  cent333  <none>
 ----
 
 immediately the pod is choosen to be the backend. 
@@ -1733,13 +2008,60 @@ for example: `kubectl get pod -o wide -l 'app in (webserver)'`
 ==== verify cluserIP service
 
 Now to verify if the service actually works, let's start another pod as a client
-to initiate a http request toward the service. for this test we'll login to a
-`cirros` pod and use `curl` command to send a http request toward the service.
-you'll see the cirros pod being used as a client to send request throughout of
-this book.
+to initiate a http request toward the service. for this test we'll launch and login to a
+"client" pod and use `curl` command to send a http request toward the service.
+you'll see the same "client" pod being used to send request throughout of this book.
+
+the test pod yaml file:
+
+////
+----
+#pod-cirros.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cirros
+  labels:
+    app: cirros
+spec:
+  containers:
+  - name: cirros
+    image: cirros
+    imagePullPolicy: Always
+  restartPolicy: Always
+----
+////
 
 ----
-$ kubectl exec -it cirros -- curl 10.101.150.135:8888
+#pod-client-do.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels:
+    app: client
+spec:
+  containers:
+  - name: contrail-webserver
+    image: contrailk8sdayone/contrail-webserver
+----
+
+create the cirros pod:
+
+----
+$ kubectl apply -f pod-client-do.yaml
+pod/client created
+----
+
+TIP: the "client" pod, is nothing but the another pod spawned based on the same
+exact image as what our "webserver" Deployment and its pods do. same as with
+physical servers and virtual machines, nothing stops a "server" do the client's
+job.
+
+now test the service with `curl` in `client` pod:
+
+----
+$ kubectl exec -it client -- curl 10.101.150.135:8888
 <html>
 <style>
   h1   {color:green}
@@ -1752,7 +2074,7 @@ $ kubectl exec -it cirros -- curl 10.101.150.135:8888
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.238<br>Hostname =
-    rc-webserver-vl6zs</h3>
+    webserver-7c7c458cc5-vl6zs</h3>
     <img src="/static/giphy.gif">
   </body>
   </div>
@@ -1772,11 +2094,11 @@ the returned HTML looks relatively "OK" to read, but there is a way to make it
 more "eye-friendly":
 
 ----
-$ kubectl exec -it cirros -- curl 10.101.150.135:8888 | w3m -T text/html | head
+$ kubectl exec -it client -- curl 10.101.150.135:8888 | w3m -T text/html | head
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.238
-                         Hostname = rc-webserver-vl6zs
+                         Hostname = webserver-7c7c458cc5-vl6zs
 ----
 
 the `w3m` tool is a "lightweight" console based web browser installed in the
@@ -1785,7 +2107,7 @@ than the HTML page.
 
 now we are convinced our service works. requests to service has been
 redirected to the correct backend pod, with a pod IP `10.47.255.238`, pod name
-`rc-webserver-vl6zs`.
+`webserver-7c7c458cc5-vl6zs`.
 
 ==== specify a clusterIP
 
@@ -1795,11 +2117,11 @@ Ip address should be in service ip pool.
 Sample yaml with specific 'clusterIP'
 
 ----
-$ cat service-web-clusterip.yaml
+#service-web-clusterip-static.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: service-web-clusterip
+  name: service-web-clusterip-static
 spec:
   clusterIP: 10.101.150.150 #<---
   ports:
@@ -1810,29 +2132,23 @@ spec:
 ----
 
 
-=== NodePort Service
+=== nodePort Service
 
-NodePort service exposes a service on each node's ip at a static port. It maps
-a static port on each node with a port of the application the POD as shown in 
-the diagram 
+NodePort service exposes a service on each node's ip at a static port number. It maps
+a static port number on each node to a port of the container in the POD, as shown in 
+the figure: 
  
 //image::https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/diagrams/node%20port%20chapter%203.png[]
 image::https://user-images.githubusercontent.com/2038044/64743278-3be8af80-d4cd-11e9-8b7b-852188578ed2.png[]
 
-there is 2 very important parts in this services YAML file ports and selector.
-
-targetPort is the actual port used by the application in here its port 80 as we
-are planning to run a web server and nodeport is port on each node. 
-
-selector is the label selector which determine which set of pods targeted by
-this services, in here any POD with label app: FRONT-END will be serviced by
-this services
+this is a NodePort service yaml file:
 
 ----
+#service-web-nodeport.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-app
+  name: service-web-nodeport
 spec:
   selector:
     app: webserver
@@ -1843,20 +2159,60 @@ spec:
     nodePort: 32001 #<--- (optional)
 ----
 
-[NOTE]
-====
-* Kubernetes by default allocate node port from (30000-32767) range if it is not
+some highlights in this services YAML file: 
+
+* `selector`: the label selector which determine which set of pods targeted by
+  this services, in here any POD with label `app: webserver` will be selected by
+  this service as the backend.
+* `port`: this is the service port.
+//, exposed to the client. this is the port number that client sees when it requests a service.
+* `targetPort`: the actual port used by the application in container. in here
+  its port 80, as we are planning to run a web server
+* `nodePort`: port on the host of each node in the cluster.
+
+create the service:
+
+----
+$ kubectl create -f service-web-nodeport.yaml
+service "service-web-nodeport" created
+
+$ kubectl describe service web-app
+Name:                     service-web-nodeport
+Namespace:                default
+Labels:                   <none>
+Annotations:              <none>
+Selector:                 app=webserver
+Type:                     NodePort
+IP:                       10.98.108.168
+Port:                     <unset>  80/TCP
+TargetPort:               80/TCP
+NodePort:                 <unset>  32001/TCP
+Endpoints:                10.47.255.228:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+----
+
+* `Type`: The default service type is `ClusterIP`. in this example we set to
+  type `NodePort`
+* `NodePort`: Kubernetes by default allocate node port from (30000-32767) range if it is not
   mentioned in the spec. it could be changed using the flag --service-node-port-range.
   nodePort value also can be set. but it should be in the configurad range.
-  
-* The default service type is ClusterIP 
-* Be aware with the change of the Node ip address as it could effect your services 
-====
+//* Be aware with the change of the Node ip address as it could effect your services 
+* `Endpoints`: the podIP and exposed container port. this is where the request
+  toward service IP and service port will be directed to. `10.47.255.252:80`
+  indicates we have created a pod that has a matching label with the service, so
+  it's IP is selected as one of the backend.
 
+NOTE: for this test make sure there is at least one pod with the label "app:
+webserver" running. pods created in previous sections are all with this label.
+recreating the `client` pod suffices if you've removed them already.
+
+////
 now let’s expose a nginx pod with the services shown above
 
 ----
-[root@cent11]# cat nginx.yaml 
+#nginx.yaml 
     apiVersion: v1
     kind: Pod
     metadata:
@@ -1867,40 +2223,38 @@ now let’s expose a nginx pod with the services shown above
       containers:
         - name: nginx-c
           image: nginx
-
-[root@cent11]# kubectl create -f web-app.yaml
-service "web-app" created
-
-[root@cent11]# kubectl describe service web-app
-Name:                     web-app
-Namespace:                default
-Labels:                   <none>
-Annotations:              <none>
-Selector:                 app=webserver
-Type:                     NodePort
-IP:                       10.98.108.168
-Port:                     <unset>  80/TCP
-TargetPort:               80/TCP
-NodePort:                 <unset>  32001/TCP
-Endpoints:                10.47.255.252:80
-Session Affinity:         None
-External Traffic Policy:  Cluster
-Events:                   <none>
 ----
+////
 
-Now we can test that by send CURL -i which is a http request using the CLI
-toward the (any)node IP address
+Now we can test that by using `curl` command to trigger a http request
+toward any node IP address. 
+
+////
+----
+$ kubectl get pod -o wide
+
+NAME   READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
+client 1/1     Running   0          20m   10.47.255.252   cent222   <none>
+
+$ kubectl describe node cent222 | grep InternalIP
+InternalIP:  10.85.188.20
+----
+////
 
 ----
-[root@cent11 ~]# kubectl get pod -o wide
+$ kubectl get node -o wide
+NAME      STATUS     ROLES    AGE    VERSION   INTERNAL-IP    ... KERNEL-VERSION               CONTAINER-RUNTIME
+cent111   NotReady   master   100d   v1.12.3   10.85.188.19   ... 3.10.0-957.10.1.el7.x86_64   docker://18.3.1
+cent222   Ready      <none>   100d   v1.12.3   10.85.188.20   ... 3.10.0-957.10.1.el7.x86_64   docker://18.3.1
+cent333   Ready      <none>   100d   v1.12.3   10.85.188.21   ... 3.10.0-957.10.1.el7.x86_64   docker://18.3.1
+----
 
-NAME        READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-nginx-pod   1/1     Running   0          20m   10.47.255.252   cent222   <none>
+with the power of `NodePort` service, we can access the web server running in
+the pod from any node via the nodePort 32001:
 
-[root@cent11 ~]# kubectl describe node cent22 | grep InternalIP
-InternalIP:  10.85.188.17
-
-[root@cent11 ]#curl 10.85.188.17:32001
+////
+----
+# curl 10.85.188.20:32001
 <!DOCTYPE html>
 <html>
 <head>
@@ -1927,6 +2281,29 @@ Commercial support is available at
 </body>
 </html>
 ----
+////
+
+----
+$ curl 10.85.188.20:32001
+
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
+    pod</h2><br><h3>IP address = 10.47.255.228<br>Hostname =
+    client</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+----
 
 === Loadbalancer Service
 
@@ -1943,7 +2320,7 @@ of a load balancer. the only difference between the 3 type of services are the
 loadbalancer service, just set the `type` to `LoadBalancer`:
 
 ----
-$ cat service-web-lb.yaml
+#service-web-lb.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1992,6 +2369,7 @@ Exposing service outside of the cluster can also be achieved via externalIPs opt
 here is an example:
 
 ----
+#service-web-externalips.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -2061,10 +2439,11 @@ the endpoints objects)
 here is an example to demonstrate some quick steps to verify the service,
 corresponding endpoint and the pod with matching labels
 
+////
 create a service:
 
 ----
-$ cat svc/service-web-clusterip.yaml
+#service-web-clusterip.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -2076,6 +2455,12 @@ spec:
   selector:
     app: webserver
 ----
+
+----
+$ kubectl apply -f service-web-clusterip.yaml
+service/service-web-clusterip created
+----
+////
 
 list the endpoint:
 
@@ -2089,22 +2474,22 @@ locate pod with the label that is used by selector in service:
 
 ----
 $ kubectl get pod -o wide -l 'app=webserver'
-NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
-rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
+NAME                        READY  STATUS   RESTARTS  AGE    IP             NODE     ... LABELS
+webserver-7c7c458cc5-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  ... app=webserver
 ----
 
 scale the backend pods
 
 ----
-$ kubectl scale rc webserver --replicas=3
+$ kubectl scale deploy webserver --replicas=3
 ----
 
 ----
 $ kubectl get pod -o wide -l 'app=webserver'
-NAME                READY  STATUS   RESTARTS  AGE    IP             NODE     NOMINATED NODE LABELS
-rc-webserver-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  <none>         app=webserver
-rc-webserver-45skv  1/1    Running  0         5s     10.47.255.251  cent222  <none>         app=webserver
-rc-webserver-m2cp5  1/1    Running  0         5s     10.47.255.250  cent111  <none>         app=webserver
+NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     ... LABELS
+rc-webserver-7c7c458cc5-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  ... app=webserver
+rc-webserver-7c7c458cc5-45skv  1/1    Running  0         5s     10.47.255.251  cent222  ... app=webserver
+rc-webserver-7c7c458cc5-m2cp5  1/1    Running  0         5s     10.47.255.250  cent111  ... app=webserver
 ----
 
 ----
@@ -2421,6 +2806,7 @@ metadata:
 this will make contrail's Ingress controller `opencontrail` to ignore the
 Ingress configuration.
 
+////
 === TLS Support
 
 //TODO
@@ -2428,6 +2814,7 @@ Ingress configuration.
 == kubernetes networking
 
 //TODO
+////
 
 == Network Policy
 
@@ -2664,7 +3051,7 @@ metadata:
 spec:
   containers:
     - name: liveness-pod
-      image: virtualhops/ato-ubuntu:latest
+      image: contrailk8sdayone/ubuntu
       ports:
        - containerPort: 80
       securityContext:
@@ -2799,7 +3186,7 @@ metadata:
 spec:
   containers:
     - name: liveness-pod
-      image: virtualhops/ato-ubuntu:latest
+      image: contrailk8sdayone/ubuntu
       ports:
         - containerPort: 80
       securityContext:
@@ -2846,9 +3233,9 @@ spec:
 Liveness probe make sure that your POD is in good health, but for some
 application Liveness alone isn’t enough. some application need to load large
 files before it start. you might think if we set a higher “initialDelaySeconds”
-value then problem solve. but this not an efficient way. Readiness probe is
+value then problem solve. but this is not an efficient way. Readiness probe is
 solution in here specially with Kubernetes services, as the POD will not receive
-a traffic until it is ready. Whenever the readiness probe fails, the endpoint for
+traffic until it is ready. Whenever the readiness probe fails, the endpoint for
 the pod would be removed from the service and it would be added back when the
 readiness probe succeeds. Readiness Probe is configured the same way as
 liveness probe
@@ -2937,8 +3324,9 @@ metadata to objects, Annotation has a lot of use cases such as attaching
 - network, namespaces
 - type of ingress controller
 
-example for annotations:
----
+here is an example for annotations:
+
+----
 apiVersion: v1
 kind: Pod
 metadata:
@@ -2948,13 +3336,13 @@ metadata:
 spec:
   containers:
   - name: nginx
-    image: nginx:1.7.9
+    image: contrailk8sdayone/contrail-webserver
     ports:
     - containerPort: 80
----
+----
 
+////
 === Annotations in Ingress
-
 === Annotations in Network Attachment Defination
 
 Annotations can be used to assign network information to POD and we will
@@ -3013,5 +3401,4 @@ we attached one POD interface to a specific network, this POD would have two
 interfaces one attached to the cluster-wide default network and the other
 interface is attached to the network specified in the annotation argument (net-a
 in this case) 
-
-
+////
