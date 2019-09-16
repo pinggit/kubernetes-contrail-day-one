@@ -536,6 +536,7 @@ learning process.
 
 .POD configuration file in YAML format
 
+////
 ----
 # pod-2containers.yaml
 apiVersion: v1          <1>
@@ -554,6 +555,25 @@ spec:                   <7>
     image: contrailk8sdayone/redis-db  <14>
     ports:                      <15>
     - containerPort: 6379       <16>
+----
+////
+
+----
+#pod-2containers-do-one.yaml    <1>
+apiVersion: v1                  <2>
+kind: Pod                       <3>
+metadata:                       <4>
+  name: pod-1                   <5>
+  labels:                       <6>
+      name: pod-1               <7>
+spec:                           <8>
+  containers:                   <9>
+  - name: server                <10>
+    image: contrailk8sdayone/contrail-webserver         <11>
+    ports:                      <12>
+    - containerPort: 80         <13>
+  - name: client                <14>
+    image: contrailk8sdayone/ubuntu     <15>
 ----
 
 //tested. with same image (apache) both listening same port it won't work.
@@ -597,29 +617,36 @@ creation:
 
 .create pods
 ----
-$ kubectl create -f pod-2containers.yaml
+$ kubectl create -f pod-2containers-do-one.yaml
 pod/pod-1 created
 
 $ kubectl get pod -o wide
 NAME   READY  STATUS             RESTARTS  AGE  IP             NODE     NOMINATED  NODE
-pod-1  0/2    ContainerCreating  0         18s  10.47.255.233  cent222  <none>
+pod-1  0/2    ContainerCreating  0         18s  10.47.255.237  cent333  <none>
 
 $ kubectl get pod -o wide
 NAME    READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-pod-1   2/2     Running   0          18s   10.47.255.233   cent222   <none>
+pod-1   2/2     Running   0          18s   10.47.255.237   cent333   <none>
 ----
 
 we created our first kubernetes "object" - a pod named `pod-1`. but where are
 the containers? the above output tells the clues. it reads:
 
 a pod `pod-1` (`NAME`), containing 2 containers(`READY /2`), has been launched
-in kubernetes worker node `cent222` with an IP address `10.47.255.233` assigned.
+in kubernetes worker node `cent333` with an IP address `10.47.255.237` assigned.
 both containers in the pod is up (`READY 2/`) and has been in running `STATUS`
 for 27s without any `RESTARTS`.
 
 here is a brief line-by-line comments about what the yaml config says:
 
-* line 1,2,3,7: the 4 yaml mappings are the main components of a pod definition.
+* line 1: this is a comment line. with a `#` ahead we can put any comment in the
+  yaml file. 
+  
+NOTE: throughout this book we use this first line to give filename of a yaml
+file. the filename will be used in later command when creating the object from
+the yaml file.
+
+* line 2,3,4,8: the 4 yaml mappings are the main components of a pod definition.
   - apiVersion: there are different versions, for example, v2. here specifically
     it is version 1.
   - kind: remember there are different type of kubernetes object, here we
@@ -629,13 +656,15 @@ here is a brief line-by-line comments about what the yaml config says:
     to be created, another important meta data is "labels". you will read more
     about it in chapter3.
   - spec: gives the specification about the pod behavior.
-* line 9-16: the pod specification here is just about the 2 containers. the
+* line 9-15: the pod specification here is just about the 2 containers. the
   system downloads the images, launches each container with a name and expose
   the specified ports respectively.
 
 to get more details of what is running inside of the pod:
 
 .`describe` a pod
+
+////
 ----
 $ kubectl describe pod pod-1 | grep -iC1 container
 IP:                 10.47.255.233
@@ -660,6 +689,32 @@ Containers:
   Normal  Created    <invalid>  kubelet, cent222   Created container
   Normal  Started    <invalid>  kubelet, cent222   Started container
 ----
+////
+
+----
+$ kubectl describe pod pod-1 | grep -iC1 container
+IP:                 10.47.255.237
+Containers:
+  server:
+    Container ID:   docker://9f8032f4fbe2f0d5f161f76b6da6d7560bd3c65e0af5f6e8d3186c6520cb3b7d
+    Image:          contrailk8sdayone/contrail-webserver
+--
+  client:
+    Container ID:   docker://d9d7ffa2083f7baf0becc888797c71ddba78cd951f6724a10c7fec84aefce988
+    Image:          contrailk8sdayone/ubuntu
+--
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+--
+  Normal  Pulled     3m2s   kubelet, cent333   Successfully pulled image "contrailk8sdayone/contrail-webserver"
+  Normal  Created    3m2s   kubelet, cent333   Created container
+  Normal  Started    3m2s   kubelet, cent333   Started container
+  Normal  Pulling    3m2s   kubelet, cent333   pulling image "contrailk8sdayone/ubuntu"
+  Normal  Pulled     3m1s   kubelet, cent333   Successfully pulled image "contrailk8sdayone/ubuntu"
+  Normal  Created    3m1s   kubelet, cent333   Created container
+  Normal  Started    3m1s   kubelet, cent333   Started container
+----
 
 not surprisingly, our pod `pod-1` is composed of 2 containers declared in the
 YAML file, `apache` and `db` respectively, with an IP address assigned by
@@ -674,16 +729,26 @@ image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-
 
 === Pause Container
 
-if you login to node `cent222`, you will see the docker containers running inside
+if you login to node `cent333`, you will see the docker containers running inside
 of the pod:
 
 .`pause` pod
+////
 ----
 $ docker ps | grep -E "ID|pod-1"
 CONTAINER ID  IMAGE                       COMMAND                  ... PORTS NAMES
 e2d76084a1d5  contrailk8sdayone/redis-db  "redis-server /etc/r…"   ... k8s_db_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
 694f5eb781e7  contrailk8sday/apache       "apache2-foreground"     ... k8s_apache_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
 7abae4273cfd  k8s.gcr.io/pause:3.1        "/pause"                 ... k8s_POD_pod-1_default_c8675d37-c22d-11e9-add6-0050569e6cfc_0
+----
+////
+
+----
+$ docker ps | grep -E "ID|pod-1"
+CONTAINER ID  IMAGE                                 COMMAND                 ... PORTS  NAMES
+d9d7ffa2083f  contrailk8sdayone/ubuntu              "/sbin/init"            ...        k8s_client_pod-1_default_f8b42343-d87a-11e9-9a1e-0050569e6cfc_0
+9f8032f4fbe2  contrailk8sdayone/contrail-webserver  "python app-dayone.py"  ...        k8s_server_pod-1_default_f8b42343-d87a-11e9-9a1e-0050569e6cfc_0
+969ec6d93683  k8s.gcr.io/pause:3.1                  "/pause"                ...        k8s_POD_pod-1_default_f8b42343-d87a-11e9-9a1e-0050569e6cfc_0
 ----
 
 the third container with image name `k8s.gcr.io/pause` is a special container
@@ -700,18 +765,17 @@ image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-
 
 === Intra Pod Communication
 
-//TODO: redo in new setup, and add ifconfig to show same IP
 in kubernetes master, to login to a container:
 
-.login to a container
+.login to a container directly from master
 ----
-#login to pod-1's container apache 
-root@test1:~# kubectl exec -it pod-1 -c apache bash
-root@pod-1:/var/www/html#
+#login to pod-1's container client 
+$ kubectl exec -it pod-1 -c client bash
+root@pod-1:/#
 
-#login to pod-1's container db 
-root@test1:~# kubectl exec -it pod-1 -c db bash
-[ root@pod-1:/data ]$ 
+#login to pod-1's container server 
+$ kubectl exec -it pod-1 -c server bash
+root@pod-1:/app-dayone#
 ----
 
 NOTE: if you ever played with docker you will immediately realized that this is
@@ -722,7 +786,9 @@ these details and allow you to do everything from one node - the master.
 
 now check processes running in the container:
 
-.apache container
+.server container
+
+////
 ----
 root@pod-1:/var/www/html# ps aux
 USER      PID  %CPU  %MEM  VSZ     RSS    TTY    STAT  START  TIME  COMMAND
@@ -751,8 +817,36 @@ root@pod-1:/var/www/html# ip a
     inet 10.47.255.233/12 scope global eth0
        valid_lft forever preferred_lft forever
 ----
+////
 
-.db container
+----
+root@pod-1:/app-dayone# ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.0  55912 17356 ?        Ss   12:18   0:00 python app-dayo
+root         7  0.5  0.0 138504 17752 ?        Sl   12:18   0:05 /usr/bin/python
+root        10  0.0  0.0  18232  1888 pts/0    Ss   12:34   0:00 bash
+root        19  0.0  0.0  34412  1444 pts/0    R+   12:35   0:00 ps aux
+
+root@pod-1:/app-dayone# ss -ant
+State      Recv-Q Send-Q Local Address:Port               Peer Address:Port
+LISTEN     0      128          *:80                       *:*
+LISTEN     0      128          *:22                       *:*
+LISTEN     0      128         :::22                      :::*
+
+root@pod-1:/app-dayone# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+116: eth0@if117: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 02:f8:e6:63:7e:d8 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.47.255.237/12 scope global eth0
+       valid_lft forever preferred_lft forever
+----
+
+.client container
+
+////
 ----
 [ root@pod-1:/data ]$ ps aux
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
@@ -776,17 +870,47 @@ LISTEN  0       128     :::6379  :::*
     inet 10.47.255.233/12 scope global eth0
        valid_lft forever preferred_lft forever
 ----
+////
+
+----
+$ kubectl exec -it pod-1 -c client bash
+root@pod-1:/# ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.0  32716  2088 ?        Ss   12:18   0:00 /sbin/init
+root        41  0.0  0.0  23648   888 ?        Ss   12:18   0:00 cron
+root        47  0.0  0.0  61364  3064 ?        Ss   12:18   0:00 /usr/sbin/sshd
+syslog     111  0.0  0.0 116568  1172 ?        Ssl  12:18   0:00 rsyslogd
+root       217  0.2  0.0  18168  1916 pts/0    Ss   12:45   0:00 bash
+root       231  0.0  0.0  15560  1144 pts/0    R+   12:45   0:00 ps aux
+
+root@pod-1:/# ss -ant
+State      Recv-Q Send-Q        Local Address:Port          Peer Address:Port
+LISTEN     0      128                       *:80                       *:*
+LISTEN     0      128                       *:22                       *:*
+LISTEN     0      128                      :::22                      :::*
+
+root@pod-1:/# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+116: eth0@if117: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 02:f8:e6:63:7e:d8 brd ff:ff:ff:ff:ff:ff
+    inet 10.47.255.237/12 scope global eth0
+       valid_lft forever preferred_lft forever
+----
 
 the `ps` command output shows that each container is running its own process.
-however, th `ss` and `ip` command output indicate that both container share the
+however, the `ss` and `ip` command output indicate that both container share the
 same exact network environment so both see the port exposed by each other.
 Therefore, communication between containers in a pod can happen simply by using
 `localhost`. we can test this out by starting a tcp connection using `curl`
-command:
+command.
 
-from container `apache`, start a TCP connection toward redis port that container
-`db` is listening, using `localhost` IP address:
+suppose from `client` container, we want to get a web page from the `server`
+container. we can simply start `curl` using `localhost` IP address:
 
+////
 .start `curl` from `apache` container
 ----
 root@pod-1:/var/www/html# curl localhost:6379
@@ -796,11 +920,34 @@ root@pod-1:/var/www/html# curl localhost:6379
 root@pod-1:/var/www/html# bg
 [1]+ curl localhost:6379 &
 ----
+////
+
+
+----
+root@pod-1:/# curl localhost
+
+<html>
+<style>
+  h1   {color:green}
+  h2   {color:red}
+</style>
+  <div align="center">
+  <head>
+    <title>Contrail Pod</title>
+  </head>
+  <body>
+    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b> pod</h2><br><h3>IP address = 10.47.255.237<br>Hostname = pod-1</h3>
+    <img src="/static/giphy.gif">
+  </body>
+  </div>
+</html>
+----
 
 now monitor the TCP connection state: the connection is established
 successfully.
 
 .monitor connections
+////
 ----
 root@pod-1:/var/www/html# ss -at
 State      Recv-Q Send-Q    Local Address:Port    Peer Address:Port
@@ -809,6 +956,28 @@ LISTEN     0      128                   *:http               *:*
 ESTAB      0      0             127.0.0.1:46378      127.0.0.1:6379         #<---
 ESTAB      0      0             127.0.0.1:6379       127.0.0.1:46378        #<---
 LISTEN     0      128                  :::6379              :::*
+----
+////
+
+----
+root@pod-1:/# ss -ant
+State      Recv-Q Send-Q        Local Address:Port          Peer Address:Port
+LISTEN     0      128                       *:80                       *:*
+LISTEN     0      128                       *:22                       *:*
+TIME-WAIT  0      0                 127.0.0.1:80               127.0.0.1:34176 #<---
+LISTEN     0      128                      :::22                      :::*
+----
+
+same exact connection can be seen from server container:
+
+----
+$ kubectl exec -it pod-1 -c server bash
+root@pod-1:/app-dayone# ss -ant
+State      Recv-Q Send-Q Local Address:Port               Peer Address:Port
+LISTEN     0      128          *:80                       *:*
+LISTEN     0      128          *:22                       *:*
+TIME-WAIT  0      0      127.0.0.1:80                 127.0.0.1:34182   #<---
+LISTEN     0      128         :::22                      :::*
 ----
 
 == Kubectl Tool 
@@ -842,4 +1011,4 @@ help of `completion` option: `kubectl completion -h`
 //don't panic! the most commonly used options - the ones you can reply on to get
 //80% of your work done, are just a few of them.
 
-you will see and learn the some of these options in the rest part of this book.
+you will see and learn some of these options in the rest part of this book.
