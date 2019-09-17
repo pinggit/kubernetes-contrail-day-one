@@ -1,3 +1,4 @@
+// vim:set ft=asciidoc syntax=ON tw=80: GistID: 852f311adb0c36bfbb0eac3ef8775e01
 = Chapter 2: Kubernetes Basics 
 // vim:set ft=asciidoc syntax=ON tw=80:
 :toc:
@@ -9,6 +10,12 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 :listing-caption: Example
+:imagesdir:  C:/Users/pings/Dropbox/kubernetes-contrail-day-one.materials/diagrams-gist/
+ifdef::env-github[]
+//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/46da7d2e292bbc66a1f1803c00e3915d0a970273/
+//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
+:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
+endif::[]
 
 This chapter introduces kubernetes, what it is, basic terminologies and the key
 concepts. You will learn most of the frequently referred components in
@@ -254,15 +261,15 @@ the pods and the nodes will flows correctly.
 after you get some basic idea about the master and node and the main processes
 running in each, it is time to look at how things works together in figure 2.1
 
-//TODO: pick one or make a new one.
 //image::https://user-images.githubusercontent.com/2038044/45911926-b5345180-bde7-11e8-82bd-152fffa2774a.png[]
 //image::https://user-images.githubusercontent.com/2038044/46121001-c7473300-c1df-11e8-90c0-425b94957df1.png[]
 
 .kubernetes architecture
 //image::https://user-images.githubusercontent.com/2038044/56502199-89915b00-64df-11e9-98a9-8ec5a786fff7.png[]
 //image::https://user-images.githubusercontent.com/2038044/64628362-43ba2e00-d3bf-11e9-8610-9b58dcd859b9.png[]
-image::https://user-images.githubusercontent.com/2038044/64628544-94ca2200-d3bf-11e9-9600-3dad2923dd21.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/64628544-94ca2200-d3bf-11e9-9600-3dad2923dd21.png[]
+//image::https://user-images.githubusercontent.com/2038044/64964810-cf253a80-d869-11e9-8c71-8400b46e919e.png[]
+image::k8s-arch.drawio.png[]
 //Figure 2.1 Kubernetes Architecture
 
 At the top behind `kubectl` is where you are. via `kubectl` commands you talk
@@ -725,7 +732,8 @@ figure:
 //image::https://user-images.githubusercontent.com/2038044/57172600-4218a200-6df0-11e9-9282-830396cd9681.png[]
 //image::https://user-images.githubusercontent.com/2038044/63235131-51d4be80-c206-11e9-85c5-cd62e40270a8.png[]
 //image::https://user-images.githubusercontent.com/2038044/63236257-07a20c00-c20b-11e9-9e0f-9389716d4437.png[]
-image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-11e9-837b-6a9bce620efa.png[]
+//image::https://user-images.githubusercontent.com/2038044/63238130-e8a77800-c212-11e9-837b-6a9bce620efa.png[]
+image::pod.png[]
 
 === Pause Container
 
@@ -761,7 +769,8 @@ below figure shows a pod including a few user containers and a `pause` container
 .pod, user containers and the special `pause` container
 //image::https://user-images.githubusercontent.com/2038044/45227410-68e8fd80-b28e-11e8-87aa-daacaf24909f.png[]
 //image::https://user-images.githubusercontent.com/2038044/63236197-d7f30400-c20a-11e9-9404-bb77dcdb3e72.png[]
-image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-11e9-838f-f3d8c76468fa.png[]
+//image::https://user-images.githubusercontent.com/2038044/63238149-01179280-c213-11e9-838f-f3d8c76468fa.png[]
+image::pod-pause.drawio.png[]
 
 === Intra Pod Communication
 

@@ -1,4 +1,4 @@
-// vim:set ft=asciidoc cc=80 tw=80:
+// vim:set ft=asciidoc cc=80 tw=80: GistID: 1dd268ba5900111d035111ab77201a5a
 = Chapter 4: Kubernetes and Contrail Integration 
 :toc: right
 :toclevels: 3
@@ -10,6 +10,12 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 :numbered:
+:imagesdir:  C:/Users/pings/Dropbox/kubernetes-contrail-day-one.materials/diagrams-gist/
+ifdef::env-github[]
+//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
+//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/83318e78c1785b7fa39046c2d818b6f3387cc1cd/
+:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
+endif::[]
 
 This chapter expalins contrail role in kubernetes world. we'll start with a
 section about contrail kubernetes integration architecture, where you will learn
@@ -160,7 +166,8 @@ based on it:
 the digaram is here:
 
 //image::https://user-images.githubusercontent.com/2038044/60372220-e28edb00-99c9-11e9-8918-1f0935a913ed.png[]
-image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
+//image::https://user-images.githubusercontent.com/2038044/63596670-bcc92100-c589-11e9-99f1-7340a24cc8fd.png[]
+image::testbed-fabric.drawio.png[]
 
 TIP: To minimize the resource utilization, all "servers" are actually centos
 virtual machines created by vmware ESXI hypervisor running in one physical HP
@@ -345,7 +352,8 @@ this can be illustrated in below diagram:
 
 .NS and VN
 //image::https://user-images.githubusercontent.com/2038044/63223271-13e18700-c181-11e9-8fe4-987cf935a05b.png[]
-image::https://user-images.githubusercontent.com/2038044/64745160-bbc64800-d4d4-11e9-9360-cc0811f99441.png[]
+//image::https://user-images.githubusercontent.com/2038044/64745160-bbc64800-d4d4-11e9-9360-cc0811f99441.png[]
+image::ns-isloation.drawio.png[]
 
 here is the yaml file to create an isolated namespace:
 
@@ -612,7 +620,8 @@ the figure below illustrates the basic work flow of FIP:
 //image::https://user-images.githubusercontent.com/2038044/60556767-b8faea00-9d10-11e9-84bb-0e40e3edcc3d.png[]
 //image::https://user-images.githubusercontent.com/2038044/60357106-b448d580-99a0-11e9-8ad2-31e15102b6bd.png[]
 //image::https://user-images.githubusercontent.com/2038044/63227026-0ee7fc00-c1b0-11e9-8e59-d247ec8d7b2e.png[]
-image::https://user-images.githubusercontent.com/2038044/63263460-a4d66200-c256-11e9-8d83-012ae4a8ab26.png[]
+//image::https://user-images.githubusercontent.com/2038044/63263460-a4d66200-c256-11e9-8d83-012ae4a8ab26.png[]
+image::fip.drawio.png[]
 
 here are some highlights regarding FIP:
 
@@ -993,7 +1002,8 @@ the FIP advertisement process is illustrated in this figure below:
 
 .FIP advertisement
 //image::https://user-images.githubusercontent.com/2038044/63262377-c5e98380-c253-11e9-996f-27eecb0df931.png[]
-image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
+//image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
+image::fip-advertisement.drawio.png[]
 
 === summarization
 
@@ -1187,8 +1197,8 @@ let's take a look at service loadbalancer and the related objects.
 //image::https://user-images.githubusercontent.com/2038044/60677600-f87c2000-9e4f-11e9-8032-7cffd5f35da7.png[]
 //TODO: redraw, add color
 //image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
-image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
-
+//image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
+image::lb-svc.drawio.png[]
 
 highlights in this figure:
 
@@ -1798,7 +1808,8 @@ figure:
 //image::https://user-images.githubusercontent.com/2038044/60762413-1ce12380-a02d-11e9-8cec-41d5e177bfb9.png[]
 //image::https://user-images.githubusercontent.com/2038044/63705462-3287f380-c7fb-11e9-9055-a9f3002708b2.png[]
 //image::https://user-images.githubusercontent.com/2038044/63705594-885c9b80-c7fb-11e9-897b-ee55e0d7a70f.png[]
-image::https://user-images.githubusercontent.com/2038044/64903204-b575ce80-d682-11e9-88fc-139869511aeb.png[]
+//image::https://user-images.githubusercontent.com/2038044/64903204-b575ce80-d682-11e9-88fc-139869511aeb.png[]
+image::svc-clusterip-ecmp.drawio.png[]
 
 this is what happened in the forwarding plane:
 
@@ -1827,7 +1838,8 @@ individual backend pool that has one or multiple member(s).
 
 .service loadbalancer
 //image::https://user-images.githubusercontent.com/2038044/60762277-e1912580-a029-11e9-92f1-93d8410f4eeb.png[]
-image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
+//image::https://user-images.githubusercontent.com/2038044/63821242-3a8a8500-c91a-11e9-81c9-3d93077b3e94.png[]
+image::lb-svc.drawio.png[]
 
 in kubernetes, this 1:N mapping between loadbalancer and listeners indicates
 a `multiple port service` - one service with multiple ports.
@@ -2122,9 +2134,8 @@ the complete end to end traffic flow is illustrated here:
 //image::https://user-images.githubusercontent.com/2038044/60388198-f7c44200-9a7b-11e9-9b08-f34167b0a2b8.png[]
 //image::https://user-images.githubusercontent.com/2038044/60762300-96c3dd80-a02a-11e9-8933-452d3ee074a4.png[]
 //image::https://user-images.githubusercontent.com/2038044/60763424-32147d00-a042-11e9-813a-a6aa3989c09d.png[]
-image::https://user-images.githubusercontent.com/2038044/64745576-67bc6300-d4d6-11e9-8919-f8b1ea0d8f8f.png[]
-
-//TODO: redraw with color
+//image::https://user-images.githubusercontent.com/2038044/64745576-67bc6300-d4d6-11e9-8919-f8b1ea0d8f8f.png[]
+image::svc-clusterip.drawio.png[]
 
 === Contrail Loadbalancer Service
 
@@ -2333,7 +2344,8 @@ the packet flow is illustrated in this figure:
 .`loadbalancer` service workflow
 //image::https://user-images.githubusercontent.com/2038044/60563159-a7254100-9d28-11e9-94ca-934b8f870b1e.png[]
 //image::https://user-images.githubusercontent.com/2038044/63638336-e8fda400-c654-11e9-8938-d98901633b6b.png[]
-image::https://user-images.githubusercontent.com/2038044/64745664-b36f0c80-d4d6-11e9-8019-f901f1c4fb5a.png[]
+//image::https://user-images.githubusercontent.com/2038044/64745664-b36f0c80-d4d6-11e9-8019-f901f1c4fb5a.png[]
+image::svc-lb.drawio.png[]
 
 here is the full story:
 
@@ -2628,7 +2640,8 @@ the end to end packet flow is illustrated here:
 .loadbalancer service ECMP
 //image::https://user-images.githubusercontent.com/2038044/60763675-8e2dd000-a047-11e9-91a6-5fb1319517dc.png[]
 //image::https://user-images.githubusercontent.com/2038044/64746240-da2e4280-d4d8-11e9-862e-2d68166dced3.png[]
-image::https://user-images.githubusercontent.com/2038044/64795236-c2dc6d00-d54b-11e9-9074-8076978ed18d.png[]
+//image::https://user-images.githubusercontent.com/2038044/64795236-c2dc6d00-d54b-11e9-9074-8076978ed18d.png[]
+image::svc-lb-ecmp.drawio.png[]
 
 == Contrail Ingress
 
@@ -2759,7 +2772,8 @@ cluster:
 //TODO: lost the drawing, need to redraw, and give text explain
 .Ingress traffic flow: access from internal
 //image::https://user-images.githubusercontent.com/2038044/61061849-0b9c6c00-a3cb-11e9-8788-cb1c1dedafc4.png[]
-image::https://user-images.githubusercontent.com/2038044/64801404-7185ab00-d556-11e9-8d2b-37555ace5f01.png[]
+//image::https://user-images.githubusercontent.com/2038044/64801404-7185ab00-d556-11e9-8d2b-37555ace5f01.png[]
+image::ingress-detail-vh-internal.drawio.png[]
 
 here is the end to end service request flow when accessing from Internet host:
 
@@ -2767,7 +2781,8 @@ here is the end to end service request flow when accessing from Internet host:
 //image::https://user-images.githubusercontent.com/2038044/60410376-09017180-9b96-11e9-927e-4cf1d98f2cef.png[]
 //image::https://user-images.githubusercontent.com/2038044/61061268-eb1fe200-a3c9-11e9-9d36-191955b766e1.png[]
 //image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
-image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
+//image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
+image::ingress-detail-vh-external.drawio.png[]
 
 ////
 . the "haproxy driver" will create a service instance (SI) with
@@ -3418,9 +3433,10 @@ backend b45fb570-bec5-4208-93c9-ba58c3a55936                    #<---
 
 the configuration is simple, and here is the illustration of it:
 
-.single service ingress 
+.single service Ingress 
 //image::https://user-images.githubusercontent.com/2038044/61689786-db6f9a00-acf5-11e9-9625-4ba1e570d354.png[]
-image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-11e9-97e9-5a84ffa874cd.png[]
+//image::https://user-images.githubusercontent.com/2038044/63656134-88f32480-c75e-11e9-97e9-5a84ffa874cd.png[]
+image::ingress-terse-ss.drawio.png[]
 
 * the haproxy `frontend` represents the "frontend" of an Ingress, facing clients
 * the haproxy `backend` represents the "backend" of an Ingress, facing services.
@@ -4232,11 +4248,12 @@ this by looking at the `serviceIP:port`: `10.97.77.82:8888`.
 
 this configuration file can be illustrated in this figure:
 
-.simple fanout service
+.simple fanout Ingress
 //image::https://user-images.githubusercontent.com/2038044/61764125-0f09fd00-ada6-11e9-8a30-61e3a2ed2db3.png[]
 //image::https://user-images.githubusercontent.com/2038044/61790000-1cde7300-ade4-11e9-9a78-d1f5c13c7046.png[]
 //image::https://user-images.githubusercontent.com/2038044/62929112-c8496a80-bd87-11e9-8b53-fdc85ca959d0.png[]
-image::https://user-images.githubusercontent.com/2038044/63776303-1e9dc980-c8af-11e9-8c25-cdbc7d6cc73a.png[]
+//image::https://user-images.githubusercontent.com/2038044/63776303-1e9dc980-c8af-11e9-8c25-cdbc7d6cc73a.png[]
+image::ingress-terse-sf.drawio.png[]
 
 with this `proxy.conf` file, the haproxy implements our `simple fanout Ingress`:
 
@@ -4763,7 +4780,9 @@ here are the highlights:
 
 this configuration file can be illustrated in this figure:
 
-image::https://user-images.githubusercontent.com/2038044/63788692-e785e300-c8c3-11e9-92be-a37ac7d83104.png[]
+.virtual host Ingress
+//image::https://user-images.githubusercontent.com/2038044/63788692-e785e300-c8c3-11e9-92be-a37ac7d83104.png[]
+image::ingress-terse-vh.drawio.png[]
 
 through this configuration, the haproxy implemented our ingress:
 
@@ -4931,7 +4950,8 @@ you've seen this figure in `Ingress` section:
 
 .Ingress traffic flow: access from external
 //image::https://user-images.githubusercontent.com/2038044/61061427-3f2ac680-a3ca-11e9-9364-f11bea477319.png[]
-image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
+//image::https://user-images.githubusercontent.com/2038044/64834385-a40fc200-d5af-11e9-85bb-f6e33e13f4e9.png[]
+image::ingress-detail-vh-external.drawio.png[]
 
 earlier we looked at the external gateway router's VRF routing table and use the
 `protocol next hop` information to find out which node get the packet from the
@@ -5080,7 +5100,8 @@ from compute nodes.
 ==== Internet Host: Analyze HTTP Request
 
 .Internet Host: send a HTTP request
-image::https://user-images.githubusercontent.com/2038044/64836098-93167f00-d5b6-11e9-9bc2-e4b380867d33.png[]
+//image::https://user-images.githubusercontent.com/2038044/64836098-93167f00-d5b6-11e9-9bc2-e4b380867d33.png[]
+image::ingress-detail-vh-external-fromhost.drawio.png[]
 
 .curl `-v`
 
@@ -5180,7 +5201,8 @@ is not part of the VPN can also access the overlay networks in contrail.
 //of active haproxy node: MPLS over GRE
 
 .gateway router to Ingress public FIP
-image::https://user-images.githubusercontent.com/2038044/64836185-f7d1d980-d5b6-11e9-9aa3-90866cb36dd3.png[]
+//image::https://user-images.githubusercontent.com/2038044/64836185-f7d1d980-d5b6-11e9-9aa3-90866cb36dd3.png[]
+image::ingress-detail-vh-external-fromgw.drawio.png[]
 
 earlier in Ingress section we've seen gateway router's routing table, from the
 "protocol next hop" we can find out that the packet will be sent to active
@@ -5289,7 +5311,8 @@ VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
 ==== Ingress Public FIP to Ingress Pod IP: FIP(NAT)
 
 .Ingress public FIP to Ingress Pod IP
-image::https://user-images.githubusercontent.com/2038044/64836244-25b71e00-d5b7-11e9-88d4-269942f99163.png[]
+//image::https://user-images.githubusercontent.com/2038044/64836244-25b71e00-d5b7-11e9-88d4-269942f99163.png[]
+image::ingress-detail-vh-external-activeproxy.drawio.png[]
 
 //on active haproxy node: NAT
 ////
@@ -5357,7 +5380,8 @@ between.
 //on active haproxy node 
 
 .Ingress pod IP to service IP
-image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
+//image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
+image::ingress-detail-vh-external-activeproxy2service.drawio.png[]
 
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
@@ -5465,7 +5489,8 @@ destination node.
 ==== Service IP to Backend Pod IP: FIP(NAT)
 
 .service IP to backend pod IP
-image::https://user-images.githubusercontent.com/2038044/64836348-79296c00-d5b7-11e9-9757-2cdc4028c41d.png[]
+//image::https://user-images.githubusercontent.com/2038044/64836348-79296c00-d5b7-11e9-9757-2cdc4028c41d.png[]
+image::ingress-detail-vh-external-service2pod.drawio.png[]
 
 on destination node `cent333`, when packet comes in from Ingress internal IP
 `10.47.255.238` toward the service IP `10.99.225.17` of `webservice-1`, vrouter
@@ -5634,7 +5659,8 @@ into a bridge, assigning IP, configuring routes, and so on.
 //TODO: need redraw
 .container and veth pair
 //image::https://user-images.githubusercontent.com/2038044/60554760-ee9ad580-9d06-11e9-9628-f01af759f6e1.png[]
-image::https://user-images.githubusercontent.com/2038044/64902914-47c7a380-d67e-11e9-8f2d-b3197fb003e4.png[]
+//image::https://user-images.githubusercontent.com/2038044/64902914-47c7a380-d67e-11e9-8f2d-b3197fb003e4.png[]
+image:vethpair.drawio.png[]
 
 there are many such CNI plugin implementations that are publicly available
 today. contrail is one of them.  for a comprehensive list you can check
