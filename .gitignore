@@ -1,5 +1,6 @@
 *.pdf
 *.html
 *.md
+*.docx
 #diagrams/drawio/*.drawio
 #diagrams-ping.docx
