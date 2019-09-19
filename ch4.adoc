@@ -558,6 +558,7 @@ round-trip min/avg/max = 1.470/1.470/1.470 ms
 
 the ping packet passes through now. to summarize the test results: 
 
+* traffic is not isolated between non-isolated NS
 * traffic is isolated between an isolated NS and all other tenant in the cluster
 * traffic is not isolated in same NS 
 
@@ -582,7 +583,7 @@ frequently used methods among them are:
 * fabric SNAT
 * logical router
 
-the prefered kubernetes solution to expose any service is via `service` 
+the preferred kubernetes solution to expose any service is via `service` 
 and `Ingress` objects which you've read about and got the idea in chapter 3.
 in contrail kubernetes environment, floating IP is used in the service and Ingress
 implementation to expose them to outside of the cluster. later in this chapter
@@ -771,6 +772,7 @@ prevail.
 let's first take a look at the object-specific FIP pool. here is an example:
 
 ----
+#service-web-lb-pool-public-1.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1813,7 +1815,7 @@ image::svc-clusterip-ecmp.drawio.png[]
 
 this is what happened in the forwarding plane:
 
-* a client pod located in node `cent222` needs to access a service
+* a pod `client` located in node `cent222` needs to access a service
   `service-web-clusterip`, it sends a packet towards the service's clusterIP
   `10.105.139.153` and port `8888`
 * `client` sends the packet to `node222` vrouter based on the default route.
@@ -1907,7 +1909,6 @@ $ kubectl exec -it client -- curl 10.101.102.27:8888 | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.238
                          Hostname = webserver-846c9ccb8b-g27kg
-                                    [giphy]
 ----
 
 service port 9999 doesn't work:
@@ -2167,7 +2168,7 @@ let's look at the yaml file of a `LoadBalancer` service. it is same as ClusterIP
 service except just one more line declaring the service `type`:
 
 ----
-$ cat service-web-lb.yaml
+#service-web-lb.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -2403,7 +2404,6 @@ To simplify the test, you can also ssh into the Internet host and test it with
 This page is served by a Contrail pod
   IP address = 10.47.255.238
   Hostname = webserver-846c9ccb8b-vl6zs
-   [giphy.gif]
 ----
 
 the kubernetes service is available from Internet!
@@ -3575,7 +3575,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 
 $ kubectl exec -it client -- \
     curl -H 'Host:www.cisco.com' 10.47.255.238 | w3m -T text/html | cat
@@ -3583,7 +3582,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 
 $ kubectl exec -it client -- \
 curl -H 'Host:www.google.com' 10.47.255.238 | w3m -T text/html | cat
@@ -3591,14 +3589,12 @@ curl -H 'Host:www.google.com' 10.47.255.238 | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 $ kubectl exec -it client -- \
 curl 10.47.255.238:80 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 ----
 
 we still use the `curl` command to trigger HTTP requests towards the ingress's
@@ -3657,28 +3653,24 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 
 $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-9nfdx
-                                    [giphy]
 ----
 
 everything works!
@@ -4282,7 +4274,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-1-846c9ccb8b-wns77
-                                    [giphy]
 
 $ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/qa | w3m -T text/html | cat
@@ -4290,7 +4281,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
                         Hostname = Vwebserver-2-846c9ccb8b-t75d8
-                                    [giphy]
 
 $ kubectl exec -it client -- \
     curl -H 'Host:www.juniper.net' 10.47.255.238/abc | w3m -T text/html | cat
@@ -4385,14 +4375,12 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1/qa | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.235
                         Hostname = Vwebserver-2-846c9ccb8b-t75d8
-                                    [giphy]
 
 $ curl -H 'Host:www.juniper.net' 101.101.101.1/dev | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                          Hostname = webserver-846c9ccb8b-wns77
-                                    [giphy]
 
 $ curl -H 'Host:www.juniper.net' 101.101.101.1/ | w3m -T text/html | cat
 503 Service Unavailable
@@ -4820,7 +4808,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 
 $ kubectl exec -it client -- \
     curl -H 'Host:www.cisco.com' 10.47.255.238:80 | w3m -T text/html | cat
@@ -4835,7 +4822,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 
 $ kubectl exec -it client -- \
     curl 10.47.255.238:80 | w3m -T text/html | cat
@@ -4843,7 +4829,6 @@ $ kubectl exec -it client -- \
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 ----
 
 //we still use the `curl` command to trigger HTTP requests towards the ingress's
@@ -4885,7 +4870,6 @@ $ curl -H 'Host:www.juniper.net' 101.101.101.1 | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 
 $ curl -H 'Host:www.cisco.com' 101.101.101.1 | w3m -T text/html | cat
                                      Hello
@@ -4898,14 +4882,12 @@ $ curl -H 'Host:www.google.com' 101.101.101.1 | w3m -T text/html | cat
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 
 $ curl 101.101.101.1 | w3m -T text/html | cat
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.236
                         Hostname = Vwebserver-1-846c9ccb8b-g65dg
-                                    [giphy]
 ----
 
 === Service vs Ingress Traffic Flow
@@ -5057,7 +5039,6 @@ Connection: keep-alive
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
     rc-webserver-1-g65dg</h3>
-    <img src="/static/giphy.gif">
   </body>
   </div>
 </html>
@@ -5099,10 +5080,6 @@ from compute nodes.
 
 ==== Internet Host: Analyze HTTP Request
 
-.Internet Host: send a HTTP request
-//image::https://user-images.githubusercontent.com/2038044/64836098-93167f00-d5b6-11e9-9bc2-e4b380867d33.png[]
-image::ingress-detail-vh-external-fromhost.drawio.png[]
-
 .curl `-v`
 
 earlier we've used `curl` tool a lot to trigger HTTP requests for our test.
@@ -5143,7 +5120,6 @@ purpose we use another useful option - `-v` in `curl` command:
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
     Vwebserver-1-846c9ccb8b-g65dg</h3>
-    <img src="/static/giphy.gif">
   </body>
   </div>
 </html>
@@ -5171,11 +5147,17 @@ test we were just emulating what `curl` would do but we just did it manually!
 
 ==== Internet Host to Gateway Router
 
+first let's start from the client - the Internet host. 
+
+.Internet Host: send a HTTP request
+//image::https://user-images.githubusercontent.com/2038044/64836098-93167f00-d5b6-11e9-9bc2-e4b380867d33.png[]
+image::ingress-detail-vh-external-fromhost.drawio.png[]
+
+
 .Internet host routing table: default route
 
-first let's start from the client - the Internet host. as in any host, the
-routing table is pretty simple. static route, or more typically a default route,
-pointing to gateway route is all what it needs.
+as in any host, the routing table is pretty simple. static route, or more
+typically a default route, pointing to gateway route is all what it needs.
 
 ----
 [root@cent-client ~]# ip r
@@ -5200,13 +5182,13 @@ is not part of the VPN can also access the overlay networks in contrail.
 ==== Gateway router to Ingress Public FIP: MPLS over GRE
 //of active haproxy node: MPLS over GRE
 
-.gateway router to Ingress public FIP
-//image::https://user-images.githubusercontent.com/2038044/64836185-f7d1d980-d5b6-11e9-9aa3-90866cb36dd3.png[]
-image::ingress-detail-vh-external-fromgw.drawio.png[]
-
 earlier in Ingress section we've seen gateway router's routing table, from the
 "protocol next hop" we can find out that the packet will be sent to active
 haproxy node `cent222` via MPLSoGRE tunnel.  
+
+.gateway router to Ingress public FIP
+//image::https://user-images.githubusercontent.com/2038044/64836185-f7d1d980-d5b6-11e9-9aa3-90866cb36dd3.png[]
+image::ingress-detail-vh-external-fromgw.drawio.png[]
 
 now with flow table collected on both computes, we can find out the same
 information. let's take a look at the flow entries of active proxy compute:
@@ -5310,10 +5292,6 @@ VIP `101.101.101.1`.  NAT will happen and we'll look into it next.
 
 ==== Ingress Public FIP to Ingress Pod IP: FIP(NAT)
 
-.Ingress public FIP to Ingress Pod IP
-//image::https://user-images.githubusercontent.com/2038044/64836244-25b71e00-d5b7-11e9-88d4-269942f99163.png[]
-image::ingress-detail-vh-external-activeproxy.drawio.png[]
-
 //on active haproxy node: NAT
 ////
 ----
@@ -5360,6 +5338,10 @@ previous flow output.
   indicate source NAT - `SNAT`, source IP `10.47.255.238` which is the internal
   internal Ingress VIP will be translated to the Ingress external VIP.
   
+.Ingress public FIP to Ingress Pod IP
+//image::https://user-images.githubusercontent.com/2038044/64836244-25b71e00-d5b7-11e9-88d4-269942f99163.png[]
+image::ingress-detail-vh-external-activeproxy.drawio.png[]
+
 in summary, what the flow table of active haproxy node `cent222` tells is that on
 receiving the packet destined to the Ingress FIP, vrouter on node `cent222`
 performs NAT operation and translates destination FIP (`101.101.101.1`) to the
@@ -5379,10 +5361,6 @@ between.
 ==== Ingress Pod IP to Service IP: MPLS over UDP
 //on active haproxy node 
 
-.Ingress pod IP to service IP
-//image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
-image::ingress-detail-vh-external-activeproxy2service.drawio.png[]
-
 now the packet lands in Ingress loadbalancer's VRF and it is in the frontend of
 the haproxy.  what the haproxy supposes to do is:
 
@@ -5395,6 +5373,10 @@ the haproxy.  what the haproxy supposes to do is:
   will be the next hop to forward the packet. 
 * between compute node the forwarding path is programmed with MPLSoUDP tunnel,
   so vrouter sends it through MPLS over UDP tunnel with right MPLS Label.
+
+.Ingress pod IP to service IP
+//image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
+image::ingress-detail-vh-external-activeproxy2service.drawio.png[]
 
 .Ingress loadbalancer's VRF table
 image::https://user-images.githubusercontent.com/2038044/64873035-46fb2700-d616-11e9-866f-a252a0f5c2c3.png[]
@@ -6048,6 +6030,7 @@ spec:
 ////
 
 ----
+#pod-webserver-multivn-do.yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6209,7 +6192,7 @@ image::https://user-images.githubusercontent.com/2038044/63706136-ad9dd980-c7fc-
 so let’s start create two networks using this YAML files 
 
 ----
-# cat vn-left.yaml
+#vn-left.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -6222,7 +6205,7 @@ metadata:
 spec:
  config: '{ "cniVersion": "0.3.0", "type": "contrail-k8s-cni" }'
 
-# cat vn-left.yaml
+#vn-left.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -6303,7 +6286,7 @@ image::https://user-images.githubusercontent.com/2038044/60268927-863d9580-98bb-
 Create two ubuntu Pods, one in each network using the annotation object
 
 ----
-# cat left-ubuntu-sc.yaml 
+#left-ubuntu-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6324,7 +6307,7 @@ spec:
              - NET_ADMIN
 
 
-# cat right-ubuntu-sc.yaml 
+#right-ubuntu-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6423,7 +6406,7 @@ create Juniper CSRX container that have one interface on the left network and
 one interface on the right network using this YAML file 
 
 ----
-# cat csrx1-sc.yaml 
+#csrx1-sc.yaml 
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6438,8 +6421,9 @@ metadata:
 spec:
   containers:
   - name: csrx1-sc
-    image: hub.juniper.net/security/csrx:18.1R1.9
+    #image: hub.juniper.net/security/csrx:18.1R1.9
     #image: csrx
+    image: contrailk8sdayone/csrx
     ports:
     - containerPort: 22
     imagePullPolicy: Never
@@ -6452,10 +6436,11 @@ spec:
 
 # kubectl create -f csrx1-sc.yaml
 ----
-
+////
 NOTE: in order for kubernetes to pull the image from juniper private registry, a
 secret is required. refer to chapter 3 `secret` section for the configuration of
 secret object `secret-jnpr` that we referred here in csrx yaml file.
+////
 
 Confirm the interface placement in the correct network 
 
@@ -6492,7 +6477,7 @@ IP:                 10.47.255.248
 Containers:
   csrx1-sc:
     Container ID:   docker://82b7605172d937895269d76850d083b6dc6e278e41cb45b4cb8cee21283e4f17
-    Image:          csrx
+    Image:          contrailk8sdayone/csrx
     Image ID:       docker://sha256:329e805012bdf081f4a15322f994e5e3116b31c90f108a19123cf52710c7617e
 
 ...<snipped>...
@@ -7072,7 +7057,6 @@ def workers():
   </head>
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b> pod</h2><br><h3>IP address = ''' + ip_addr + '''<br>Hostname = ''' + hostname + '''</h3>
-    <img src="/static/giphy.gif">
   </body>
   </div>
 </html>
@@ -7139,7 +7123,6 @@ cat <<EOF > dev
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
     webserver-1-846c9ccb8b-wns77</h3>
-    <img src="/static/giphy.gif">
   </body>
   </div>
 </html>
