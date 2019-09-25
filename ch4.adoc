@@ -358,7 +358,7 @@ image::ns-isloation.drawio.png[]
 here is the yaml file to create an isolated namespace:
 
 ----
-$ cat ns-isolated.yaml
+# ns-isolated.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -403,13 +403,13 @@ in the following sections we'll verify how the routing isolation works.
 create a non-isolated namespace and an isolated namespace:
 
 ----
-$ cat ns-non-isolated.yaml
+#ns-non-isolated.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: ns-non-isolated
 
-$ cat ns-isolated.yaml
+#ns-isolated.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -829,7 +829,7 @@ parameters, which can be found in '/etc/contrail/common_kubemanager.env` file in
 master node:
 
 ----
-$ cat /etc/contrail/common_kubemanager.env
+#/etc/contrail/common_kubemanager.env
 VROUTER_GATEWAY=10.169.25.1
 CONTROLLER_NODES=10.85.188.19
 KUBERNETES_API_NODES=10.85.188.19
@@ -4480,7 +4480,7 @@ Ingress` can be used here.
 ===== an "all in one" yaml file
 
 ----
-$ cat ingress/ingress-test.yaml
+#ingress/ingress-virtual-host.yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -5906,7 +5906,7 @@ small issues here and there.
 here is a yaml file of two VNs: `vn-left-1` and `vn-right-1`
 
 ----
-$ cat vn-left-1.yaml
+#vn-left-1.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -5923,7 +5923,7 @@ spec:
 ----
 
 ----
-$ cat vn-right-1.yaml
+#vn-right-1.yaml
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -7240,6 +7240,8 @@ file, only these two objects are recreated - all other objects keep unchanged.
 
 == Network Policy
 
+=== ch3
+
 In Kubernetes pods can reach any pods by default. Then how pods can be secured?
 The answer is network-policy. Network policy is a Kubernetes resource like
 `pod`, `service`, `ingress` and etc. It defines how groups of pods are allowed
@@ -7254,10 +7256,13 @@ without a controller to implement it will have no effect.
 .Things to be known
 
 1. Pods are non-isolated by default ie they can communicate to anyone
-2. Once the network policy is applied to a pod, pod will reject any connections that are not allowed by the network policy ie explicit white list rules has to be added to allow the traffic.
+2. Once the network policy is applied to a pod, pod will reject any connections
+that are not allowed by the network policy ie explicit white list rules has to
+be added to allow the traffic.
 3. Pods which are not part of the network policy will continue to communicate to all pods
 4. Multiple network-polices can be applied to a pod.
 
+----
 # network-policy-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -7293,19 +7298,37 @@ spec:
     ports:
     - protocol: TCP
       port: 8100
+----
 
-Network policy logically can be divided two sections. The first section will identify the pods where the Network policy would be applied. The second section will define the ingress and egress policies for the selected pods. 
+Network policy logically can be divided two sections. 
 
-Pods selection:
-	How the pods would be selected? Yes. You are right. Pods are identified using labels.
-	podSelector:
-         matchLabels:
-           app: server-dev
-In the above example the network policy would be applied to the pods which has the label “app: server-dev”.
+* The first section will identify the pods where the Network policy would be applied. 
+* The second section will define the ingress and egress policies for the selected pods. 
 
-Ingress and egress policies for the selected pods:
- 	The second section defines the policy types for the selected pods.  Policy type can be ingress or egress or both. Ingress is the default policy type. policy identifies the network endpoint where the selected pods can communicate. Network endpoint can be ip address block or pods (all pods or group of pods) in a namespace or selected pods in the same namespace.  Ingress network-endpoint has to be defined in the “from” section. Egress network-endpoint has to be defined in the “to” section. 
+.Pods selection:
 
+How the pods would be selected? Yes. You are right. Pods are identified using labels.
+
+----
+podSelector:
+ matchLabels:
+   app: server-dev
+----
+
+In the above example the network policy would be applied to the pods which has
+the label “app: server-dev”.
+
+.Ingress and egress policies for the selected pods:
+
+The second section defines the policy types for the selected pods.  Policy type
+can be ingress or egress or both. `Ingress` is the default policy type. policy
+identifies the network endpoint where the selected pods can communicate. Network
+endpoint can be ip address block or pods (all pods or group of pods) in a
+namespace or selected pods in the same namespace.  Ingress network-endpoint has
+to be defined in the “from” section. Egress network-endpoint has to be defined
+in the “to” section. 
+
+----
 policyTypes:
   - Ingress
   - Egress
@@ -7325,36 +7348,49 @@ policyTypes:
   - to:
     - ipBlock:
         cidr: 10.84.13.7/32
+----
 	
-In the above example, 
-1.	The ingress network points are 
-a.	10.84.24.0/24 except 10.84.24.62/32 
-b.	All the pods in namespaces which has the label “project: qa”. 
-c.	Pods which has the label “app: client1-dev”
+In the above example:
 
-2.	The egress network point is
-a.	10.84.7.34/32
+1. The ingress network points are 
 
-Is there any way to select few pods from namespaces instead of all pods in the namespaces? Yes.  It can be specified in the namespaceSelector. “namespaceSelector” can have podSelector.
-When namespaceSelector has podSelector,  network endpoint would be pods with matching labels in the selected namespaces.
+    a. 10.84.24.0/24 except 10.84.24.62/32 , or
+    b. All the pods in namespaces which has the label “project: qa” , or
+    c. Pods which has the label “app: client1-dev”
 
-The below example shows that allowing connections from pods with label ‘app: client-qa’ in namespaces with the label ‘project: qa’. Please be aware to use correct yaml syntax.
+2. The egress network point is
+    a. 10.84.7.34/32
 
-  ...
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          project: qa
-      podSelector:
-        matchLabels:
-          app: client-qa
-  ...
+Is there any way to select few pods from namespaces instead of all pods in the
+namespaces? Yes.  It can be specified in the namespaceSelector.
+`namespaceSelector` can have `podSelector`.  When `namespaceSelector` has
+`podSelector`,  network endpoint would be pods with matching labels in the
+selected namespaces.
 
-So far it is fine. Still there is a security concern. Is there any way to specify ports for ingress and egress? Yes. As part of the policy it can be mentioned. If it is not mentioned it applies to all ports. Ports in ingress says that selected pods can allow traffic for the specified ports. Ports in egress says that selected pods can send traffic to specified ports.
+The below example shows that allowing connections from pods with label ‘app:
+client-qa’ in namespaces with the label ‘project: qa’. Please be aware to use
+correct yaml syntax.
 
-Previous example along with port specifications
+----
+ingress:
+- from:
+- namespaceSelector:
+    matchLabels:
+      project: qa
+  podSelector:
+    matchLabels:
+      app: client-qa
+----
 
+So far it is fine. Still there is a security concern. Is there any way to
+specify ports for ingress and egress? Yes. As part of the policy it can be
+mentioned. If it is not mentioned it applies to all ports. Ports in ingress says
+that selected pods can allow traffic for the specified ports. Ports in egress
+says that selected pods can send traffic to specified ports.
+
+.Previous example along with port specifications
+
+----
 policyTypes:
   - Ingress
   - Egress
@@ -7380,10 +7416,13 @@ policyTypes:
     ports:
     - protocol: TCP
       port: 8100
+----
 
-	The above network policy says that all ingress network endpoint can reach selected pods tcp port 8000 and selected pods can reach all egress network endpoint’s tcp port 8100.
-The rest of the traffic would be blocked.
+The above network policy says that all ingress network endpoint can reach
+selected pods tcp port 8000 and selected pods can reach all egress network
+endpoint’s tcp port 8100.  The rest of the traffic would be blocked.
 
+----
 # network-policy-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -7419,7 +7458,6 @@ spec:
     ports:
     - protocol: TCP
       port: 8100
-
 
 $kubectl create -f network-policy-do.yaml -n dev
 
@@ -7452,42 +7490,52 @@ Spec:
         CIDR: 10.84.13.7/32
         Except:
   Policy Types: Ingress, Egress
+----
 
+=== Contrail – k8s Network Policy
 
+In chapter 3, k8s network policy is explained and also mentioned that simply
+creating network policy won't have any impact unless the k8s networking
+component implements the k8s network-policy. In this chapter we are going to see
+contrail’s solution for k8s network policy with few examples.
 
+.Contrail Firewall 
 
+Contrail has various security gates like security-groups, network-policy and
+firewall to define policies between workloads. Each would be used based on the
+needs.
 
+NOTE: Contrail firewall also be referred as Contrail Security.
 
+Contrail Firewall is one of the gate that identifies the workloads based on the
+tags(labels) which is similar to k8s network policy. So It is natural to use
+contrail firewall for k8s network policy. It is not only about tags. It has the
+following advanatages. 
 
-
-
-
-
-
-
-
-
-Contrail – k8s Network Policy
-
-	In chapter 3, k8s network policy is explained and also mentioned that simply creating network policy wont have any impact unless the k8s networking component implements the k8s network-policy. In this chapter we are going to see contrail’s solution for k8s network policy with few examples.
-
-Contrail Firewall 
-Contrail has various security gates like security-groups, network-policy and firewall to define policies between workloads. Each would be used based on the needs.
-
-	Note: Contrail firewall also be referred as Contrail Security.
-
-Contrail Firewall is one of the gate that identifies the workloads based on the tags(labels) which is similar to k8s network policy. So It is natural to use contrail firewall for k8s network policy. It is not only about tags. It has the following advanatages. 
-1.	Workloads can be represented and grouped by tags.
-2.	Combinational tags can be used in policies.
-3.	Untagged workloads can be specified in policies.
-4.	Policies can be applied in various layers.
+1. Workloads can be represented and grouped by tags.
+2. Combinational tags can be used in policies.
+3. Untagged workloads can be specified in policies.
+4. Policies can be applied in various layers.
 
 Contrail k8s Network Policy Setup
-	Before getting into deeper, lets build the setup and understand the impact of k8s network policy in contrail. 
-	The setup needs 3 namespaces, 5 pods(1 server pod, 2 client pods in the same namespace, 2 clients from two different namespaces) and 2 CIDRs to show allow and deny traffic within, across namespaces and CIDRs
 
-	Lets create the required k8s resources.
-# Create dev, qa and build namespaces
+Before getting into deeper, lets build the setup and understand the impact of
+k8s network policy in contrail. 
+
+The setup needs:
+
+* 3 namespaces, 
+* 5 pods
+  - 1 server pod, 
+  - 2 client pods in the same namespace, 
+  - 2 clients from two different namespaces)
+* 2 CIDRs to show allow and deny traffic within, across namespaces and CIDRs
+
+Lets create the required k8s resources.
+
+Create `dev`, `qa` and `build` namespaces:
+
+----
 #dev-ns.yaml
 kind: Namespace
 apiVersion: v1
@@ -7520,8 +7568,12 @@ metadata:
 
 $kubectl create -f build-ns.yaml
 namespace/build created
+----
 
-	# create a server and two client pods in dev namespace and also one client pod in both qa, build namespace
+create a server and two client pods in `dev` namespace and also one client pod in
+both `qa`, `build` namespace
+
+----
 # server-dev.yaml
 apiVersion: v1
 kind: Pod
@@ -7624,11 +7676,17 @@ pod/client-build created
 $ kubectl get pods -n build -o wide
 NAME           READY   STATUS    RESTARTS   AGE   IP              NODE    NOMINATED NODE
 client-build   1/1     Running   0          16s   10.47.255.246   b4s41   <none>
+----
 
-Before going to see the impact of k8s network-policy, lets try to access the server pod from all the clients (client1-dev, client2-dev, client-qa and client-build) pods, 10.84.24.61/32 and 10.84.24.62/32.
+Before going to see the impact of k8s network-policy, lets try to access the
+server pod from all the clients (`client1-dev`, `client2-dev`, `client-qa` and
+`client-build`) pods, 10.84.24.61/32 and 10.84.24.62/32.
 
-#start the httpserver at port 8000 in server-pod
-$kubectl exec -it server-dev -n dev bash                      <----- login to the server-dev pod
+
+login to the server-dev pod
+
+----
+$kubectl exec -it server-dev -n dev bash
 root@server-dev:/# ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:26:d8:f0:8a:dd
           inet addr:10.47.255.250  Bcast:0.0.0.0  Mask:255.240.0.0
@@ -7645,10 +7703,18 @@ lo        Link encap:Local Loopback
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:1000
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
-root@server-dev:/# python -m SimpleHTTPServer 8000   <---- httpserver with port 8000
-Serving HTTP on 0.0.0.0 port 8000 ...
+----
 
-# accessing server-dev’s httpserver from client1-dev
+start the httpserver at port 8000 in server-pod
+
+----
+root@server-dev:/# python -m SimpleHTTPServer 8000
+Serving HTTP on 0.0.0.0 port 8000 ...
+----
+
+accessing server-dev’s httpserver from client1-dev
+
+----
 $ kubectl exec -it client1-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7671,8 +7737,11 @@ $ kubectl exec -it client1-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null
 { [data not shown]
 100   768  100   768    0     0   230k      0 --:--:-- --:--:-- --:--:--  375k
 * Closing connection 0
+----
 
-# accessing server-dev’s httpserver from client2-dev
+accessing server-dev’s httpserver from client2-dev
+
+----
 $kubectl exec -it client2-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7695,8 +7764,11 @@ $kubectl exec -it client2-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null 
 { [data not shown]
 100   768  100   768    0     0   243k      0 --:--:-- --:--:-- --:--:--  375k
 * Closing connection 0
+----
 
-# accessing server-dev’s httpserver from client-qa
+accessing server-dev’s httpserver from client-qa
+
+----
 kubectl exec -it client-qa -n qa -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7719,8 +7791,11 @@ kubectl exec -it client-qa -n qa -- curl -v 10.47.255.250:8000 -o /dev/null -m 3
 { [data not shown]
 100   768  100   768    0     0   214k      0 --:--:-- --:--:-- --:--:--  250k
 * Closing connection 0
+----
 
-#accessing server-dev’s httpserver from client-build
+accessing server-dev’s httpserver from client-build
+
+----
 $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7743,8 +7818,11 @@ $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/n
 { [data not shown]
 100   768  100   768    0     0   230k      0 --:--:-- --:--:-- --:--:--  375k
 * Closing connection 0
+----
 
-#accessing server-dev’s httpserver from 10.84.24.61
+accessing server-dev’s httpserver from 10.84.24.61
+
+----
 [root@b4s41 ~]# curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * About to connect() to 10.47.255.250 port 8000 (#0)
 *   Trying 10.47.255.250...
@@ -7767,8 +7845,11 @@ $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/n
 100   768  100   768    0     0   171k      0 --:--:-- --:--:-- --:--:--  375k
 * Closing connection 0
 [root@b4s41 ~]#
+----
 
-#accessing server-dev’s httpserver from 10.84.24.62 -m 30
+accessing server-dev’s httpserver from 10.84.24.62 -m 30
+
+----
 [root@b4s42 ~]# curl -v 10.47.255.250:8000 -o /dev/null
 * About to connect() to 10.47.255.250 port 8000 (#0)
 *   Trying 10.47.255.250...
@@ -7791,9 +7872,17 @@ $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/n
 100   768  100   768    0     0   151k      0 --:--:-- --:--:-- --:--:--  250k
 * Closing connection 0
 [root@b4s42 ~]#
+----
 
-Lets create the k8s network-policy and see what is happening. As per the below k8s network-policy, client1-dev from dev namespace, client-qa from qa namespace, 10.84.24.61/32 can reach the server-dev in dev namespace and the other should be denied.
+Lets create the k8s network-policy and see what is happening. As per the below
+k8s network-policy, the following can reach the server-dev in dev namespace and
+the other should be denied.
 
+* `client1-dev` from `dev` namespace, 
+* `client-qa` from `qa` namespace, 
+* 10.84.24.61/32 
+
+----
 # network-policy-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -7827,8 +7916,11 @@ spec:
     ports:
     - protocol: TCP
       port: 8100
+----
 
-# accessing server-dev’s httpserver from client1-dev
+accessing server-dev’s httpserver from client1-dev
+
+----
 $kubectl exec -it client1-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7851,8 +7943,11 @@ $kubectl exec -it client1-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null 
 { [data not shown]
 100   768  100   768    0     0   204k      0 --:--:-- --:--:-- --:--:--  250k
 * Closing connection 0
+----
 
-# accessing server-dev’s httpserver from client2-dev
+accessing server-dev’s httpserver from client2-dev
+
+----
 kubectl exec -it client2-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7864,8 +7959,11 @@ kubectl exec -it client2-dev -n dev -- curl -v 10.47.255.250:8000 -o /dev/null -
 * Closing connection 0
 curl: (28) Connection timed out after 30001 milliseconds
 command terminated with exit code 28
+----
 
-# accessing server-dev’s httpserver from client-qa
+accessing server-dev’s httpserver from client-qa
+
+----
 $ kubectl exec -it client-qa -n qa -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7888,8 +7986,11 @@ $ kubectl exec -it client-qa -n qa -- curl -v 10.47.255.250:8000 -o /dev/null -m
 { [data not shown]
 100   768  100   768    0     0   224k      0 --:--:-- --:--:-- --:--:--  250k
 * Closing connection 0
+----
 
-# accessing server-dev’s httpserver from client-build
+accessing server-dev’s httpserver from client-build
+
+----
 kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -7901,8 +8002,11 @@ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/nul
 * Closing connection 0
 curl: (28) Connection timed out after 30001 milliseconds
 command terminated with exit code 28
+----
 
-#accessing server-dev’s httpserver from 10.84.24.61/32
+accessing server-dev’s httpserver from 10.84.24.61/32
+
+----
 [root@b4s41 ~]# curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * About to connect() to 10.47.255.250 port 8000 (#0)
 *   Trying 10.47.255.250...
@@ -7925,8 +8029,11 @@ command terminated with exit code 28
 100   768  100   768    0     0   274k      0 --:--:-- --:--:-- --:--:--  375k
 * Closing connection 0
 [root@b4s41 ~]#
+----
 
-#accessing server-dev’s httpserver from 10.84.24.62/32
+accessing server-dev’s httpserver from 10.84.24.62/32
+
+----
 [root@b4s42 ~]# curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * About to connect() to 10.47.255.250 port 8000 (#0)
 *   Trying 10.47.255.250...
@@ -7937,63 +8044,104 @@ command terminated with exit code 28
 * Closing connection 0
 curl: (28) Connection timed out after 30001 milliseconds
 [root@b4s42 ~]#
+----
 
-From the above exercise, It is evident that contrail handles the k8s network policy as expected.
+From the above exercise, It is evident that contrail handles the k8s network
+policy as expected.
 
-Deeper view
-Contrail Firewall has the top level object “Application Policy Set(APS)”. APS has Firewall Policies;Firewall Policy has Firewall Rules;Firewall rules has the endpoints;Endpoints can be identified via tags or address groups(CIDRs).  
+==== Deeper view
 
-	Below table would represent network policy construtcs in k8s and mapping constructs in contrail and the mapping is done by the kube-manager.
+Contrail Firewall has the top level object “Application Policy Set(APS)”. APS
+has Firewall Policies;Firewall Policy has Firewall Rules;Firewall rules has the
+endpoints;Endpoints can be identified via tags or address groups(CIDRs).  
+
+Below table would represent network policy construtcs in k8s and mapping
+constructs in contrail and the mapping is done by the kube-manager.
 	
-K8s Network Policy Construts	Contrail Firewall Construts
-Cluster Name	APS (one per k8s cluster)
-Network Policy	Firewall Policy (one per k8s network policy)
-Ingress and Egress policy	Firewall Rule (one per k8s ingress/egress policy)
-CIDR	Address Group(one per k8s network policy CIDR )
-Label	Tag (one for each k8s label)
+[options="header"]
+|====
+|K8s Network Policy Construts	|Contrail Firewall Construts
+|Cluster Name	                |APS (one per k8s cluster)
+|Network Policy	                |Firewall Policy (one per k8s network policy)
+|Ingress and Egress policy	|Firewall Rule (one per k8s ingress/egress policy)
+|CIDR	                        |Address Group(one per k8s network policy CIDR )
+|Label	                        |Tag (one for each k8s label)
+|==== 
+
 
 kube-manager will do the following things for k8s network policy.
-1.	It will create a APS with Kubernetes cluster name during the initialization. 
-2.	It registers to k8s api server to watch network policies CRUD events.
-3.	Whenever namespace is created, it will associate the k8s APS to the virtual-networks belongs to the namespace. 
-4.	Whenever pod or namespace is created, tag will be created for the k8s labels in contrail.
-5.	Whenever network policy is created, firewall policy will be created with matching firewall rules and network endpoints.
 
-	Note: APS can be associated to contrail objects vmi(virtual-machine-interface) or vm(virtual-machine) or virtual-network or project. In contrail-k8s cluster, it is associated to virtual-network ie whenever traffic goes on those networks, firewall policies associated on the APS would be evaluated and respective action would be taken for the traffic.
+1. It will create a APS with Kubernetes cluster name during the initialization. 
+2. It registers to k8s api server to watch network policies CRUD events.
+3. Whenever namespace is created, it will associate the k8s APS to the virtual-networks belongs to the namespace. 
+4. Whenever pod or namespace is created, tag will be created for the k8s labels in contrail.
+5. Whenever network policy is created, firewall policy will be created with matching firewall rules and network endpoints.
 
+NOTE: APS can be associated to contrail objects vmi(virtual-machine-interface)
+or vm(virtual-machine) or virtual-network or project. In contrail-k8s cluster,
+it is associated to virtual-network ie whenever traffic goes on those networks,
+firewall policies associated on the APS would be evaluated and respective action
+would be taken for the traffic.
 
 Lets focus on the contrail objects which are created for k8s network policy.
-1.	As mentioned in the above section, APS with k8s cluster name will be created by kube-manager during the initialization. Since the cluster name is ‘k8s’, we can see the APS ‘k8s’ in the below contrail ui. There is one more APS ‘default-application-policy-set’ which is created by default. By default firewall policy k8s-denyall and k8s-allowall will be created. Since k8s by default allows all and contrail firewall by default denies all, contrail has to have rules to match k8s default bahaviour. So by default firewalls rules are added in k8s-allowall firewall policy. Below contrail ui snapshots shows it.
 
- 
+1. As mentioned in the above section, APS with k8s cluster name will be created
+by kube-manager during the initialization. Since the cluster name is  k8s`, we
+can see the APS `k8s` in the below contrail ui. There is one more APS
+`default-application-policy-set` which is created by default. By default
+firewall policy k8s-denyall and k8s-allowall will be created. Since k8s by
+default allows all and contrail firewall by default denies all, contrail has to
+have rules to match k8s default bahaviour. So by default firewalls rules are
+added in k8s-allowall firewall policy. Below contrail ui snapshots shows it.
++
+image::https://user-images.githubusercontent.com/2038044/65438012-d1037680-ddf2-11e9-9e21-fb1498b95310.png[]
+image::https://user-images.githubusercontent.com/2038044/65438014-d1037680-ddf2-11e9-8c0b-3c6220cce87c.png[]
++
+NOTE: When firewall polices are evaluated for the APS, it is evaluated in a
+sequence. When there is a matching policy, it will be executed. So all firewall
+polices has a sequence number and all firewall rules has a sequence number.
+Kube-manager allocates the right sequence number for firewall policies and
+firewall rules to keep the k8s network-policy intact in contrail.  K8s-ingress
+firewall policy is created for the loadbalancer ingress which is too deep to
+discuss. So it can be ignored.
+
+2. After the network policy creation,  k8s APS will have the new firewall policy for the k8s netwok policy. 
++
+image::https://user-images.githubusercontent.com/2038044/65438015-d1037680-ddf2-11e9-8a40-628b2c60a087.png[]
 	
-
-	 
-
-	Note: When firewall polices are evaluated for the APS, it is evaluated in a sequence. When there is a matching policy, it will be executed. So all firewall polices has a sequence number and all firewall rules has a sequence number. Kube-manager allocates the right sequence number for firewall policies and firewall rules to keep the k8s network-policy intact in contrail.  K8s-ingress firewall policy is created for the loadbalancer ingress which is too deep to discuss. So it can be ignored.
-
-2.	After the network policy creation,  k8s APS will have the new firewall policy for the k8s netwok policy. 
-
- 
+3. `K8s-dev-network-policy-do` is the new one created by kube-manager for
+network-policy-do. As usual cluster and namespace name are prepended to the
+network-policy name. If we closely watch, we can see four firewall rules for
+K8s-dev-network-policy-do and two new firewall rules for the k8s-denyall are
+added. Firewall rules of k8s-dev-network-policy-do is matching to k8s
+network-policy which can be seen in the below picture.
++	 
+image::https://user-images.githubusercontent.com/2038044/65438016-d1037680-ddf2-11e9-8418-9755d3a763bc.png[]
 	
-3.	K8s-dev-network-policy-do is the new one created by kube-manager for network-policy-do. As usual cluster and namespace name are prepended to the network-policy name. If we closely watch, we can see four firewall rules for K8s-dev-network-policy-do and two new firewall rules for the k8s-denyall are added. Firewall rules of k8s-dev-network-policy-do is matching to k8s network-policy which can be seen in the below picture.
-	 
-
+4. Newly added firewall rules for k8s-denyall can be seen below. These rules are
+needed to deny other traffic to the server-dev pod.
++	 
+image::https://user-images.githubusercontent.com/2038044/65438018-d19c0d00-ddf2-11e9-8fc4-26fa2a06667f.png[]
 	
-4.	Newly added firewall rules for k8s-denyall can be seen below. These rules are needed to deny other traffic to the server-dev pod.
-	 
+5. Lets see the sequence number of the firewall policies. Since
+k8s-dev-network-policy-do has high priority(low sequence number) than
+k8s-denyall and k8s-allowall, all matching traffic for the endpoints are allowed
+and k8s-denyall has high priority than k8s-allowall all other traffic will be
+dropped.
++	 
+image::https://user-images.githubusercontent.com/2038044/65438021-d19c0d00-ddf2-11e9-92a8-76998b831776.png[]
 
-	
-5.	Lets see the sequence number of the firewall policies. Since k8s-dev-network-policy-do has high priority(low sequence number) than k8s-denyall and k8s-allowall, all matching traffic for the endpoints are allowed and k8s-denyall has high priority than k8s-allowall all other traffic will be dropped.
-	 
+6. Also look at the tags and associated ports(vmi). For each pod label, tag can
+be seen and it is attached to the respective pod port which is done by the
+kube-manager.
++
+image::https://user-images.githubusercontent.com/2038044/65438024-d19c0d00-ddf2-11e9-86a6-0f4c1acd7c8a.png[]
 
-
-6.	Also look at the tags and associated ports(vmi). For each pod label, tag can be seen and it is attached to the respective pod port which is done by the kube-manager.
-	 
-
-	
-
-7.	Since action for the whitelisted case is FORWARD and flow for FORWARD is explained in the previous sections with service and ingress,  lets focus on the flow for the non-whitelisted case.
+7. Since action for the whitelisted case is FORWARD and flow for FORWARD is
+explained in the previous sections with service and ingress,  lets focus on the
+flow for the non-whitelisted case.
++
+----
 $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/null -m 30
 * Rebuilt URL to: 10.47.255.250:8000/
 * Hostname was NOT found in DNS cache
@@ -8005,8 +8153,11 @@ $ kubectl exec -it client-build -n build -- curl -v 10.47.255.250:8000 -o /dev/n
 * Closing connection 0
 curl: (28) Connection timed out after 30000 milliseconds
 command terminated with exit code 28
-
-#login to contrail-vrouter-agent and see the flow
+----
++
+login to contrail-vrouter-agent and see the flow
++
+----
 $flow -l --match 10.47.255.250:8000
 Flow table(size 80609280, entries 629760)
 Entries: Created 12 Added 12 Deleted 0 Changed 2Processed 12 Used Overflow entries 0
@@ -8030,13 +8181,20 @@ Listing flows matching ([10.47.255.250]:8000)
 (Gen: 1, K(nh):17, Action:D(Unknown), Flags:, TCP:Sr, QOS:-1, S(nh):17,
  Stats:0/0,  SPort 54726, TTL 0, Sinfo 0.0.0.0)
 $
+----
++
+Since client-build is not part of the white-list for the server-dev pod, the
+action is set to D(FwPolicy) which means DROP due to Firewall Policy.
 
-Since client-build is not part of the white-list for the server-dev pod, the action is set to D((FwPolicy) which means DROP due to Firewall Policy.
-8.	So far we have discussed the ingress policy type. There is no change for egress policy type. So whatever we discussed it can be applied to egress policy type.
-9.	Contrail ui provides nice visualization for security. It is self explanatory if you know how contrail security works.
+8. So far we have discussed the ingress policy type. There is no change for
+egress policy type. So whatever we discussed it can be applied to egress policy
+type.
 
-Sample traffic visualization for the above policy with workload 
- 
-
-Sample traffic visualization with more network policies
- 
+9. Contrail ui provides nice visualization for security. It is self explanatory
+if you know how contrail security works.
++
+.Sample traffic visualization for the above policy with workload 
+image::https://user-images.githubusercontent.com/2038044/65438025-d19c0d00-ddf2-11e9-9855-2ab52e229a65.png[]
++
+.Sample traffic visualization with more network policies
+image::https://user-images.githubusercontent.com/2038044/65438027-d234a380-ddf2-11e9-87f8-6883bb66118c.png[]

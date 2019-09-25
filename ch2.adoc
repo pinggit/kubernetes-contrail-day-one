@@ -1,8 +1,9 @@
 // vim:set ft=asciidoc syntax=ON tw=80: GistID: 852f311adb0c36bfbb0eac3ef8775e01
 = Chapter 2: Kubernetes Basics 
 // vim:set ft=asciidoc syntax=ON tw=80:
-:toc:
-:toc-placement: preamble
+:toc: right
+:toclevels: 3
+//:toc-placement: preamble
 :source-highlighter: pygments
 :source-highlighter: coderay
 :source-highlighter: prettify
