@@ -9,7 +9,7 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 :numbered:
-:imagesdir:  C:/Users/pings/Dropbox/kubernetes-contrail-day-one.materials/diagrams-gist/
+:imagesdir: diagrams
 ifdef::env-github[]
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
 :imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/

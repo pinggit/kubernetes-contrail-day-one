@@ -11,7 +11,7 @@
 :coderay-linenums-mode: table
 :coderay-linenums-mode: inline
 :listing-caption: Example
-:imagesdir:  C:/Users/pings/Dropbox/kubernetes-contrail-day-one.materials/diagrams-gist/
+:imagesdir: diagrams
 ifdef::env-github[]
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/46da7d2e292bbc66a1f1803c00e3915d0a970273/
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
