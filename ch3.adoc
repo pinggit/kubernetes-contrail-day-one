@@ -2825,209 +2825,601 @@ Ingress configuration.
 //TODO
 ////
 
-== Network Policy
+== contrail Network Policy (ch3)
 
-In Kubernetes pods can reach any pods by default. Then how pods can be secured?
-The answer is network policy. `Networkpolicy` is a Kubernetes resource like pod,
-service, ingress and etc. It defines who are all can reach the pod(ingress) and
-whom the pod can reach(egress). 
+//resources:
+//https://www.juniper.net/documentation/en_US/contrail4.1/topics/concept/security-policy-enhancements.html
+//https://github.com/ahmetb/kubernetes-network-policy-recipes
+//https://medium.com/@reuvenharrison/an-introduction-to-kubernetes-network-policies-for-security-people-ba92dd4c809d
 
-=== Prerequisites
+////
+Kubernetes brings another security dynamic to the table – its defaults are
+geared towards making it easy for users to get up and running quickly, as well
+as being backward compatible with earlier releases of Kubernetes that lacked
+important security features. Consequently, many important Kubernetes
+configurations are not secure by default.
 
-Network polices are implemented by the network plugin, so you must be using a
-network solution which supports Network Policy. Simply creating the resource
-without a controller to implement it will have no effect.
+One important configuration that demands attention from a security perspective
+is the network policies feature. Network policies specify how groups of pods are
+allowed to communicate with each other and other network endpoints. You can
+think of them as the Kubernetes equivalent of a firewall.
+////
 
-Network policy logically can be divided into two sections. The first section
-will identify the pod(s) where the Network policy would be applied. The second
-section will define the ingress and egress rules for the selected pod(s). 
+=== network policy introduction
 
-=== Pod(s) selection
+kubernetes networking model requires all pod can access the the other pods by
+default. we call this a "flat network" sometimes because it follows a
+"allow-any-any" model - basically a kubernetes pod can reach any other pods *by
+default*. this makes the design and implementation of kubernetes networking
+significantly simplified and much more scalable. 
 
-How the pods would be selected? Yes. You are right. Pod(s) are identified using
-labels.
+NOTE: In chapter 4 we'll read more about the requirements that kubernetes
+enforces on the networking implementation.
 
-    podSelector:
-       matchLabels:
-         role: db
+on the other hand, with companies large and small rapidly adopting the platform,
+security has emerged as an important concern. In reality, in many cases certain
+level of network segmentation methods are required to ensure that only certain
+pods can talk to each other. that is when kubernetes network policy comes into
+the picture. a Kubernetes "network policy" defines the access permissions for
+groups of pods in a way pretty much like a security group in the cloud is used
+to control access to VM instances. 
 
-In the above example the network policy would be applied to the pods which has
-the label "role: db".
+kubernetes supports network policy via the `NetworkPolicy` object, which is a
+Kubernetes resource just like `pod`, `service`, `ingress`, and many others that
+we've learned earlier in this chapter. the role of `NetworkPolicy` object is to
+define how groups of pods are allowed to communicate with each other. 
+//later we'll provide a test case to demonstrate how it works
+now let's explain the way kubernetes network policy works:
 
-=== Ingress and egress rules for group of pod(s)
+. initially, in a kubernetes cluster, all pods are non-isolated by default. they
+  works in "allow-any-any" model so anyone can talk to any others.
+. now you apply a network policy named `policy1` to pod A. in policy `policy1`,
+  you define a rule to explicitly allow A to talk to pod B. in this case we will
+  call pod A a "target" pod, because it is the pod that the network policy will
+  act on.
+. from this moment on, a few things happen:
+  * target pod A can talk to pod B, and can talk to *pod B only*, because B is
+    the only pod you allowed in the policy. due to the nature of the policy
+    rules, we can call the rules a "whitelist". 
+  * for target pod A only, any connections that are not explicitly allowed by
+    the "whitelist" of this network policy `policy1` will be rejected. you don't
+    need to explicitly define this in policy `policy1`, it will be enforced by
+    the nature of kubernetes network policy. we can call this an implicit policy
+    - the `"deny all"` policy. 
+  * as for other non-target pods, for example, pod B or C, which are NOT applied
+    with this network policy `policy1`, and not any other network policies
+    either, will continue to follow the "allow-any-any" model. therefore they
+    are not "affected" and can continue to communicate to all other pods in the
+    cluster. we can call this another implicit policy - A `"allow all"` policy.
+. assuming you want pod A to also be able to communicate to pod C, you need to
+  update the network policy `policy1` and it's rules to *explicit* allow it. in
+  another word,
+  you need to keep updating the "whitelist" to allow more traffic types.
 
-The second section defines the policy types for the selected pod(s). Policy type
-can be `ingress` or `egress` or both. `Ingress` is the default policy type.
-policy identifies the network endpoint where the selected pod(s) can
-communicate. Network endpoint can be ip address block or pod(s) (all pods or
-group of pods) in a namespace or selected pods in the same namespace.  Ingress
-network-endpoint has to be defined in the "from" section. Egress
-network-endpoint has to be defined in the "to" section. 
+////
+//multiple network policies behavior is not clear to me. not tested, so skip.
+. multiple network-polices can be applied to a pod. for example, you can add a
+  second policy `policy2` which also select pod A to apply its forwarding rules.
+////
+
+as you see, when you define a policy, essentially at least three policies will
+be applied in the cluster:
+
+* explicit `policy1`: the network policy you defined, with the whitelist rules allowing
+  certain type of traffic for the selected (target) pod.
+* an implicit `"deny all"` network policy: deny all other traffic that is not in
+  the whitelist for the target pod. 
+* an implicit `"allow all"` network policy: allow all other traffic for other
+  non-targeted pods that are not selected by the `policy1` network policy. we'll
+  see "deny all" and "allow all" policies again later in chapter 8.
+
+here are some highlights of kubernetes network policy:
+
+////
+* pod specific
+* implicit "allow all"
+* "whitelist" based rules
+* Mutiple network policies is allowed
+* flows based
+////
+
+.pod specific
+network policy specification applies to one pod or a group of pods based on
+`label`, same way as RC or Deploy do.
+
+."whitelist" based rules
+explicit rules compose a "whitelist", each rule describe a certain type of
+traffic to be allowed. all other traffic that is not described by any rules in
+the whitelist will be dropped for the target pod.
+
+.implicit "allow all" 
+a pod will be "affected" only if it is selected as the target by any network
+policy, and it will be "affected" by the selecting network policy only. absence
+of network policy applied on a pod indicates an implicit "allow all" policy to
+this pod. in another word, if a non-targeted pod continues its "allow-any-any"
+networking model.
+
+.seperation of ingress and egress
+policy rules need to be defined for a specific direction. the direction can
+be `Ingress`, `Egress`, none or both. 
+//only traffic in the specific direction will be allowed by the corresponding rules defined for it.
+
+."flow" based (vs. "packet" based)
+once the initiating packet is allowed, the return packet in same flow will also
+be allowed. suppose an ingress policy applied on pod A allows an ingress HTTP
+request, then the whole HTTP interaction will be allowed for pod A. this
+includes the 3 way TCP connection establishment and all data and acknowledgment
+in both directions.
+
+////
+if traffic from pod A to pod B is allowed by the configured policy, then the
+return packets for that flow from B -> A are also allowed, even if the policy in
+place would not allow B to initiate a connection to A. 
+////
+
+////
+//has to skip to play saft
+.multiple network policies are allowed
+
+//because...says here:
+//https://medium.com/@reuvenharrison/an-introduction-to-kubernetes-network-policies-for-security-people-ba92dd4c809d
+//Mutiple network policies can compose a network policy chain. when applied on any
+//pod, traffic matching any of the network policies will be permitted.
+
+//Kubernetes can only combine policies with different policyTypes (Ingress or
+//Egress). Multiple policies that specify ingress (or egress) will overwrite
+//each-other.
+////
+
+NOTE: Network polices are implemented by the network component, so you must be
+using a network solution which supports network policy. Simply creating the
+`NetworkPolicy` resource without a controller to implement it will have no
+effect. in our book contrail is such a network components with network policy
+implemented. in chapter 8, you will see how these network policies works in
+contrail.
+
+=== network policy definition
+
+like all other objects in kubernetes, network policy can be defined in a yaml
+file. let's go ahead to look at an example of it. 
+
+NOTE: this is the same example that we're going to read again in chapter 8.
 
 ----
-policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - ipBlock:
-        cidr: 172.17.0.0/16
-        except:
-        - 172.17.1.0/24
-    - namespaceSelector:
-        matchLabels:
-          project: myproject
-    - podSelector:
-        matchLabels:
-          role: frontend
-  egress:
-  - to:
-    - ipBlock:
-        cidr: 10.0.0.0/24
-----
-        
-In the above example:
-
-. The ingress network points are 
-.. 172.17.0.0/16 and port except 172.17.1.0/24 
-.. All the pods in namespaces which has the label “project: myproject”. 
-.. Pods which has the label "role: frontend"
-
-. The egress network points are 10.0.0.0/24
-
-Is there any way to select few pods from namespaces instead of all pods in the
-namespaces? Yes. It can be specified in the namespaceSelector.
-`namespaceSelector` can have podSelector. When `namespaceSelector` has
-`podSelector`, network endpoint would be pods with matching labels in the selected
-namespaces.
-
-The below example shows that allowing connections from pods with label
-`role=client` in namespaces with the label `user=alice`. Please be aware to use
-correct yaml syntax.
-
-  ...
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          user: alice
-      podSelector:
-        matchLabels:
-          role: client
-  ...
-
-So far it is fine. Still there is a security concern. Is there any way to
-specify ports for ingress and egress? Yes. As part of the policy it can be
-mentioned. If it is not mentioned it applies to all ports. Ports in ingress says
-that selected pod(s) can allow traffic for the specified ports. Ports in egress
-says that selected pod(s) can send traffic to specified ports.
-
-Previous example along with port specifications
-
-----
-policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - ipBlock:
-        cidr: 172.17.0.0/16
-        except:
-        - 172.17.1.0/24
-    - namespaceSelector:
-        matchLabels:
-          project: myproject
-    - podSelector:
-        matchLabels:
-          role: frontend
-    ports:
-    - protocol: TCP
-      port: 6379
-  egress:
-  - to:
-    - ipBlock:
-        cidr: 10.0.0.0/24
-    ports:
-    - protocol: TCP
-      port: 5978
-----
-
-The above network policy says that all ingress network endpoint can reach
-selected pod(s) tcp port 6379 and selected pod(s) can reach all egress network
-endpoint's tcp port 5978.
-The rest of the traffic would be blocked.
-
-Sample network-policy
-
-----
+#policy1-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: mydb
+  name: policy1
+  namespace: dev
 spec:
   podSelector:
     matchLabels:
-      role: db
+      app: webserver-dev
   policyTypes:
   - Ingress
   - Egress
   ingress:
   - from:
     - ipBlock:
-        cidr: 172.17.0.0/16
-        except:
-        - 172.17.1.0/24
+        cidr: 10.169.25.20/32
     - namespaceSelector:
         matchLabels:
-          project: myproject
+          project: jtac
     - podSelector:
         matchLabels:
-          role: frontend
+          app: client1-dev
     ports:
     - protocol: TCP
-      port: 6379
+      port: 80
   egress:
   - to:
-    - ipBlock:
-        cidr: 10.0.0.0/24
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
     ports:
     - protocol: TCP
-      port: 5978
+      port: 80
 ----
 
+before explaining it in detail, let's look at the `spec` part of this yaml file
+since other sections are self-explanatory after you've read yaml file of other
+objects. the `spec` has the following structure:
+
 ----
-kubectl create -f mydb-netpol.yaml
+spec:
+  podSelector:
+    ......
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    ......
+  egress:
+  - to:
+    ......
+----
 
-kubectl get netpol
-NAME   POD-SELECTOR   AGE
-mydb    role=db              3m5s
+here we see that a network policy definition yaml file can logically be divided
+into four sections:
 
-kubectl describe netpol mydb
-Name:         mydb
-Namespace:    default
-Created on:   2019-06-30 07:41:18 -0700 PDT
+* `podSelector`: this defines the pods selection. it identifies pods where the
+  current Network policy would be applied to.
+* `policyTypes`: specify type of policy rules, `Ingress`, `Egress` or both.
+* `ingress`: define the ingress policy rules for the target pods
+* `egress`: define the egress policy rules for the target pods
+
+next we'll look at each sections in more detail.
+
+==== selecting target pods
+
+when you define a network policy, kubernetes needs to know which pods you want
+this policy to act on. Similar to how the service select its backend pods, the
+network policy select which pods it will be applied to based on `labels`:
+
+----
+podSelector:
+  matchLabels:
+    app: webserver-dev
+----
+
+here all pods which has the label `app: webserver-dev` is selected to be the
+"target" pods by the network policy. all of the following contents in `spec`
+will apply to the target pods only.
+
+==== policy types
+
+The second section defines the `policyTypes` for the target pods. 
+
+----
+policyTypes:
+  - Ingress
+  - Egress
+----
+
+policyTypes:
+  - Ingress
+
+
+it can be either `ingress`, `egress`, or both. both types define specific
+traffic types in the form of one or more rules, which we'll discuss next.
+
+////
+//ASK: what?
+//`ingress` is the default policy type. 
+//below is quote from k8s
+If no policyTypes are specified on a NetworkPolicy then by default Ingress will
+always be set and Egress will be set if the NetworkPolicy has any egress rules
+////
+
+==== policy rules
+
+`ingress` and `egress` section defines the direction of traffic, from the
+selected target pods's perspective. for example considering the following
+simplified example:
+
+----
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: client1-dev
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: client2-dev
+    ports:
+    - protocol: TCP
+      port: 8080
+----
+
+assuming target pod is `webserver-dev` pod, and there is only one pod
+`client1-dev` in the cluster having a matching label `client1-dev`. two things
+will happen:
+
+* ingress direction: pod `webserver-dev` can accept a TCP session with a
+  destination pod 80, initiated from pod `client1-dev`. this explains why we
+  said kubernetes network policy is "flow" based instead of "packet" based. the
+  TCP connection would not be able to establish if the policy would have been
+  designed on "packet" based, becaue on receiving the incoming TCP "sync", the
+  returning outgoing TCP "sync-ack" would have been rejected without a matching
+  egress policy.
+* egress direction: pod `webserver-dev` can initiate a TCP session with a
+  destination pod 8080, towards pod `client1-dev`.
+
+TIP: for the egress connection to go through, the other end needs to define an
+ingress policy to allow the incoming connection.
+
+===== network policy rules
+
+each `from` or `to` statement defines a `rule` in the network policy:
+
+* a `from` statement defines an ingress policy rule 
+* a `to` statement defines an egress policy rule
+* both rules can optionally has `ports` statement, which will be discussed
+  later.
+
+so you can define multiple rules to allow complex traffic mode for each
+direction:
+
+  ingress:
+  INGRESS RULE1
+  INGRESS RULE2
+  egress:
+  EGRESS RULE1
+  EGRESS RULE2
+
+each rule identifies the network endpoints where the target pods can
+communicate. Network endpoint can be identified by different methods:
+
+* `ipBlock`: select pods based on ip address block 
+* `namespaceSelector`:  select pods based on label of namespace (NS), all pods
+  in the matching namespaces will be
+* `podSelector`: select pods based on label of pod
+
+NOTE: `podSelector` select different things when it is used in different places
+of a yaml file. previously (under `spec` directly) it selects pods that the
+network policy applies, which we've called "target" pods. here in a rule (under
+`from` or `to`), it selects which pods the target pods is communicating with.
+sometime we can call these pods "peering pods", or "endpoints".
+
+//TODO: a diagram?
+
+so the yaml structure for a rule can look like this:
+
+----
+  ingress:
+  - from:
+    - ipBlock:
+      .....
+    - namespaceSelector:
+      .....
+    - podSelector:
+      .....
+    ports:
+      ......
+----
+
+for example in our example:
+
+----
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 10.169.25.20/32
+    - namespaceSelector:
+        matchLabels:
+          project: jtac
+    - podSelector:
+        matchLabels:
+          app: client1-dev
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+----
+
+here:
+
+* The ingress network endpoints are 
+  - subnet 10.169.25.20/32, *or*
+  - all pods in namespaces which has the label `project: jtac`, *or*
+  - pods which has the label `app: client1-dev` in current namespace (namespace
+    of target pod)
+
+* The egress network point is pod `dbserver-dev`
+
+we'll come to the `ports` part soon.
+
+===== `AND` vs `OR`
+
+It is also possible to specify only a few pods from namespaces instead of all
+pods to communicate with. in our example `podSelector` is used along, which
+assumes the same namespace as the target pod. 
+another method is to use `podSelector` along with a
+`namespaceSelector`. in that case, the namespaces that the pods belongs to is
+those with matching labels with `namespaceSelector`, instead of same as the
+target pod's namespace. 
+
+for example, assuming the target pod is `webserver-dev` and its namespace is
+`dev`, and only namespace `qa` has a label "project=qa" matching to the
+`namespaceSelector`:
+
+----
+ingress:
+- from:
+  - namespaceSelector:
+      matchLabels:
+        project: qa
+    podSelector:
+      matchLabels:
+        app: client1-qa
+----
+
+here, the target pod can only communicate with those pods that are:
+
+* in namespace qa, *AND* (not *OR*) -
+* with label `app: client1-dev` *in the namespace qa*
+
+Please be careful it is totally different than the below definition, which allow
+the target pod to talk to those pods that are:
+
+* in namespaces qa, *OR* (not *AND*) -
+* with label `app: client1-qa` *in the target pod's namespace `dev`*
+
+----
+ingress:
+- from:
+  - namespaceSelector:
+      matchLabels:
+        project: qa
+  - podSelector:
+      matchLabels:
+        app: client1-qa
+----
+
+===== protocol and ports
+
+it is also possible to specify `ports` for an ingress and egress rule.
+`protocol` type can also be specified along with a protocol port. for example:
+
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+
+`ports` in ingress says that target pods can allow incoming traffic for the
+specified ports and protocol. Ports in egress says that target pods can
+initiate traffic to specified ports and protocol. If `ports` is not mentioned,
+all ports and protocols are allowed.
+
+===== line by line explanation
+
+after explaining everything, you should find that the policy rules in our
+example start to makes more sense, so let's look at it again in more detail:
+
+----
+  podSelector:                  <1>
+    matchLabels:                <2>
+      app: webserver-dev        <3>
+  policyTypes:                  <4>
+  - Ingress                     <5>
+  - Egress                      <6>
+  ingress:                      <7>
+  - from:                       <8>
+    - ipBlock:                  <9>
+        cidr: 10.169.25.20/32   <10>
+    - namespaceSelector:        <11>
+        matchLabels:            <12>
+          project: jtac         <13>
+    - podSelector:              <14>
+        matchLabels:            <15>
+          app: client1-dev      <16>
+    ports:                      <17>
+    - protocol: TCP             <18>
+      port: 80                  <19>
+  egress:                       <20>
+  - to:                         <21>
+    - podSelector:              <22>
+        matchLabels:            <23>
+          app: dbserver-dev     <24>
+    ports:                      <25>
+    - protocol: TCP             <26>
+      port: 80                  <27>
+----
+
+////
+* tcp session initiated from other pods destined to target pod with
+  destination port `80` will arrive the target pod. to all other pods can reach tcp port `80` at target pods
+* tcp session initiate from target pods destined to other pod with destination port `8080` 
+can initiate reach other pods's tcp port `8080`.  all other traffic would be blocked.
+////
+
+from this definition, we now can understand exactly what the network policy is
+trying to enforce:
+
+* line 1-3: pod `webserver-dev` is selected by the policy, so it is the "target"
+  pod, all following policy
+  rules will apply on it, and on it only.
+* line 4-6: the policy will define rules for both `Ingress` and `Egress` traffic
+* line 7-19: `ingress:` section defines the *ingress policy*
+  - line 8: `from:` and line 17: `ports`, these two sections defines one *policy
+    rule* in ingress policy.
+    *** line 9-16: these 8 lines under `from:` section compose an ingress "whitelist":
+        a. line 9-10: any incoming data with source IP being 10.169.25.20/32 can
+             access the target pod `webserver-dev`
+        b. line 11-13: any pods under namespace `jtac` can access target pod
+            `webserver-dev`
+        c. line 14-16: any pod `client1-dev` can access target pod `webserver-dev`
+    *** line 17-19: `ports` section is second (and optional) part of the same
+    *policy rule*.  only TCP port 80 (web service) on target pod `webserver-dev`
+    is exposed and accessible. access to all other pods will be denied.
+  - line 20-26: `egress:` section defines the *egress policy*
+    *** line 21: `to:` and line 24: `ports`, these two sections define one *policy
+        rule* in egress policy.
+        a. line 21-24: these 4 lines under `to:` section compose an egress
+        "whitelist", here the target pod can send egress traffic to pod
+        `dbserver-dev`
+    *** line 25: `ports` section is second part of the same *policy rule*. the
+    target pod `webserver-pod` can only start TCP session with destination port
+    of 8080 to other pods.
+
+and that is not all. 
+
+if you remember in the beginning of this chapter we've talked about the
+kubernetes default "allow-any-any" network model and the implicit "deny-all",
+"allow-all" policies, you will realize that so far we just explained the
+explicit part of it (the policy `policy1` in our network policy introduction
+section). after that, there are two more implicit policies:
+
+* the `"deny all"` network policy: for the target pod `webserver-dev`, deny all
+  other traffic that is other than what is explicitly allowed in the above
+  whitelists, this implies at least two rules:
+  - ingress: deny all incoming traffic destined to the target pod
+    `webserver-dev`, other than what is defined in the ingress whitelist.
+  - egress: deny all outgoing traffic sourcing from the target pod
+    `webserver-dev`, other than what is defined in the egress whitelist.
+* a `"allow all"` network policy: allow all traffic for other pods that are not
+  target of this network policy, on both ingress and egress direction.
+
+NOTE: in chapter 8, we'll take a deeper look at these implicit network policies
+and their rules in contrail implementation.
+
+=== create network policy
+
+you can create and verify the network policy same way as you create other
+kubernetes objects:
+
+----
+$ kubectl apply -f policy1-do.yaml
+networkpolicy.networking.k8s.io/policy1-do created
+
+$ kubectl get netpol -n dev
+NAME           POD-SELECTOR        AGE
+policy1        app=webserver-dev   6s
+
+$ kubectl describe netpol policy -n dev
+Name:         policy1
+Namespace:    dev
+Created on:   2019-10-01 11:18:19 -0400 EDT
 Labels:       <none>
 Annotations:  <none>
 Spec:
-  PodSelector:     role=db
+  PodSelector:     app=webserver-dev
   Allowing ingress traffic:
-    To Port: 6379/TCP
+    To Port: 80/TCP
     From:
       IPBlock:
-        CIDR: 172.17.0.0/16
-        Except: 172.17.1.0/24
-    From:
-      NamespaceSelector: project=myproject
-    From:
-      PodSelector: role=frontend
-  Allowing egress traffic:
-    To Port: 5978/TCP
-    To:
-      IPBlock:
-        CIDR: 10.0.0.0/24
+        CIDR: 10.169.25.20/32
         Except:
+    From:
+      NamespaceSelector: project=jtac
+    From:
+      PodSelector: app=client1-dev
+  Allowing egress traffic:
+    To Port: 80/TCP
+    To:
+      PodSelector: app=dbserver-dev
   Policy Types: Ingress, Egress
 ----
+in chapter 8, we'll setup a test environment to verify the effect of this
+network policy in more detail.
 
 == Liveness Probe and Readiness Probe
 
