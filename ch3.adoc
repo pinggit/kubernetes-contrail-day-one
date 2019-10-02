@@ -1460,8 +1460,8 @@ $ echo "eyJhdXRocyI6eyJodWIuanVua..." | base64 -d | python -mjson.tool
 {
     "auths": {
         "hub.juniper.net": {
-            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
-            "password": "CLJd2jpMsVc9zrAuTFPn",
+            "auth": "Sj5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
+            "password": "CLJd2kpMsVc9zrAuTFPn",
             "username": "JNPR-FieldUser213"
         }
     }
@@ -1491,8 +1491,8 @@ $ kubectl get secret secret-jnpr1 \
 {
     "auths": {
         "hub.juniper.net/security": {
-            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
-            "password": "CLJd2jpMsVc9zrAuTFPn",
+            "auth": "Sj5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=",
+            "password": "CLJd2kpMsVc9zrAuTFPn",
             "username": "JNPR-FieldUser213"
         }
     }
@@ -1566,7 +1566,7 @@ $ cat .docker/config.json
     ......
     "auths": {    #<---
         "hub.juniper.net": {
-            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+            "auth": "Sj5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
         }
     },
     ......
@@ -1611,7 +1611,7 @@ $ kubectl get secret secret-jnpr2 --output="jsonpath={.data.\.dockerconfigjson}"
     ......
     "auths": {
         "hub.juniper.net": {
-            "auth": "Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
+            "auth": "Sj5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4="
         }
     },
     ......
@@ -1675,7 +1675,7 @@ stringData:
 
     auths:
       hub.juniper.net:
-        auth: Sk5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=
+        auth: Sj5QUi1GaWVsZFVzZXIyMTM6Q0xKZDJqcE1zVmM5enJBdVRGUG4=
 ----
 ////
 

@@ -7240,6 +7240,11 @@ file, only these two objects are recreated - all other objects keep unchanged.
 
 == contrail Network Policy (ch3)
 
+//resources:
+//https://www.juniper.net/documentation/en_US/contrail4.1/topics/concept/security-policy-enhancements.html
+//https://github.com/ahmetb/kubernetes-network-policy-recipes
+//https://medium.com/@reuvenharrison/an-introduction-to-kubernetes-network-policies-for-security-people-ba92dd4c809d
+
 ////
 Kubernetes brings another security dynamic to the table – its defaults are
 geared towards making it easy for users to get up and running quickly, as well
@@ -7253,151 +7258,398 @@ allowed to communicate with each other and other network endpoints. You can
 think of them as the Kubernetes equivalent of a firewall.
 ////
 
-if you remember in chapter 4, we've introduced the "flat network" requirement in
-kubernetes network, and you already learned that a flat network assumes a
-allow-any-any model - basically pods can reach any other pods by default. that
-makes the design and implementation of kubernetes networking significantly
-simplified and much more scalable. on the other hand, security has emerged as an
-important concern. in production, in many cases certain level of network
-segmentation methods are required to ensure that only certain pods can talk to
-each other. that is when kubernetes network policy comes into play. in
-kubernetes, a `NetworkPolicy` object is a Kubernetes resource just like `pod`,
-`service`, `ingress`, etc. the role of this object is to define how groups of
-pods are allowed to communicate with each other. here are some rules about
-kubernetes network policy:
+=== network policy introduction
 
-1. Pods are non-isolated by default - they can communicate to each other
-2. Once the network policy is applied to a pod, pod will reject any connections
-   that are not explicitly allowed by the network policy, i.e. explicit "white
-   list" rules has to be added to allow the traffic.
-3. Pods which are not part of the network policy will continue to communicate to
-   all pods
-4. Multiple network-polices can be applied to a pod.
+kubernetes networking model requires all pod can access the the other pods by
+default. we call this a "flat network" sometimes because it follows a
+"allow-any-any" model - basically a kubernetes pod can reach any other pods *by
+default*. this makes the design and implementation of kubernetes networking
+significantly simplified and much more scalable. 
 
-NOTE: 
-Network polices are implemented by the network component, so you must be using a
-network solution which supports Network Policy. Simply creating the resource
-without a controller to implement it will have no effect.
+NOTE: In chapter 4 we'll read more about the requirements that kubernetes
+enforces on the networking implementation.
+
+on the other hand, with companies large and small rapidly adopting the platform,
+security has emerged as an important concern. In reality, in many cases certain
+level of network segmentation methods are required to ensure that only certain
+pods can talk to each other. that is when kubernetes network policy comes into
+the picture. a Kubernetes "network policy" defines the access permissions for
+groups of pods in a way pretty much like a security group in the cloud is used
+to control access to VM instances. 
+
+kubernetes supports network policy via the `NetworkPolicy` object, which is a
+Kubernetes resource just like `pod`, `service`, `ingress`, and many others that
+we've learned earlier in this chapter. the role of `NetworkPolicy` object is to
+define how groups of pods are allowed to communicate with each other. 
+//later we'll provide a test case to demonstrate how it works
+now let's explain the way kubernetes network policy works:
+
+. initially, in a kubernetes cluster, all pods are non-isolated by default. they
+  works in "allow-any-any" model so anyone can talk to any others.
+. now you apply a network policy named `policy1` to pod A. in policy `policy1`,
+  you define a rule to explicitly allow A to talk to pod B. in this case we will
+  call pod A a "target" pod, because it is the pod that the network policy will
+  act on.
+. from this moment on, a few things happen:
+  * target pod A can talk to pod B, and can talk to *pod B only*, because B is
+    the only pod you allowed in the policy. due to the nature of the policy
+    rules, we can call the rules a "whitelist". 
+  * for target pod A only, any connections that are not explicitly allowed by
+    the "whitelist" of this network policy `policy1` will be rejected. you don't
+    need to explicitly define this in policy `policy1`, it will be enforced by
+    the nature of kubernetes network policy. we can call this an implicit policy
+    - the `"deny all"` policy. 
+  * as for other non-target pods, for example, pod B or C, which are NOT applied
+    with this network policy `policy1`, and not any other network policies
+    either, will continue to follow the "allow-any-any" model. therefore they
+    are not "affected" and can continue to communicate to all other pods in the
+    cluster. we can call this another implicit policy - A `"allow all"` policy.
+. assuming you want pod A to also be able to communicate to pod C, you need to
+  update the network policy `policy1` and it's rules to *explicit* allow it. in
+  another word,
+  you need to keep updating the "whitelist" to allow more traffic types.
+
+////
+//multiple network policies behavior is not clear to me. not tested, so skip.
+. multiple network-polices can be applied to a pod. for example, you can add a
+  second policy `policy2` which also select pod A to apply its forwarding rules.
+////
+
+as you see, when you define a policy, essentially at least three policies will
+be applied in the cluster:
+
+* explicit `policy1`: the network policy you defined, with the whitelist rules allowing
+  certain type of traffic for the selected (target) pod.
+* an implicit `"deny all"` network policy: deny all other traffic that is not in
+  the whitelist for the target pod. 
+* an implicit `"allow all"` network policy: allow all other traffic for other
+  non-targeted pods that are not selected by the `policy1` network policy. we'll
+  see "deny all" and "allow all" policies again later in chapter 8.
+
+here are some highlights of kubernetes network policy:
+
+////
+* pod specific
+* implicit "allow all"
+* "whitelist" based rules
+* Mutiple network policies is allowed
+* flows based
+////
+
+.pod specific
+network policy specification applies to one pod or a group of pods based on
+`label`, same way as RC or Deploy do.
+
+."whitelist" based rules
+explicit rules compose a "whitelist", each rule describe a certain type of
+traffic to be allowed. all other traffic that is not described by any rules in
+the whitelist will be dropped for the target pod.
+
+.implicit "allow all" 
+a pod will be "affected" only if it is selected as the target by any network
+policy, and it will be "affected" by the selecting network policy only. absence
+of network policy applied on a pod indicates an implicit "allow all" policy to
+this pod. in another word, if a non-targeted pod continues its "allow-any-any"
+networking model.
+
+.seperation of ingress and egress
+policy rules need to be defined for a specific direction. the direction can
+be `Ingress`, `Egress`, none or both. 
+//only traffic in the specific direction will be allowed by the corresponding rules defined for it.
+
+."flow" based (vs. "packet" based)
+once the initiating packet is allowed, the return packet in same flow will also
+be allowed. suppose an ingress policy applied on pod A allows an ingress HTTP
+request, then the whole HTTP interaction will be allowed for pod A. this
+includes the 3 way TCP connection establishment and all data and acknowledgment
+in both directions.
+
+////
+if traffic from pod A to pod B is allowed by the configured policy, then the
+return packets for that flow from B -> A are also allowed, even if the policy in
+place would not allow B to initiate a connection to A. 
+////
+
+////
+//has to skip to play saft
+.multiple network policies are allowed
+
+//because...says here:
+//https://medium.com/@reuvenharrison/an-introduction-to-kubernetes-network-policies-for-security-people-ba92dd4c809d
+//Mutiple network policies can compose a network policy chain. when applied on any
+//pod, traffic matching any of the network policies will be permitted.
+
+//Kubernetes can only combine policies with different policyTypes (Ingress or
+//Egress). Multiple policies that specify ingress (or egress) will overwrite
+//each-other.
+////
+
+NOTE: Network polices are implemented by the network component, so you must be
+using a network solution which supports network policy. Simply creating the
+`NetworkPolicy` resource without a controller to implement it will have no
+effect. in our book contrail is such a network components with network policy
+implemented. in chapter 8, you will see how these network policies works in
+contrail.
+
+=== network policy definition
 
 like all other objects in kubernetes, network policy can be defined in a yaml
-file. here is an example:
+file. let's go ahead to look at an example of it. 
+
+NOTE: this is the same example that we're going to read again in chapter 8.
 
 ----
-#policy-do.yaml
+#policy1-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: network-policy-do
+  name: policy1
   namespace: dev
 spec:
   podSelector:
     matchLabels:
-      app: server-dev
+      app: webserver-dev
   policyTypes:
   - Ingress
   - Egress
   ingress:
   - from:
     - ipBlock:
-        cidr: 10.169.25.0/24
-        except:
-        - 10.169.25.20/32
+        cidr: 10.169.25.20/32
     - namespaceSelector:
         matchLabels:
-          project: qa
+          project: jtac
     - podSelector:
         matchLabels:
           app: client1-dev
     ports:
     - protocol: TCP
-      port: 8000
+      port: 80
   egress:
   - to:
-    - ipBlock:
-        cidr: 10.169.25.21/32
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
     ports:
     - protocol: TCP
-      port: 8100
+      port: 80
 ----
 
-in this yaml file, Network policy definition can logically be divided into two
-sections:
+before explaining it in detail, let's look at the `spec` part of this yaml file
+since other sections are self-explanatory after you've read yaml file of other
+objects. the `spec` has the following structure:
 
-. pods selection: identify pods where the Network policy would be applied
-. ingress/egress policies: define the policies for the selected pods on
-ingress/egress directions
+----
+spec:
+  podSelector:
+    ......
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    ......
+  egress:
+  - to:
+    ......
+----
 
-=== Pods selection
+here we see that a network policy definition yaml file can logically be divided
+into four sections:
+
+* `podSelector`: this defines the pods selection. it identifies pods where the
+  current Network policy would be applied to.
+* `policyTypes`: specify type of policy rules, `Ingress`, `Egress` or both.
+* `ingress`: define the ingress policy rules for the target pods
+* `egress`: define the egress policy rules for the target pods
+
+next we'll look at each sections in more detail.
+
+==== selecting target pods
 
 when you define a network policy, kubernetes needs to know which pods you want
 this policy to act on. Similar to how the service select its backend pods, the
-network policy select which pods it will be applied to based on labels:
+network policy select which pods it will be applied to based on `labels`:
 
 ----
 podSelector:
- matchLabels:
-   app: server-dev
+  matchLabels:
+    app: webserver-dev
 ----
 
-In the above example the network policy would be applied to all pods which has
-the label "app: server-dev".
+here all pods which has the label `app: webserver-dev` is selected to be the
+"target" pods by the network policy. all of the following contents in `spec`
+will apply to the target pods only.
 
-=== Ingress and egress policies
+==== policy types
 
-The second section defines the policy types for the selected pods.  Policy type
-can be "ingress", "egress" or both. "ingress" is the default policy type. policy
-identifies the network endpoint where the selected pods can communicate. Network
-endpoint can be ip address block or pods in a namespace. (all pods, group of
-pods, selected pods, etc) 
-
-Ingress network-endpoint has to be defined in the `from` section. Egress network
-endpoint has to be defined in the `to` section. 
+The second section defines the `policyTypes` for the target pods. 
 
 ----
 policyTypes:
   - Ingress
   - Egress
+----
+
+policyTypes:
+  - Ingress
+
+
+it can be either `ingress`, `egress`, or both. both types define specific
+traffic types in the form of one or more rules, which we'll discuss next.
+
+////
+//ASK: what?
+//`ingress` is the default policy type. 
+//below is quote from k8s
+If no policyTypes are specified on a NetworkPolicy then by default Ingress will
+always be set and Egress will be set if the NetworkPolicy has any egress rules
+////
+
+==== policy rules
+
+`ingress` and `egress` section defines the direction of traffic, from the
+selected target pods's perspective. for example considering the following
+simplified example:
+
+----
   ingress:
   - from:
-    - ipBlock:
-        cidr: 10.169.25.0/24
-        except:
-        - 10.169.25.21/32
-    - namespaceSelector:
-        matchLabels:
-          project: qa
     - podSelector:
         matchLabels:
           app: client1-dev
+    ports:
+    - protocol: TCP
+      port: 80
   egress:
   - to:
+    - podSelector:
+        matchLabels:
+          app: client2-dev
+    ports:
+    - protocol: TCP
+      port: 8080
+----
+
+assuming target pod is `webserver-dev` pod, and there is only one pod
+`client1-dev` in the cluster having a matching label `client1-dev`. two things
+will happen:
+
+* ingress direction: pod `webserver-dev` can accept a TCP session with a
+  destination pod 80, initiated from pod `client1-dev`. this explains why we
+  said kubernetes network policy is "flow" based instead of "packet" based. the
+  TCP connection would not be able to establish if the policy would have been
+  designed on "packet" based, becaue on receiving the incoming TCP "sync", the
+  returning outgoing TCP "sync-ack" would have been rejected without a matching
+  egress policy.
+* egress direction: pod `webserver-dev` can initiate a TCP session with a
+  destination pod 8080, towards pod `client1-dev`.
+
+TIP: for the egress connection to go through, the other end needs to define an
+ingress policy to allow the incoming connection.
+
+===== network policy rules
+
+each `from` or `to` statement defines a `rule` in the network policy:
+
+* a `from` statement defines an ingress policy rule 
+* a `to` statement defines an egress policy rule
+* both rules can optionally has `ports` statement, which will be discussed
+  later.
+
+so you can define multiple rules to allow complex traffic mode for each
+direction:
+
+  ingress:
+  INGRESS RULE1
+  INGRESS RULE2
+  egress:
+  EGRESS RULE1
+  EGRESS RULE2
+
+each rule identifies the network endpoints where the target pods can
+communicate. Network endpoint can be identified by different methods:
+
+* `ipBlock`: select pods based on ip address block 
+* `namespaceSelector`:  select pods based on label of namespace (NS), all pods
+  in the matching namespaces will be
+* `podSelector`: select pods based on label of pod
+
+NOTE: `podSelector` select different things when it is used in different places
+of a yaml file. previously (under `spec` directly) it selects pods that the
+network policy applies, which we've called "target" pods. here in a rule (under
+`from` or `to`), it selects which pods the target pods is communicating with.
+sometime we can call these pods "peering pods", or "endpoints".
+
+//TODO: a diagram?
+
+so the yaml structure for a rule can look like this:
+
+----
+  ingress:
+  - from:
+    - ipBlock:
+      .....
+    - namespaceSelector:
+      .....
+    - podSelector:
+      .....
+    ports:
+      ......
+----
+
+for example in our example:
+
+----
+  ingress:
+  - from:
     - ipBlock:
         cidr: 10.169.25.20/32
+    - namespaceSelector:
+        matchLabels:
+          project: jtac
+    - podSelector:
+        matchLabels:
+          app: client1-dev
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
 ----
-	
-In the above example:
 
-1. The ingress network points are 
+here:
 
-    a. subnet 10.169.25.0/24 except 10.169.25.21/32, or
-    b. All the pods in namespaces which has the label `project: qa` , or
-    c. Pods which has the label `app: client1-dev`
+* The ingress network endpoints are 
+  - subnet 10.169.25.20/32, *or*
+  - all pods in namespaces which has the label `project: jtac`, *or*
+  - pods which has the label `app: client1-dev` in current namespace (namespace
+    of target pod)
 
-2. The egress network point is
-    a. 10.169.25.20/32
+* The egress network point is pod `dbserver-dev`
 
-It is also possible to select only a few pods from namespaces instead of all
-pods. `podSelector` can also be specified under `namespaceSelector`. in that
-case, network endpoint would be pods with matching labels in the selected
-namespaces.
+we'll come to the `ports` part soon.
 
-//ASK: example?
+===== `AND` vs `OR`
 
-The below yaml file shows an example to only allow connections from pods with
-label `app: client-qa` in namespaces with the label `project: qa`. Please be
-aware to use correct yaml syntax.
+It is also possible to specify only a few pods from namespaces instead of all
+pods to communicate with. in our example `podSelector` is used along, which
+assumes the same namespace as the target pod. 
+another method is to use `podSelector` along with a
+`namespaceSelector`. in that case, the namespaces that the pods belongs to is
+those with matching labels with `namespaceSelector`, instead of same as the
+target pod's namespace. 
 
-//ASK: has to be namespaceSelector + podSelector? how about 2 podSelector
+for example, assuming the target pod is `webserver-dev` and its namespace is
+`dev`, and only namespace `qa` has a label "project=qa" matching to the
+`namespaceSelector`:
+
 ----
 ingress:
 - from:
@@ -7406,131 +7658,406 @@ ingress:
         project: qa
     podSelector:
       matchLabels:
-        app: client-qa
+        app: client1-qa
 ----
 
-it is also possible to specify ports for ingress and egress. 
+here, the target pod can only communicate with those pods that are:
 
-Ports in ingress says that selected pods can allow incoming traffic for the
-specified ports. Ports in egress says that selected pods can send traffic to
-specified ports. If it is not mentioned it applies to all ports. 
+* in namespace qa, *AND* (not *OR*) -
+* with label `app: client1-dev` *in the namespace qa*
 
-here is an example of `policyTypes` with `ports` specified:
+Please be careful it is totally different than the below definition, which allow
+the target pod to talk to those pods that are:
+
+* in namespaces qa, *OR* (not *AND*) -
+* with label `app: client1-qa` *in the target pod's namespace `dev`*
 
 ----
-policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - ipBlock:
-        cidr: 10.169.25.0/24
-        except:
-        - 10.169.25.21/32
-    - namespaceSelector:
-        matchLabels:
-          project: qa
-    - podSelector:
-        matchLabels:
-          app: client1-dev
-    ports:
-    - protocol: TCP
-      port: 8000
+ingress:
+- from:
+  - namespaceSelector:
+      matchLabels:
+        project: qa
+  - podSelector:
+      matchLabels:
+        app: client1-qa
+----
+
+===== protocol and ports
+
+it is also possible to specify `ports` for an ingress and egress rule.
+`protocol` type can also be specified along with a protocol port. for example:
+
   egress:
   - to:
-    - ipBlock:
-        cidr: 10.169.25.20/32
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
     ports:
     - protocol: TCP
-      port: 8100
+      port: 80
+
+`ports` in ingress says that target pods can allow incoming traffic for the
+specified ports and protocol. Ports in egress says that target pods can
+initiate traffic to specified ports and protocol. If `ports` is not mentioned,
+all ports and protocols are allowed.
+
+===== line by line explanation
+
+after explaining everything, you should find that the policy rules in our
+example start to makes more sense, so let's look at it again in more detail:
+
+----
+  podSelector:                  <1>
+    matchLabels:                <2>
+      app: webserver-dev        <3>
+  policyTypes:                  <4>
+  - Ingress                     <5>
+  - Egress                      <6>
+  ingress:                      <7>
+  - from:                       <8>
+    - ipBlock:                  <9>
+        cidr: 10.169.25.20/32   <10>
+    - namespaceSelector:        <11>
+        matchLabels:            <12>
+          project: jtac         <13>
+    - podSelector:              <14>
+        matchLabels:            <15>
+          app: client1-dev      <16>
+    ports:                      <17>
+    - protocol: TCP             <18>
+      port: 80                  <19>
+  egress:                       <20>
+  - to:                         <21>
+    - podSelector:              <22>
+        matchLabels:            <23>
+          app: dbserver-dev     <24>
+    ports:                      <25>
+    - protocol: TCP             <26>
+      port: 80                  <27>
 ----
 
-The above network policy says that all ingress network endpoint can reach
-selected pods at tcp port 8000, selected pods can reach all egress network
-endpoint's tcp port 8100.  all other traffic would be blocked.
+////
+* tcp session initiated from other pods destined to target pod with
+  destination port `80` will arrive the target pod. to all other pods can reach tcp port `80` at target pods
+* tcp session initiate from target pods destined to other pod with destination port `8080` 
+can initiate reach other pods's tcp port `8080`.  all other traffic would be blocked.
+////
 
-to create the network policy:
+from this definition, we now can understand exactly what the network policy is
+trying to enforce:
+
+* line 1-3: pod `webserver-dev` is selected by the policy, so it is the "target"
+  pod, all following policy
+  rules will apply on it, and on it only.
+* line 4-6: the policy will define rules for both `Ingress` and `Egress` traffic
+* line 7-19: `ingress:` section defines the *ingress policy*
+  - line 8: `from:` and line 17: `ports`, these two sections defines one *policy
+    rule* in ingress policy.
+    *** line 9-16: these 8 lines under `from:` section compose an ingress "whitelist":
+        a. line 9-10: any incoming data with source IP being 10.169.25.20/32 can
+             access the target pod `webserver-dev`
+        b. line 11-13: any pods under namespace `jtac` can access target pod
+            `webserver-dev`
+        c. line 14-16: any pod `client1-dev` can access target pod `webserver-dev`
+    *** line 17-19: `ports` section is second (and optional) part of the same
+    *policy rule*.  only TCP port 80 (web service) on target pod `webserver-dev`
+    is exposed and accessible. access to all other pods will be denied.
+  - line 20-26: `egress:` section defines the *egress policy*
+    *** line 21: `to:` and line 24: `ports`, these two sections define one *policy
+        rule* in egress policy.
+        a. line 21-24: these 4 lines under `to:` section compose an egress
+        "whitelist", here the target pod can send egress traffic to pod
+        `dbserver-dev`
+    *** line 25: `ports` section is second part of the same *policy rule*. the
+    target pod `webserver-pod` can only start TCP session with destination port
+    of 8080 to other pods.
+
+and that is not all. 
+
+if you remember in the beginning of this chapter we've talked about the
+kubernetes default "allow-any-any" network model and the implicit "deny-all",
+"allow-all" policies, you will realize that so far we just explained the
+explicit part of it (the policy `policy1` in our network policy introduction
+section). after that, there are two more implicit policies:
+
+* the `"deny all"` network policy: for the target pod `webserver-dev`, deny all
+  other traffic that is other than what is explicitly allowed in the above
+  whitelists, this implies at least two rules:
+  - ingress: deny all incoming traffic destined to the target pod
+    `webserver-dev`, other than what is defined in the ingress whitelist.
+  - egress: deny all outgoing traffic sourcing from the target pod
+    `webserver-dev`, other than what is defined in the egress whitelist.
+* a `"allow all"` network policy: allow all traffic for other pods that are not
+  target of this network policy, on both ingress and egress direction.
+
+NOTE: in chapter 8, we'll take a deeper look at these implicit network policies
+and their rules in contrail implementation.
+
+=== create network policy
+
+you can create and verify the network policy same way as you create other
+kubernetes objects:
 
 ----
-$kubectl create -f policy-do.yaml -n dev
+$ kubectl apply -f policy1-do.yaml
+networkpolicy.networking.k8s.io/policy1-do created
 
 $ kubectl get netpol -n dev
-NAME                POD-SELECTOR     AGE
-network-policy-do   app=server-dev   6s
+NAME           POD-SELECTOR        AGE
+policy1        app=webserver-dev   6s
 
-$ kubectl describe netpol -n dev
-Name:         network-policy-do
+$ kubectl describe netpol policy -n dev
+Name:         policy1
 Namespace:    dev
-Created on:   2019-09-23 04:39:01 -0700 PDT
+Created on:   2019-10-01 11:18:19 -0400 EDT
 Labels:       <none>
 Annotations:  <none>
 Spec:
-  PodSelector:     app=server-dev
+  PodSelector:     app=webserver-dev
   Allowing ingress traffic:
-    To Port: 8000/TCP
+    To Port: 80/TCP
     From:
-      IPBlock:
-        CIDR: 10.169.25.0/24
-        Except: 10.169.25.21/32
-    From:
-      NamespaceSelector: project=qa
-    From:
-      PodSelector: app=client1-dev
-  Allowing egress traffic:
-    To Port: 8100/TCP
-    To:
       IPBlock:
         CIDR: 10.169.25.20/32
         Except:
+    From:
+      NamespaceSelector: project=jtac
+    From:
+      PodSelector: app=client1-dev
+  Allowing egress traffic:
+    To Port: 80/TCP
+    To:
+      PodSelector: app=dbserver-dev
   Policy Types: Ingress, Egress
 ----
+in chapter 8, we'll setup a test environment to verify the effect of this
+network policy in more detail.
 
 == Contrail – k8s Network Policy
 
-In chapter 3 we introduced kubernetes network policy. we've mentioned that
-simply creating network policy object won't have any effect unless the
-kubernetes networking implementation support it. In this chapter we are going to
-see contrail’s solution for kubernetes network policy with examples.
+in chapter 4, we've given the "Kubernetes to Contrail Object Mapping" table as
+shown below:
 
-.Contrail Firewall
+.contrail kubernetes object mapping
+image::https://user-images.githubusercontent.com/2038044/63705887-1cc6fe00-c7fc-11e9-8c4f-733676cf663a.png[]
 
-Contrail has various security features to define policies between workloads.
-e.g.: "security groups", "network policy" and "firewall".  Each has its own
-capabilities and a different design goal. in this chapter we'll focus on
-"contrail firewall" only.
+the mapping highlights contrail's implementation of kubernetes core objects:
+`Namespace`, `pod`, `Service`, `Ingress` and `Network Policy`. so far from
+chapter 4 through 7 we've pretty much explored everything except `Network
+Policy`.  in this chapter we'll focus on the `Network Policy` implementation in
+contrail. we'll first introduce the contrail firewall which is the feature we
+used to implement kubernetes network policy; we'll then setup a test case to
+verify how does kubernetes network policy works in contrail; based on the test
+result, in the end we'll explore the contrail firewall policies and their rules
+in details to understand the contrail implementation, as well as the mapping
+between the two objects in the object mapping digram.
 
-Contrail Firewall, often referred as "Contrail Security", is one of the feature
-that identifies the workloads based on the tags(labels). as you can see, this is
-similar to k8s network policy, so it is natural for contrail to use its firewall
-to implement k8s network policy. 
+=== introducing Contrail Firewall
 
+In chapter 3 we introduced kubernetes network policy concept. we went through
+the yaml file definition in details and created the network policy based on it.
+we've also mentioned that simply creating network policy object won't have any
+effect, unless the kubernetes networking implementation support it. contrail as
+a kubernetes CNI implements the kubernetes networking, and it supports the
+kubernetes network policy through contrail firewall. that is the focus of this
+chapter - we'll demonstrate how network policy work in contrail environment
+through contrail firewall.
+
+before that, let's review some of the important concept and design in contrail
+to understand why we implement kubernetes network policy through contrail
+firewall.
+
+////
+Contrail has various security features to control traffics between workloads.
+examples are:
+
+* security groups
+* network policy
+* contrail firewall security policy
+
+Each feature has its own capabilities and more or less different design goals. 
+////
+
+.inter-VN routing
+in contrail, virtual networks (VN) are isolated by default. that means by
+default Workloads in `VN1` cannot communicate with workloads in another VN
+`VN2`. to allow inter-VN communications between `VN1` to `VN2`, additional
+configuration is required.  for example you can use a neutron router, also
+called "logical router" in contrail, to connect the multiple VNs so inter-VN
+traffic can be "routed".  another commonly used method is to define a "contrail
+network policy" to connect VNs. contrail network policy also provides security
+between two virtual networks by allowing or denying specified traffic. actually
+in this respect, security group is a similar feature. next we'll talk about each
+feature briefly.
+
+.contrail network policy
+
+A contrail network policy is used to permit inter-VN communication and to modify
+intra-VN traffic. it describes which traffic is permitted or not between VNs. by
+default, without a contrail network policy, intra-VN communication is allowed,
+but inter-VN traffic is denied.  when you create a network policy you must
+associate it with a VN to have any effect. 
+
+////
+//no need to tell these
+several policies may be associated
+with one VN at the same time, and each policy contains a list of rules that are
+evaluated in the top-down fashion. the evaluation ends when the first match is
+found, which is known as "terminal behavior"
+////
+
+NOTE: 
+don't confuse "contrail network policy" with "kubernetes network policy". these
+are two different security features and they work seperately.
+
+.security group(SG)
+
+a security group, often abbreviated as a `SG`, is a group of rules that allow a
+user to specify the type of traffic that is allowed or not through a *port*.
+When a VM or pod is created in a VN, a `SG` can be associated with the VM when
+it is launched. unlike contrail network policy, which is configured "globally"
+and associated to the VNs, the SG is configured on the per-port basis, and it
+will take effect on the specific vrouter flows that is associated with the VM
+port. 
+
+////
+A security group is a container for security group rules. Security groups and
+security group rules allow administrators to specify the type of traffic that is
+allowed to pass through a port. When a virtual machine (VM) is created in a
+virtual network (VN), a security group can be associated with the VM when it is
+launched. If a security group is not specified, a port is associated with a
+default security group. The default security group allows both ingress and
+egress traffic. Security rules can be added to the default security group to
+change the traffic behavior.
+////
+
+.the limitation of SG and contrail network policy
+
+in modern contrail cloud environments, sometimes it is hard to only use the
+existing network policy and security group to achieve desired security goal. for
+example: in cloud environments, workloads may move from one server to another
+and so most likely the IP is changing often.  just relying on IP addresses to
+identify the endpoints to be protected is painful. Instead, users must leverage
+application level attributes to manipulate policies, so that the policies don't
+need to be updated everytime workload moves and the associated network
+environment changes.
+also, in production, a user might need to group workloads based on combinations
+of tags, which is hard to translate into existing language of network policy or
+Security Group. 
+
+.contrail firewall security policy
+
+in this chapter we'll introduce another important feature: "contrail firewall
+security policy".
+
+Contrail Firewall security policy allows decoupling of routing from security
+policies and provides multi dimension segmentation and policy portability, while
+significantly enhancing user visibility and analytics functions.
+
+in order to implement the multi-dimension traffic segmentation, Contrail
+firewall introduces the concept of "tags". Tags are key-value pairs associated
+with different entities in the deployment. Tags can be pre-defined or
+custom/user defined.  contrail `tags` are pretty much the same thing as
+kubernetes `labels`. both are used to identify the objects and workloads.  as
+you can see, this is similar to kubernetes network policy design, and it is
+natural for contrail to use its firewall security policy to implement kubernetes
+network policy - in theory, contrail network policy or SG can be extended to do
+the job, but the support of tags by contrail firewall make it much simpler. 
+
+////
+TODO: what?
 the implementation has the following advanatages:
 
 1. Workloads can be represented and grouped by tags.
 2. Combinational tags can be used in policies.
 3. Untagged workloads can be specified in policies.
 4. Policies can be applied in various layers.
+////
 
-.Contrail k8s Network Policy test
+[NOTE]
+====
+later in this chapter, we'll sometimes refer "contrail firewall security policy"
+as "contrail Security", "contrail firewall", "contrail firewall security" or
+simply "contrail FW". 
+====
 
-Before getting into deeper into contrail firewall, lets test and see how does
-the k8s network policy works in contrail. 
+=== contrail kubernetes Network Policy usage case
 
-in our test we need:
+////
+TODO:
+* lab with 'AND', e.g. client1-support AND in support NS only
+* lab to show changing tag in policy is convenient
+////
 
-* 3 namespaces, 
-* 5 pods
-  - 1 server pod, 
-  - 2 client pods in the same namespace, 
-  - 2 clients from two different namespaces)
-* 2 CIDRs to show allow and deny traffic within, across namespaces and CIDRs
+//Before getting into deeper into contrail firewall, 
+in this section, lets create a usage case to verify how does the kubernetes
+network policy works in contrail environments. we'll start from creating a few
+kubernetes namespaces and pods resources that is required in the test,
+confirming every pod can talk to the DUT (Device Under Test) because of the
+default "allow-any-any" networking model, then creating network policies and
+observing any changes with same traffic pattern.
 
-Lets create the required k8s NS and pods resources.
+==== network design
 
-the `dev`, `qa` and `build` namespaces all-in-one yaml file:
+suppose we have this network design:
+
+.network policy: the test case design
+image::policy-design.drawio.png[]
+
+in this didagram, 6 nodes are distributed in 3 departments: `dev`, `qa` and
+`jtac`. `dev` department is running a database server (`dbserver-dev`) holding
+all valuable data collected from customer. the design requires that no one
+should has direct access to this db server, instead, db server access is only
+allowed through another apache frontend server in `dev` department, named
+`webserver-dev`.  furthermore, for security reason, the access of customer
+information should be granted only to authorized clients. for example, only
+nodes in `jtac` department, one node in `dev` department named `client1-dev` and
+source IP `10.169.25.20` can access the db via webserver. finally, the database
+server `dbserver-dev` should not initiate any connection toward other nodes. 
+
+==== lab preparation
+
+this is a very ordinary, simplified network design that you will see everywhere.
+if we model all these network elements in kubernetes world, it will look like
+this:
+
+.network policy: NS and pods
+image::policy-pods.drawio.png[]
+
+we need to create following resources:
+
+* 3 namespaces: `dev`, `qa`, `jtac`
+* 6 pods:
+  - 2 server pods: `webserver-dev`, `dbserver-dev`
+  - 2 client pods in the same namespace as of server pods: `client1-dev`, `client2-dev`
+  - 2 clients pods from two different namespaces: `client-qa`, `client-jtac`
+* 2 CIDRs:
+  - cidr: 10.169.25.20/32, this is fabric IP of node `cent222`
+  - cidr: 10.169.25.21/32, this is fabric IP of node `cent333`
+
+.kubernetes network policy test environment
+
+[options="header,autowidth"]
+|====
+|NS              |pod           |role
+|dev	         |client1-dev   |web client
+|dev	         |client2-dev   |web client
+|qa	         |client-qa     |web client
+|jtac	         |client-jtac   |web client
+|dev	         |webserver-dev |webserver serving clients
+|dev	         |dbserver-dev  |dbserver serving webserver
+|==== 
+
+Lets prepare the required k8s NS and pods resources.
+
+here is the all-in-one yaml file defining `dev`, `qa` and `jtac` namespaces:
 
 ----
-#policy-ns-do.yaml
+#policy-ns-pod.yaml
+##################
+# all namespaces #
+##################
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -7548,43 +8075,19 @@ metadata:
 kind: Namespace
 apiVersion: v1
 metadata:
-  name: build
+  name: jtac
   labels:
-    project: build
+    project: jtac
 ---
-----
-
-create the 3 namespaces:
-
-----
-$kubectl create -f network-policy-ns-do.yaml
-namespace/dev created
-namespace/qa created
-namespace/build created
-----
-
-create following pods in the three NS:
-
-[options="header"]
-|====
-|NS                             |pod
-|dev	                        |server-dev
-|dev	                        |client1-dev
-|dev	                        |client2-dev
-|qa	                        |client-qa
-|build	                        |client-build
-|==== 
-
-here is the all-in-one yaml file:
-
-----
-# policy-pod-do.yaml
+##################
+#   all pods     #
+##################
 apiVersion: v1
 kind: Pod
 metadata:
-  name: server-dev
+  name: webserver-dev
   labels:
-    app: server-dev
+    app: webserver-dev
     do: policy
   namespace: dev
 spec:
@@ -7607,7 +8110,7 @@ metadata:
 spec:
   containers:
     - name: ubuntu
-      image: contrailk8sdayone/ubuntu
+      image: contrailk8sdayone/contrail-webserver
 ---
 apiVersion: v1
 kind: Pod
@@ -7620,7 +8123,7 @@ metadata:
 spec:
   containers:
     - name: ubuntu
-      image: contrailk8sdayone/ubuntu
+      image: contrailk8sdayone/contrail-webserver
 ---
 apiVersion: v1
 kind: Pod
@@ -7633,69 +8136,157 @@ metadata:
 spec:
   containers:
     - name: ubuntu
-      image: contrailk8sdayone/ubuntu
+      image: contrailk8sdayone/contrail-webserver
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: client-build
+  name: client-jtac
   labels:
-    app: client-build
+    app: client-jtac
     do: policy
-  namespace: build
+  namespace: jtac
 spec:
   containers:
     - name: ubuntu
-      image: contrailk8sdayone/ubuntu
----
+      image: contrailk8sdayone/contrail-webserver
 ----
 
-TIP: we use the `contrail-webserver` and `ubuntu` image that we've been using
-throughout the book, for server and clients repectively. also, we add a label
-`do: policy` in all pods so that displaying all pods used in this test is
-easier.
+TIP: ideally, each pods may run based on different images. TCP ports usually are
+different between a webserver and a database server. in our case to make the
+test easier, we use the same exact `contrail-webserver` image that we've been
+using throughout the book for all pods, so clients to webserver and webserver to
+dbserver all share the same port number 80 served by same HTTP server. also, we
+add a label `do: policy` in all pods so that displaying all pods used in this
+test is also easier.
 
-create and verify all pods:
+create all resources:
 
 ----
-$kubectl create -f policy-pod-do.yaml
-pod/server-dev created
+$kubectl create -f policy-ns-pod-do.yaml
+namespace/dev created
+namespace/qa created
+namespace/jtac created
+pod/webserver-dev created
+pod/dbserver-dev created
 pod/client1-dev created
 pod/client2-dev created
 pod/client-qa created
-pod/client-build created
+pod/client-jtac created
 
-$ kubectl get pod -l 'do=policy' -o wide --all-namespaces
-NAMESPACE   NAME           READY   STATUS    RESTARTS   AGE   IP              NODE      NOMINATED NODE
-build       client-build   1/1     Running   0          42s   10.47.255.230   cent333   <none>
-dev         client1-dev    1/1     Running   0          42s   10.47.255.233   cent333   <none>
-dev         client2-dev    1/1     Running   0          42s   10.47.255.232   cent333   <none>
-dev         server-dev     1/1     Running   0          42s   10.47.255.234   cent333   <none>
-qa          client-qa      1/1     Running   0          42s   10.47.255.231   cent222   <none>
+$ kubectl get pod --all-namespaces -l "do=policy" -o wide
+NAMESPACE   NAME            READY   STATUS    RESTARTS   AGE   IP              NODE   
+dev         client1-dev     1/1     Running   0          33s   10.47.255.232   cent222
+dev         client2-dev     1/1     Running   0          33s   10.47.255.231   cent333
+dev         dbserver-dev    1/1     Running   0          33s   10.47.255.233   cent333
+dev         webserver-dev   1/1     Running   0          33s   10.47.255.234   cent333
+jtac        client-jtac     1/1     Running   0          33s   10.47.255.229   cent222
+qa          client-qa       1/1     Running   0          33s   10.47.255.230   cent333
 ----
 
-Before creating the k8s network policy, lets try to access the server pod from
-all the clients (`client1-dev`, `client2-dev`, `client-qa` and `client-build`)
-pods and from host of the two nodes.
+==== traffic mode before kubernetes network policy creation
 
-check the httpserver is running at port 80 in `server-dev` pod:
+having all of the NS and pods, before we define any network policy yet, we can
+go ahead to send the traffic between clients and servers. 
+
+of course, kubernetes networking by default follows "allow-any-any" model, so we
+should expect access works between any pod, which is going to be a fully meshed
+access relationships. but keep in mind that the `DUT` in this test is
+`webserver-dev` and `dbserver-dev` which we are more interested to observe. to
+simply the verification, according to our diagram, we'll focus on accessing the
+server pods from the client pods, illustrated in below figure:
+ 
+////
+`webserver-dev` pod from all the clients pods
+(`client1-dev`, `client2-dev`, `client-qa` and `client-jtac`) plus the hosts of
+the two nodes, and from `webserver-dev` pod to `dbserver-dev` pod, illustrated
+in below figure:
+////
+
+.network policy: pods communication before network policy creation
+image::policy-b4policy.drawio.png[]
+
+a few highlights here:
+
+* all clients can access the servers, following the "permit-any-any" model
+    - there is no restrictions between clients and `webserver-dev` pod
+    - there is no restrictions between clients and `dbserver-dev` pod
+* the communcation between client and servers are bi-directional and
+  "symmetrical" - each end can "initiate a session" or "accept a session". these
+  matches to the "egress policy" and "ingress policy" respectively in kubernetes
+  network policy's term.
+
+obviously, these do not meet our design goal, which is exactly why we need
+kubernetes network policy, we'll come to that part soon. for now let's quickly
+verify the allow-any-any networking model.
+
+first let's verify the http server running at port 80 in `webserver-dev` and
+`dbserver-dev` pods:
 
 ----
-$kubectl exec -it server-dev -n dev -- netstat -antp| grep 80
+$kubectl exec -it webserver-dev -n dev -- netstat -antp| grep 80
+tcp        0      0 0.0.0.0:80              0.0.0.0:*    LISTEN      1/python
+$kubectl exec -it dbserver-dev -n dev -- netstat -antp| grep 80
 tcp        0      0 0.0.0.0:80              0.0.0.0:*    LISTEN      1/python
 ----
 
-accessing httpserver of `server-dev` from `client1-dev`:
+TIP: as mentioned earlier, in this test all pods is with the same container
+image, so all pods are running the same webserver application in their
+containers. in this test we simply use the name to each pod to reflect their
+different roles in the diagram.
 
-////
+now we can verify accessing this http server from other pods with these
+commands:
+
+.test ingress traffic
+----
+#from master
+dbserverIP=10.47.255.233
+webserverIP=10.47.255.234
+kubectl exec -it client1-dev -n dev -- curl http://$webserverIP -m5
+kubectl exec -it client2-dev -n dev -- curl http://$webserverIP -m5
+kubectl exec -it client-qa -n qa -- curl http://$webserverIP -m5
+kubectl exec -it client-jtac -n jtac -- curl http://$webserverIP -m5
+kubectl exec -it dbserver-dev -n dev -- curl http://$webserverIP -m5
+
+#from node cent222 (fabric interface IP: 10.169.25.20)
+curl http://$webserverIP -m5
+#from node cent333 (fabric interface IP: 10.169.25.21)
+curl http://$webserverIP -m5
+----
+
+these commands triggers the HTTP requests to the `webserver-dev` pod from all
+clients and the hosts of the 2 nodes. `-m5` curl command option make curl to
+wait maximum 5 seconds for the response before it claims time out. as expected,
+all accesses pass through and returns the same output as below:
+
+.from `client1-dev`:
+----
 $ kubectl exec -it client1-dev -n dev -- \
-    curl http://10.47.255.234 | w3m -T text/html | grep -v "^$"
+    curl http://$webserverIP | w3m -T text/html | grep -v "^$"
                                      Hello
                      This page is served by a Contrail pod
                           IP address = 10.47.255.234
-                             Hostname = server-dev
-////
+                             Hostname = webserver-dev
+----
 
+in the command above, `w3m` get the output from curl which returns a webpage
+HTML code and renders into readable text, then send to grep to remove the empty
+lines. to make the command shorter we define an alias:
+
+    alias webpr='w3m -T text/html | grep -v "^$"'
+
+now the command looks shorter:
+
+----
+$ kubectl exec -it client1-dev -n dev -- curl http://$webserverIP | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.234
+                           Hostname = webserver-dev
+----
+
+////
 ----
 $ kubectl exec -it client1-dev -n dev -- curl http://10.47.255.234
 <html>
@@ -7709,46 +8300,59 @@ $ kubectl exec -it client1-dev -n dev -- curl http://10.47.255.234
   </head>
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
-    pod</h2><br><h3>IP address = 10.47.255.234<br>Hostname = server-dev</h3>
+    pod</h2><br><h3>IP address = 10.47.255.234<br>Hostname = webserver-dev</h3>
   </body>
   </div>
 </html>
 ----
+////
 
-we can repeat the same command, except replace the the client pod's name and
-namespaces: 
+similarly, we'll get the same test results for access to `dbserver-dev` from any
+other pods.
+
+////
+----
+#from master
+kubectl exec -it client1-dev -n dev -- curl http://10.47.255.233 -m5
+kubectl exec -it client2-dev -n dev -- curl http://10.47.255.233 -m5
+kubectl exec -it client-qa -n qa -- curl http://10.47.255.233 -m5
+kubectl exec -it client-jtac -n jtac -- curl http://10.47.255.233 -m5
+kubectl exec -it webserver-dev -n dev -- curl http://10.47.255.233 -m5
+
+#from node cent222 (fabric interface IP: 10.169.25.20)
+curl http://10.47.255.233 -m5
+#from node cent333 (fabric interface IP: 10.169.25.21)
+curl http://10.47.255.233 -m5
+----
+////
+
+//TODO: say something about accessing pod from host?
+
+==== create kubernetes network policy
+
+now lets create the k8s network policy to implement our design. from out initial
+design goal, these are what we wanted to achieve via network policy:
+
+* `client1-dev` and pods under `jtac` NS (that is `jtac-dev` pod) can access
+  `webserver-dev` pod
+* `webserver-dev` pod (and only it) is allowed to access `dbserver-dev` pod
+* all other client pods are not allowed to access the two server pods
+* all other client pods can still communicate with each other
+
+translating these requirements into language of kubernetes network policy, we'll
+have this network policy yaml file:
 
 ----
-$ kubectl exec -it client2-dev -n dev -- curl http://10.47.255.234
-$ kubectl exec -it client-qa -n qa -- curl http://10.47.255.234
-$ kubectl exec -it client-build -n build -- curl http://10.47.255.234
-----
-
-same curl command can be sent from the host of two nodes in the cluster:
-
-----
-$ curl http://10.47.255.234
-$ curl http://10.47.255.234
-----
-
-in all tests, we'll see exactly the same test result .
-
-now lets create the k8s network-policy and see what is happening and any
-differences in test result.
-
-here is the same exact policy yaml file we've showed in chapter 3:
-
-----
-# policy-do.yaml
+#policy1-do.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: network-policy-do
+  name: policy1
   namespace: dev
 spec:
   podSelector:
     matchLabels:
-      app: server-dev
+      app: webserver-dev
   policyTypes:
   - Ingress
   - Egress
@@ -7758,7 +8362,7 @@ spec:
         cidr: 10.169.25.20/32
     - namespaceSelector:
         matchLabels:
-          project: qa
+          project: jtac
     - podSelector:
         matchLabels:
           app: client1-dev
@@ -7767,258 +8371,416 @@ spec:
       port: 80
   egress:
   - to:
-    - ipBlock:
-        cidr: 10.169.25.21/32
+    - podSelector:
+        matchLabels:
+          app: dbserver-dev
     ports:
     - protocol: TCP
-      port: 8080
+      port: 80
 ----
 
-from the network-policy definition, we can see what the policy is trying to
-enforce:
+from the network-policy definition, based on what you've learned in chapter 3,
+you should easily tell what the policy is trying to enforce in our current
+setup:
 
-* the following clients can reach the `server-dev` server pod located in `dev`
-  namespace 
+* according to the ingress policy, the following clients can reach the
+  `webserver-dev` server pod located in `dev` namespace:
+
     - `client1-dev` from `dev` namespace
-    - `client-qa` from `qa` namespace
-    - any pod in node `10.169.25.20` (`cent222` in our setup) 
-* all other accesses are denied.
+    - all pods from `jtac` namespace, that is `client-jtac` pod in our setup
+    - clients with source IP `10.169.25.20` (`cent222` in our setup) 
+
+* according to the egress policy, the `webserver-dev` server pod in `dev`
+  namespace can initiate a TCP session towards `dbserver-dev` pod with
+  destination port 80 to access the data.
+
+* for target pod `server-dev`, all other accesses are denied.
+
+* communication between all other pods are not affected by this network policy.
+
+TIP: actually, this is the exact network policy yaml file that we've
+demonstrated in chapter 3.
 
 let's create the policy and verify its effect.
 
 ----
-$ kubectl apply -f policy-do.yaml
-networkpolicy.networking.k8s.io/network-policy-do created
+$ kubectl apply -f policy1-do.yaml
+networkpolicy.networking.k8s.io/policy1 created
+
 $ kubectl get networkpolicies --all-namespaces
-NAMESPACE   NAME                POD-SELECTOR     AGE
-dev         network-policy-do   app=server-dev   17s
+NAMESPACE   NAME       POD-SELECTOR        AGE
+dev         policy1    app=webserver-dev   17s
 ----
 
-accessing httpserver of `server-dev` pod from pod `client1-dev`, `client-qa` and
-node `cent222` host:
+==== post kubernetes network policy creation
+
+===== ingress policy on `webserver-dev`
+
+after network policy `policy1` is created, let's test the accessing of http
+server in `webserver-dev` pod from pod `client1-dev`, `client-jtac` and node
+`cent222` host:
 
 ----
-$ kubectl exec -it client1-dev -n dev -- curl http://10.47.255.234 
-<html>
-<style>
-  h1   {color:green}
-  h2   {color:red}
-</style>
-  <div align="center">
-  <head>
-    <title>Contrail Pod</title>
-  </head>
-  <body>
-    <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
-    pod</h2><br><h3>IP address = 10.47.255.234<br>Hostname = server-dev</h3>
-  </body>
-  </div>
-</html>
+$ kubectl exec -it client1-dev -n dev -- curl http://$webserverIP | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.234
+                           Hostname = webserver-dev
 ----
 
-repeat the same test from from pod `client2-dev`, `client-build` and another
-node `cent333` now get timed out:
+the access from these 2 pod to `webserver-dev` is OK and that is what we
+want. now if we repeat the same test from other pods `client2-dev`, `client-qa`
+and another node `cent333` now get timed out:
 
 ----
-$ kubectl exec -it client2-dev -n dev -- curl http://10.47.255.234 -m 10
-curl: (28) Connection timed out after 10000 milliseconds
+$ kubectl exec -it client2-dev -n dev -- curl http://$webserverIP -m 5
+curl: (28) Connection timed out after 5000 milliseconds
 command terminated with exit code 28
 
-$ kubectl exec -it client-build -n build -- curl http://10.47.255.234:80 -m 30
-curl: (28) Connection timed out after 10001 milliseconds
+$ kubectl exec -it client-jtac -n jtac -- curl http://$webserverIP -m 5
+curl: (28) Connection timed out after 5000 milliseconds
 command terminated with exit code 28
 
-$ curl http://10.47.255.234:80 -m 30
-curl: (28) Connection timed out after 10001 milliseconds
+$ curl http://$webserverIP -m 5
+curl: (28) Connection timed out after 5000 milliseconds
+----
+
+the new test result after network policy applied is illustrated in this figure:
+
+.network policy: after applying policy1
+image::policy-afterpolicy.drawio.png[]
+
+detail information of the network policy object tells the same things:
+
+----
+$ kubectl describe netpol -n dev policy1
+Name:         policy1
+Namespace:    dev
+Created on:   2019-09-29 21:21:14 -0400 EDT
+Labels:       <none>
+Annotations:  kubectl.kubernetes.io/last-applied-configuration:
+            {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy",
+            "metadata":{"annotations":{},"name":"policy1","namespace":"dev"},
+            "spec":{"egre...
+Spec:
+  PodSelector:     app=webserver-dev
+  Allowing ingress traffic:     #<---
+    To Port: 80/TCP
+    From:
+      IPBlock:
+        CIDR: 10.169.25.20/32
+        Except:
+    From:
+      NamespaceSelector: project=jtac
+    From:
+      PodSelector: app=client1-dev
+  Allowing egress traffic:
+    To Port: 80/TCP
+    To:
+      PodSelector: app=dbserver-dev
+  Policy Types: Ingress, Egress
 ----
 
 From the above exercise, we can conclude that k8s network policy works as
 expected in contrail.
 
-=== Deeper view
+but out test is not done yet. in the network policy we defined both ingress and
+egress policy, but so far from `webserver-dev` pod perspective we've only tested
+that the ingress policy of `policy1` works successfully. secondly, we have not
+apply any policy to the other server pod `dbserver-dev`. according the default
+"allow any" policy, any pods can directly access it without a problem.
+obviously this is not what we wanted according to our original design. another
+ingress network policy is needed for `dbserver-dev` pod. and at last, we need to
+apply an egress policy to `dbserver-dev` to make sure it can't connect to any
+other pods. so there are at least three more test items we need to confirm:
 
-Contrail Firewall is designed with a hierarchical structure:
+* test egress policy of `policy1` applied to `webserver-dev` pod
+* define and test ingress policy for `dbserver-dev` pod
+* define and test egress policy for `dbserver-dev` pod
 
-* the top level object is named “Application Policy Set(APS)”. 
-* APS has Firewall Policies; 
-* Firewall Policy has Firewall Rules; 
-* Firewall rules has the endpoints; 
-* Endpoints can be identified via tags or address groups(CIDRs).  
+let's look at the egress policy of `policy1` first.
 
-Below table would represent network policy construtcs in k8s and mapping
-constructs in contrail and the mapping is done by the kube-manager.
-	
-[options="header"]
-|====
-|K8s Network Policy Construct   |Contrail Firewall Construct
-|Cluster Name	                |APS (one per k8s cluster)
-|Network Policy	                |Firewall Policy (one per k8s network policy)
-|Ingress and Egress policy	|Firewall Rule (one per k8s ingress/egress policy)
-|CIDR	                        |Address Group(one per k8s network policy CIDR )
-|Label	                        |Tag (one for each k8s label)
-|==== 
+===== egress policy on `webserver-dev` pod
 
-
-`contrail-kube-manager` will do the following things for k8s network policy:
-
-1. It will create a APS with Kubernetes cluster name during the initialization. 
-2. It registers to k8s api server to watch network policies CRUD events.
-3. Whenever namespace is created, it will associate the k8s APS to the
-   virtual-networks belonging to the namespace. 
-4. Whenever pod or namespace is created, tag will be created for the k8s labels
-   in contrail.
-5. Whenever network policy is created, firewall policy will be created with
-   matching firewall rules and network endpoints.
-
-[NOTE]
-====
-APS can be associated to different contrail objects, e.g.
-
-* VMI(virtual-machine-interface)
-* VM(virtual-machine) 
-* virtual-network
-* project
-
-In contrail-k8s cluster, it is associated to virtual network. Whenever traffic
-goes on those networks, firewall policies associated on the APS would be
-evaluated and respective action would be taken for the traffic.
-====
-
-Lets focus on the contrail objects which are created for k8s network policy.
-
-1. As mentioned in the above section, APS with k8s cluster name will be created
-by `contrail-kube-manager` during the initialization. Since the cluster name is
-`k8s` by default, we can see the APS `k8s` in the below contrail ui. There is
-one more APS `default-application-policy-set` which is created by default. By
-default firewall policy `k8s-denyall` and `k8s-allowall` will be created. Since k8s
-by default "allows all" and contrail firewall by default "denies all", contrail has
-to have rules to match k8s default bahaviour. So by default firewalls rules are
-added in k8s-allowall firewall policy. Below contrail ui snapshots shows it.
-+
-//image::https://user-images.githubusercontent.com/2038044/65438012-d1037680-ddf2-11e9-9e21-fb1498b95310.png[]
-image::https://user-images.githubusercontent.com/2038044/65655412-22298b00-dfea-11e9-850d-ee6a71833d45.png[]
-//image::https://user-images.githubusercontent.com/2038044/65438014-d1037680-ddf2-11e9-8c0b-3c6220cce87c.png[]
-image::https://user-images.githubusercontent.com/2038044/65655766-505b9a80-dfeb-11e9-9499-b8d9b67bbcc9.png[]
-+
-NOTE: When firewall polices are evaluated for the APS, it is evaluated in a
-sequence. When there is a matching policy, it will be executed. So all firewall
-polices and allfirewall rules has a sequence number.  `contrail-Kube-manager`
-allocates the right sequence number for firewall policies and firewall rules to
-keep the k8s network-policy intact in contrail. `K8s-ingress` firewall policy is
-created for the ingress loadbalancer which is out of the scope of this book.
-
-2. After the network policy creation,  k8s APS will have the new firewall policy
-for the k8s netwok policy. 
-+
-//image::https://user-images.githubusercontent.com/2038044/65438015-d1037680-ddf2-11e9-8a40-628b2c60a087.png[]
-image::https://user-images.githubusercontent.com/2038044/65655828-8e58be80-dfeb-11e9-867e-5545f9192713.png[]
-	
-3. `K8s-dev-policy-do` is the new firewall policy created by
-`contrail-kube-manager` for k8s network policy `policy-do`. As explained in
-earlier chapters, cluster and namespace name are prepended to the network policy
-name.  If we closely watch, we can see four firewall rules in
-`K8s-dev-policy-do` firewall policy and two new firewall rules for the
-`k8s-denyall` firewall policy are added. clicking at the firewall policy
-`k8s-dev-policy-do`, Firewall rules of `k8s-dev-policy-do` is matching to k8s
-network policy which can be seen:
-+	 
-//image::https://user-images.githubusercontent.com/2038044/65438016-d1037680-ddf2-11e9-8418-9755d3a763bc.png[]
-image::https://user-images.githubusercontent.com/2038044/65656030-53a35600-dfec-11e9-95f8-1c65a5ed22e8.png[]
-4. Newly added firewall rules for firewall policy `k8s-denyall` can also be seen
-below. These rules are needed to deny other traffic to the server-dev pod.
-+	 
-//image::https://user-images.githubusercontent.com/2038044/65438018-d19c0d00-ddf2-11e9-8fc4-26fa2a06667f.png[]
-image::https://user-images.githubusercontent.com/2038044/65656361-9580cc00-dfed-11e9-8616-c979614054d1.png[]
-
-5. Lets see the `sequence number` of the firewall policies. Since firewall
-policy `k8s-dev-policy-do` has high priority (indicated by a lower sequence
-number) than `k8s-denyall` and `k8s-allowall`, all matching traffic for the
-endpoints are allowed. similarly, `k8s-denyall` has high priority than
-`k8s-allowall`, so all other traffic will be dropped.
-+	 
-//image::https://user-images.githubusercontent.com/2038044/65438021-d19c0d00-ddf2-11e9-92a8-76998b831776.png[]
-image::https://user-images.githubusercontent.com/2038044/65656872-5ce1f200-dfef-11e9-8c09-bfadec3b5f82.png[]
-+
-////
-"application-policy-set": {
-    "display_name": "k8s",
-    "firewall_policy_refs": [
-        {
-            "attr": {
-                "sequence": "00010.0"
-            },
-            "href": "http://10.85.188.19:8082/firewall-policy/55fddd9f-3e26-4f05-9b5b-cabd57d71983",
-            "to": [
-                "default-policy-management",
-                "k8s-denyall"
-            ],
-            "uuid": "55fddd9f-3e26-4f05-9b5b-cabd57d71983"
-        },
-        {
-            "attr": {
-                "sequence": "00002.0"
-            },
-            "href": "http://10.85.188.19:8082/firewall-policy/25c789af-ea63-4334-8e4a-22942e092e0d",
-            "to": [
-                "default-policy-management",
-                "k8s-Ingress"
-            ],
-            "uuid": "25c789af-ea63-4334-8e4a-22942e092e0d"
-        },
-        {
-            "attr": {
-                "sequence": "00008.0"
-            },
-            "href": "http://10.85.188.19:8082/firewall-policy/a492871d-30c0-4588-bd5b-b3bdff160b31",
-            "to": [
-                "default-policy-management",
-                "k8s-dev-policy-do"
-            ],
-            "uuid": "a492871d-30c0-4588-bd5b-b3bdff160b31"
-        },
-        {
-            "attr": {
-                "sequence": "00011.0"
-            },
-            "href": "http://10.85.188.19:8082/firewall-policy/24563e5d-9e6c-47f4-b27f-69eaaf0bc524",
-            "to": [
-                "default-policy-management",
-                "k8s-allowall"
-            ],
-            "uuid": "24563e5d-9e6c-47f4-b27f-69eaaf0bc524"
-        }
-    ],
-    "fq_name": [
-        "default-policy-management",
-        "k8s"
-    ],
-////
-//ASK? what is it?
-6. Also look at the tags and associated ports(vmi). For each pod label, tag can
-be seen and it is attached to the respective pod port which is done by the
-kube-manager.
-+
-//image::https://user-images.githubusercontent.com/2038044/65438024-d19c0d00-ddf2-11e9-86a6-0f4c1acd7c8a.png[]
-image::https://user-images.githubusercontent.com/2038044/65657044-e5f92900-dfef-11e9-9a6a-727ef93fb4e7.png[]
-
-7. Since action for the whitelisted case is FORWARD and flow for FORWARD is
-explained in the previous sections with service and ingress,  lets focus on the
-flow for the non-whitelisted case.
-+
+.test egress traffic
 ----
-$ kubectl exec -it client-build -n build -- curl -v 10.47.255.234
-* Rebuilt URL to: 10.47.255.234/
-* Hostname was NOT found in DNS cache
-*   Trying 10.47.255.234...
-* connect to 10.47.255.234 port 80 failed: Connection timed out
-* Failed to connect to 10.47.255.234 port 80: Connection timed out
-* Closing connection 0
-curl: (7) Failed to connect to 10.47.255.234 port 80: Connection timed out
-command terminated with exit code 7
+#test access to all pods
+kubectl exec -it webserver-dev -n dev -- curl http://$dbserverIP -m5
+kubectl exec -it webserver-dev -n dev -- curl http://<other pod IPs> -m5
+
+#test access to all ipBlock
+kubectl exec -it webserver-dev -n dev -- curl http://10.169.25.20 -m5
+kubectl exec -it webserver-dev -n dev -- curl http://10.169.25.21 -m5
 ----
-+
-login to contrail-vrouter-agent and see the flow
-+
+
+the result shows only access to `dbserver-dev` succeeds. all other egress access
+is timed out.
+
+----
+$ kubectl exec -it webserver-dev -n dev -- curl $dbserverIP -m5 | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.233
+                            Hostname = dbserver-dev
+$ kubectl exec -it webserver-dev -n dev -- curl 10.47.255.232 -m5
+curl: (28) Connection timed out after 5001 milliseconds
+command terminated with exit code 28
+----
+
+===== network policy on `dbserver-dev` pod
+
+so far so good. let's look at the second test items: ingress access to
+`dbserver-dev` pod from other pods other than `webserver-dev` pod:
+
+.test egress traffic
+----
+#test access to all pods
+kubectl exec -it webserver-dev -n dev -- curl http://$dbserverIP -m5
+kubectl exec -it client1-dev -n dev -- curl http://$dbserverIP -m5
+kubectl exec -it client2-dev -n dev -- curl http://$dbserverIP -m5
+kubectl exec -it client-jtac -n dev -- curl http://$dbserverIP -m5
+kubectl exec -it client-qa -n dev -- curl http://$dbserverIP -m5
+
+#test access to all ipBlock
+#from node cent222 (fabric interface IP: 10.169.25.20)
+curl http://10.47.255.234 -m5
+#from node cent333 (fabric interface IP: 10.169.25.21)
+curl http://10.47.255.234 -m5
+----
+
+all pods can access `dbserver-dev` pod directly:
+
+----
+$ kubectl exec -it client1-dev -n dev -- curl http://$dbserverIP -m5 | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.233
+                            Hostname = dbserver-dev
+----
+
+our design is to block access from all pods except `webserver-dev` pod. for that
+we need to apply another policy. here is the yaml file of the second policy:
+
+----
+#policy-do2.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: policy2
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: dbserver-dev
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: webserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+----
+
+this network policy `policy2` is pretty much like the previous network policy
+`policy1`, except that it looks simpler - the `policyTypes` only has `Ingress`
+in the list so it will only define an ingress policy. and that ingress policy
+defines a whitelist using only a `podSelector`. in our test case, only one pod
+`webserver-dev` has the matching label with it so it will be the only one
+allowed to initiate the TCP connection toward target pod `dbserver-dev` on port
+80. let's create the policy `policy2` now and very the result again:
+
+----
+$ kubectl exec -it webserver-dev -n dev -- curl http://$dbserverIP -m5 | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.233
+                            Hostname = dbserver-dev
+
+$ kubectl exec -it client1-dev -n dev -- curl http://$dbserverIP -m5 | webpr
+command terminated with exit code 28
+curl: (28) Connection timed out after 5002 milliseconds
+----
+
+now the access to `dbserver-dev` pod is secured!
+
+===== egress policy on `dbserver-dev`
+
+there is the one last requirement we haven't meet in our designed goal. server
+`dbserver-dev` should not be able to initiate any connection toward other nodes.
+which is the final item we need to test in our plan.
+
+now when you review our policy `policy2`, you may wonder how do we make that
+happen. we've highlighted in chapter 3 that network policy is "whitelist" based
+only by design. so what ever you put in the whitelist means "allowed". only a
+"blacklist" gives a "deny", but even with a blacklist you won't be able to list
+all other pods just to get them denied. 
+
+another thinking is to make the use of the "deny all" implicit policy. so
+assuming this sequence of policies in current kubernetes network policy design:
+
+1. policy2 on `dbserver-dev`
+2. deny all for `dbserver-dev`
+3. "allow all" for other pods
+
+it looks like if we give an "empty" whitelist in egress policy of
+`dbserver-dev`, then nothing will be allowed and the 'deny all' policy for
+target pod will come into play. problem is how do we define an "empty"
+whitelist?
+
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: policy2-tryout
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: dbserver-dev
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: webserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+  engress:      #<---
+----
+
+turn out this doesn't work as expected.
+
+----
+$ kubectl exec -it dbserver-dev -n dev -- curl http://10.47.255.232 -m5 | webpr
+                                     Hello
+                     This page is served by a Contrail pod
+                          IP address = 10.47.255.232
+                            Hostname = client1-dev
+----
+
+checking into the policy object detail does not uncover anything obviously
+wrong.
+
+----
+$ kubectl describe netpol policy2-tryout -n dev
+Name:         policy2-tryout
+Namespace:    dev
+Created on:   2019-10-01 17:02:18 -0400 EDT
+Labels:       <none>
+Annotations:  kubectl.kubernetes.io/last-applied-configuration:
+                {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy",
+                "metadata":{"annotations":{},"name":"policy2-tryout",
+                "namespace":"dev"},"spec"...
+Spec:
+  PodSelector:     app=dbserver-dev
+  Allowing ingress traffic:
+    To Port: 80/TCP
+    From:
+      PodSelector: app=webserver-dev
+  Allowing egress traffic:
+    <none> (Selected pods are isolated for egress connectivity)         #<---
+  Policy Types: Ingress
+----
+
+the problem is on the `policyTypes` here. we haven't added the `Egress` in. that
+is why in the object detail information above the "Policy Types: Ingress" is
+shown. whatever configured in egress policy will be ignored. simply adding `-
+Egress` in `policyTypes` will fix it. furthermore, to express an "empty"
+whitelist the `egress:` keyword is optional and not required. below is the new
+policy yaml file:
+
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: policy2-egress-denyall
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: dbserver-dev
+  policyTypes:
+  - Ingress
+  - Egress      #<---
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: webserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+----
+
+now delete the old policy `policy2` and apply this new policy, request from
+`dbserver-dev` to any other pods (for example pod `client1-dev`) will be blocked:
+
+----
+$ kubectl exec -it dbserver-dev -n dev -- curl http://10.47.255.232 | webpr
+command terminated with exit code 28
+curl: (7) Failed to connect to 10.47.255.232 port 80: Connection timed out
+----
+
+here is the final diagram illustrating our network policy test result:
+
+.network policy: after applying an empty egress policy on `dbserver-dev` pod
+image::policy-afterpolicy-db-egress.drawio.png[]
+
+===== the drop action in flow table 
+
+before we conclude the test, lets take a look at the vrouter flow table when a
+traffic is dropped by the policy.
+
+on node `cent333` where pod `dbserver-dev` is located:
+
+----
+$ docker exec -it vrouter_vrouter-agent_1 flow --match 10.47.255.232:80
+Flow table(size 80609280, entries 629760)
+
+Entries: Created 33 Added 33 Deleted 30 Changed 54Processed 33 Used Overflow entries 0
+(Created Flows/CPU: 7 9 11 6)(oflows 0)
+
+Action:F=Forward, D=Drop N=NAT(S=SNAT, D=DNAT, Ps=SPAT, Pd=DPAT, L=Link Local Port)
+ Other:K(nh)=Key_Nexthop, S(nh)=RPF_Nexthop
+ Flags:E=Evicted, Ec=Evict Candidate, N=New Flow, M=Modified Dm=Delete Marked
+TCP(r=reverse):S=SYN, F=FIN, R=RST, C=HalfClose, E=Established, D=Dead
+
+Listing flows matching ([10.47.255.232]:80)
+
+    Index                Source:Port/Destination:Port                      Proto(V)
+ ----------------------------------------------------------------------------------
+   158672<=>495824       10.47.255.232:80                                    6 (5)
+                         10.47.255.233:42282
+(Gen: 1, K(nh):59, Action:D(Unknown), Flags:, TCP:Sr, QOS:-1, S(nh):63,
+ Stats:0/0,  SPort 54194, TTL 0, Sinfo 0.0.0.0)
+
+   495824<=>158672       10.47.255.233:42282                                 6 (5)
+                         10.47.255.232:80
+(Gen: 1, K(nh):59, Action:D(FwPolicy), Flags:, TCP:S, QOS:-1, S(nh):59,
+ Stats:3/222,  SPort 52162, TTL 0, Sinfo 8.0.0.0)
+----
+
+the `Action:D` is set to `D(FwPolicy)` which means DROP due to Firewall Policy.
+meanwhile, in the other node `cent222` where the destination pod `client1-dev`
+is located, we don't see any flow generated, indicating the packet does not
+arrive at all.
+
+----
+$ docker exec -it vrouter_vrouter-agent_1 flow --match 10.47.255.233
+Flow table(size 80609280, entries 629760)
+......
+Listing flows matching ([10.47.255.233]:*)
+
+    Index                Source:Port/Destination:Port                      Proto(V)
+ ----------------------------------------------------------------------------------
+----
+
+////
 ----
 $ docker exec -it vrouter_vrouter-agent_1 flow --match 10.47.255.234:80
 Flow table(size 80609280, entries 629760)
@@ -8045,19 +8807,503 @@ Listing flows matching ([10.47.255.234]:80)
 (Gen: 1, K(nh):65, Action:D(FwPolicy), Flags:, TCP:S, QOS:-1, S(nh):65,
  Stats:6/444,  SPort 61489, TTL 0, Sinfo 12.0.0.0)
 ----
-+
-Since client-build is not part of the white-list for the server-dev pod, the
-action is set to D(FwPolicy) which means DROP due to Firewall Policy.
+////
 
-8. So far we have discussed the ingress policy type. There is no change for
-egress policy type. So whatever we discussed it can be applied to egress policy
-type.
+=== contrail implementation details
 
-9. Contrail ui provides nice visualization for security. It is self explanatory
+//https://www.juniper.net/documentation/en_US/contrail5.1/topics/concept/kubernetes-cni-contrail.html#jd0e333
+
+we've introduce that contrail implements kubernetes network policy by Contrail
+firewall security Policy. you also knows that Kubernetes `labels` are exposed as
+`tags` in contrail. these tags are used by contrail security policy to implement
+specified Kubernetes policies. tags will be created automatically from
+kubernetes objects labels or created in the UI manually. 
+//The newly-defined tags can be used to create and enforce policies in Contrail
+//firewall security policy.
+
+In this section we'll take a closer look at the contrail firewall policies,
+policy rules, and the tags. especially, we'll examine the mapping relationships
+between the kubernetes object that we created and tested in the last section,
+and the corresponding contrail objects in contrail firewall system.
+
+Contrail Firewall is designed with a hierarchical structure:
+
+* the top level object is named "Application Policy Set", abbreviated as `APS`
+* `APS` has Firewall Policies; 
+* Firewall Policy has Firewall Rules; 
+* Firewall rules has the endpoints; 
+* Endpoints can be identified via tags or address groups (CIDRs).  
+
+the structure is illustrated in this figure:
+
+.contrail firewall
+image::policy-arch.drawio.png[]
+
+==== construct mappings
+
+Kubernetes network policy and contrail firewall policy are two different
+entities in terms of the semantics in which network policy is specified in each.
+in order for contrail firewall to implement kubernetes network policy, contrail
+needs to implement the one to one mapping for a lot of data construct from
+kubernetes to contrail firewall. these data constructs are the basic building
+blocks of kubernetes network policy and the corresponding contrail firewall
+policy.
+
+Below table represents kubernetes network policy constructs and the
+corresponding constructs in contrail:
+
+[options="header,autowidth"]
+|====
+|K8s Network Policy Construct   |Contrail Firewall Construct
+|Cluster Name	                |APS (one per k8s cluster)
+|Network Policy	                |Firewall Policy (one per k8s network policy)
+|Ingress and Egress policy rule |Firewall Rule (one per k8s ingress/egress policy rule)
+|CIDR	                        |Address Group(one per k8s network policy CIDR )
+|Label	                        |Tag (one for each k8s label)
+|Namespace                      |Custom Tag (one for each namespace)
+|==== 
+
+`contrail-kube-manager`, the `KM`, as we've read many time earlier in this book,
+does all of the translations between the two worlds. basically the following
+will happen in the context of kubernetes network policy: 
+
+. `KM` will create a APS with Kubernetes cluster name during its initialing
+  process. typically the default kubernetes cluster name is `k8s`, so you will see
+  an APS with the same name in your cluster
+. `KM` registers to `kube-apiserver` to watch the network policies events.
+. Whenever a kubernetes network policy is created, a corresponding contrail
+  firewall policy will be created with all matching firewall rules and network
+  endpoints.
+. for each `label` in kubernetes object there will be a corresponding contrail
+  `tag` created
+. based on the `tag`, the corresponding contrail objects (VN, pods, VMI,
+  projects, etc) can be located.
+. contrail will then apply the contrail firewall policies and rules in the APS on
+  the contrail objects, this is how the specific traffic is permited or denied.
+
+////
+. Whenever namespace is created, `KM` will associate the APS to the
+   default VNs belonging to the namespace. 
+. Whenever pod is created, in contrail corresponding "tag" will be created.
+////
+
+[NOTE]
+====
+APS can be associated to different contrail objects, e.g.
+
+* VMI(virtual machine interface)
+* VM (virtual machine) or pods
+* VN (virtual network)
+* project
+
+In contrail kubernetes cluster, it is associated to virtual network. Whenever
+traffic goes on those networks, firewall policies associated on the APS would be
+evaluated and respective action would be taken for the traffic.
+====
+
+in the previous section, we have created two kubernetes network policies in our
+usage case.  now lets explore the contrail objects that are created for these
+kubernetes network policies.
+
+==== Application Policy Set (APS)
+
+As mentioned above, `contrail-kube-manager` will create an Application Policy
+Set(APS) using the kubernetes cluster name during the initialization stage. in
+chapter 3 when we introduce "Contrail Namespaces and Isolation", we've learned
+the cluster name is `k8s` by default in contrail. therefore the APS name will
+also be `k8s` in the contrail UI.
+
+.contrail UI: APS: configure -> Security -> Global Policies -> "Application Policy Sets"
+//image::https://user-images.githubusercontent.com/2038044/65438012-d1037680-ddf2-11e9-9e21-fb1498b95310.png[]
+image::https://user-images.githubusercontent.com/2038044/65655412-22298b00-dfea-11e9-850d-ee6a71833d45.png[]
+
+//TODO: what is it
+There is one more APS `default-application-policy-set` which is created by default. 
+
+==== policies
+
+now clicking on the "Firewall Policies" to display all firewall polices in the
+cluster. in our test environment, you will find the following policies
+available:
+
+* k8s-dev-policy1
+* k8s-dev-policy2
+* k8s-denyall
+* k8s-allowall
+* k8s-Ingress
+
+.contrail UI:"Firewall Policies"
+//image::https://user-images.githubusercontent.com/2038044/65438014-d1037680-ddf2-11e9-8c0b-3c6220cce87c.png[]
+//image::https://user-images.githubusercontent.com/2038044/65655766-505b9a80-dfeb-11e9-9499-b8d9b67bbcc9.png[]
+image::https://user-images.githubusercontent.com/2038044/65892424-48e21b80-e374-11e9-9ed3-2a1cf9a8e07d.png[]
+
+===== contrail firewall policy naming convention
+
+the `k8s-dev-policy1` and `k8s-dev-policy2` policies are what we've created.
+although they looks different from the object name we gave in our yaml file, it
+is easy to tell which one is which. when `KM` creates the contrail firewall
+policies based on the kubernetes network policies, it prefixes the firewall
+policy name with the cluster name, plus the namespace, in front of our network
+policy name:
+
+    <cluster name>-<namespace-name>-<kubernetes network policy name>
+
+this sounds familiar. earlier we've showed how `KM` name the VN in contrail UI
+after the kubernetes VN objects name we created in yaml file. 
+
+the `K8s-ingress` firewall policy is created for the ingress loadbalancer.
+basically this is to ensure the Ingress to work properly in contrail. the detail
+explanation is out of the scope of this book, so we can ignore it here.
+
+===== the `k8s-allowall` and `k8s-denyall` firewall policy
+
+but the bigger question is that why we still see 2 more firewall policies here,
+because we had never created any network policies like `allowall`, or `denyall`?
+
+remember when we introduce kubernetes network policy in chapter 3, we've
+mentioned kubernetes network policy uses "whitelist" method and the implicit
+"deny all" and "allow all" policies. the nature of "whitelist" method indicates
+"deny all" action for all traffic other than what is added in the whitelist,
+while the implicit "allow all" behavior make sure a pod that is not involved in
+any network policies can continue its "allow-any-any" traffic model. the problem
+with contrail firewall regarding these implicitness is that, by default it
+follows a "deny all" model - anything that is not explicitly defined will be
+blocked.  that is why in contrail implementation, these two corresponding
+implicit network policies are honored by two explicitly policies generated by
+the `KM` module.
+
+//TODO: add a diagram, to show mapping between k8s implicit policies and
+//contrail explicit policies
+////
+YUVA:
+By default firewall policy `k8s-denyall` and `k8s-allowall` and `K8s-ingress`
+will be created.  Since k8s by default "allows all" and contrail firewall by
+default "denies all", contrail has to have rules to match k8s default bahaviour.
+So by default firewalls rules are added in k8s-allowall firewall policy. Below
+contrail UI snapshots shows it.
+////
+
+one question may be raised at this point. with multiple firewall policies, which
+one should be applied and evaluated first and which ones afterward? in another
+word, in what "sequence" shall contrail apply and evaluate each policy?
+firewall policies evaluation with a different sequence will lead to completely
+different result. just imagine these two sequences "denyall - allowall" vs
+"allowall- denyall", the former give a pass to all other pods, while the latter
+give a stop.
+
+the anwer is the "sequence number".
+
+===== sequence number
+
+When firewall polices in an APS are evaluated, it has to be evaluated in a
+certain sequence. all firewall polices and all firewall rules (will come to this
+soon) in each of the policy has a `sequence number`.  When there is a matching
+policy, it will be executed, and the evaluation will stop. it is again
+`contrail-Kube-manager` that allocates the right sequence number for all
+firewall policies and firewall rules, so that everythings works in correct
+order.  the process is automatically done without manual intervention.  we don't
+have to worry about these things when we create the kubernetes network policies.
+
+we'll visit sequence number again later, now let's look at the rules defined in
+the firewall policy.
+
+==== firewall policy rules
+
+in the same view of "Firewall policies" list, in the right side we see number of
+"Rules" for each policy:
+
+.contrail UI:"Firewall Policy rules"
+//image::https://user-images.githubusercontent.com/2038044/65438015-d1037680-ddf2-11e9-8a40-628b2c60a087.png[]
+//image::https://user-images.githubusercontent.com/2038044/65655828-8e58be80-dfeb-11e9-867e-5545f9192713.png[]
+image::https://user-images.githubusercontent.com/2038044/65898408-813b2700-e37f-11e9-840a-d111a69f1d88.png[]
+
+===== rules in `k8s-dev-policy1` firewall policy
+
+there are 4 rules for the `k8s-dev-policy1` policy. Clicking at it we will see
+the rules in detail:
+
+.contrail UI:"k8s-dev-policy1" rules
+//image::https://user-images.githubusercontent.com/2038044/65438016-d1037680-ddf2-11e9-8418-9755d3a763bc.png[]
+//image::https://user-images.githubusercontent.com/2038044/65656030-53a35600-dfec-11e9-95f8-1c65a5ed22e8.png[]
+image::https://user-images.githubusercontent.com/2038044/65898936-9c5a6680-e380-11e9-959c-b65df8924735.png[]
+
+doesn't it look familiar with our kubernetes network policy `policy1` that
+we've tested? let's put the rules displayed in the screnshot into a table:
+
+[options="header,autowidth"]
+|====
+|rule#|Action |Services |End Point1                         |Dir |End Point2                         |Match Tags
+|1    |pass   |tcp:80   |project=jtac                       |>   |app=webserver-dev && namespace=dev |-
+|2    |pass   |tcp:80   |app=client1-dev && namespace=dev   |>   |app=webserver-dev && namespace=dev |-
+|3    |pass   |tcp:80   |app=webserver-dev && namespace=dev |>   |app=dbserver-dev  && namespace=dev |-
+|4    |pass   |tcp:80   |Address Group: 10.169.25.20/32     |>   |app=webserver-dev && namespace=dev |-
+|====
+
+the first column is the rule number that we added, all other columns are
+imported from the UI screenshot. now compare it with the kubernetes object
+information:
+
+----
+$ kubectl get netpol --all-namespaces -o yaml
+apiVersion: v1
+items:
+- apiVersion: extensions/v1beta1
+  kind: NetworkPolicy
+  metadata:
+    ......
+  spec:
+    egress:
+    - ports:
+      - port: 80
+        protocol: TCP
+      to:
+      - podSelector:            #<---rule#3
+          matchLabels:
+            app: dbserver-dev
+    ingress:
+    - from:
+      - ipBlock:                #<---rule#4
+          cidr: 10.169.25.20/32
+      - namespaceSelector:      #<---rule#1
+          matchLabels:
+            project: jtac
+      - podSelector:            #<---rule#2
+          matchLabels:
+            app: client1-dev
+      ports:
+      - port: 80
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        app: webserver-dev
+    policyTypes:
+    - Ingress
+    - Egress
+----
+
+all rules we see in firewall policy `k8s-dev-policy1` matches with rules in
+kubernetes network policy `policy1`.
+
+////
+before we start, make sure you delete all network policies you created 
+manually. in our environment we just need to remove the `policy1` and
+`policy2` when we created for the previous test.
+
+----
+$ kubectl delete netpol policy2 -n dev
+networkpolicy.extensions "policy2" deleted
+$ kubectl delete netpol policy1 -n dev
+networkpolicy.extensions "policy1" deleted
+----
+
+After the network policy creation,  k8s APS will have the new firewall policy
+for the k8s netwok policy. 
+////
+
+===== rules in `k8s-denyall` firewall policy 
+
+now let's go back and exmine the rules in `k8s-denyall` policy that `KM`
+generated for our kubernetes network policies.
+
+.contrail UI:"k8s-denyall" rules
+//image::https://user-images.githubusercontent.com/2038044/65438018-d19c0d00-ddf2-11e9-8fc4-26fa2a06667f.png[]
+//image::https://user-images.githubusercontent.com/2038044/65656361-9580cc00-dfed-11e9-8616-c979614054d1.png[]
+image::https://user-images.githubusercontent.com/2038044/65900170-5a7eef80-e383-11e9-9d71-da107f89af5f.png[]
+
+again we convert that into a table:
+
+[options="header,autowidth"]
+|====
+|rule#|Action |Services |End Point1                         |Dir |End Point2                         |Match Tags
+|1    |deny   |any:any  |app=webserver-dev && namespace=dev |>   |any                                |-
+|2    |deny   |any:any  |any                                |>   |app=dbserver-dev && namespace=dev  |-
+|3    |deny   |any:any  |any                                |>   |app=webserver-dev && namespace=dev |-
+|====
+
+the `k8s-alldeny` rules are simple. it just tell contrail to deny communication
+with all other pods that is not in the whitelist. one thing worth to mention is
+that there is a rule in the direction from `app=webserver-dev && namespace=dev`
+to `any`, so that egress traffic is denied for `webserver-dev` pod, while there
+is no such a rule from `app=dbserver-dev && namespace=dev` to `any`. if you
+review our test in last section, in the original policy `policy2`, we did not
+define an `Egress` option in `policyTypes` to deny egress traffic of
+`dbserver-dev`, that is why when translated into contrail firewall there is no
+such a rule either. if we change `policy2` to the new policy
+`policy2-egress-denyall` and examine the same, we'll see the "missing" rule now:
+
+.contrail UI:"k8s-denyall" rules
+image::https://user-images.githubusercontent.com/2038044/66015096-3d3f4380-e49f-11e9-86ba-4707f19447bf.png[]
+
+please pay attention that the "k8s-denyall" policy only apply to those "target"
+pods - pods that are selected by the network policies. in our case it only
+applies to pods `webserver-dev` and `dbserver-dev`. other pods like
+`client-jtac` or `client-qa` will not be affected. instead, those pods will be
+applied by `k8s-allowany` policy, which we will examine the next.
+
+
+//TODO: why there is no egress policy defined in denyall, mostly because there
+//is no Egress type defined, what will be behavior, say sth.
+//the first and third rules say `webserver-dev` pod can NOT talk to `any` other pods.
+
+===== rules in `k8s-allowall` firewall policy 
+
+the `k8s-allowall` policy seems to have more rules than other policies:
+
+.contrail UI:"k8s-allowall" rules
+image::https://user-images.githubusercontent.com/2038044/65902980-8ef5aa00-e389-11e9-83c7-17ea5064f1c9.png[]
+
+despite the number of rules, in fact `k8s-allowall` is the simplest one. it
+works at the NS level and simply has two rules for each NS. in UI within the
+"search" box, apply a namespace as the filter e.g. "jtac" or "qa", we'll see
+these results:
+
+.contrail UI:"k8s-allowall" rules filtered by NS "jtac"
+image::https://user-images.githubusercontent.com/2038044/65903133-daa85380-e389-11e9-9f5a-70185741a2e0.png[]
+
+.contrail UI:"k8s-allowall" rules filtered by NS "qa"
+image::https://user-images.githubusercontent.com/2038044/65903184-f57ac800-e389-11e9-86aa-6db3050c39a7.png[]
+
+basically what this policy says is: for those pods that does not has any network
+policy applied yet, let's continue the kubernetes default "allow-any-any"
+networking model and allow everything!
+
+==== sequence number
+
+after having explored the contrail firewall policy rules, let's come back to the
+`sequence number` and see how it works exactly.
+
+////
+firewall-policies referred by the application-policy-set objects are ordered
+using sequence number. We put a sequence number on the link from firewall-policy to
+firewall-policy-rule objects. It is a string object, instead of integer. It
+decides the order in which the rules are applied.
+////
+
+`sequence number` is a number attached in all firewall-policies and their rules.
+it decides the order in which all policies are applied and evaluated, similarly,
+in one particular policy, it decides the order in which all rules are applied
+and evaluated. the lower the sequence number the higher the priority. to find
+the `sequence number` we have to look into the firewall policy and policy rule
+object attributes in contrail configuration database.  first let's explore the
+firewall policy object in APS to check their `sequence number`.
+
+TIP: in chapter 5 we've used `curl` command to pull the
+loadbalancer object data when we introduce `service`. here we use "Config
+Editor" to do the same. 
+
+===== sequence number in firewall policies
+.contrail UI:sequence number for policies: "setting" -> "Config Editor"
+//image::https://user-images.githubusercontent.com/2038044/65438021-d19c0d00-ddf2-11e9-92a8-76998b831776.png[]
+//image::https://user-images.githubusercontent.com/2038044/65656872-5ce1f200-dfef-11e9-8c09-bfadec3b5f82.png[]
+image::https://user-images.githubusercontent.com/2038044/65905817-4fca5780-e38f-11e9-819d-05578602d5d0.png[]
+
+.contrail UI:sequence number for policies: (continue)
+image::https://user-images.githubusercontent.com/2038044/65907018-886b3080-e391-11e9-9323-afce02512667.png[]
+
+in these screenshots, under APS `k8s` there are all the 5 policies that we've
+saw.  for example, the policy `k8s-dev-policy1` which maps to the kubernetes
+network policy `policy1` that we explicitly defined, and the policy
+`k8s-denyall` which is what the system automatically generated. in the figure it
+shows `k8s-dev-policy1` and `k8s-denyall` has a sequence number as "00038.0" and
+"00042.0" respectively. therefore, `k8s-dev-policy1` has a higher priority and
+it will be applied and also evaluated first. that means the traffic types we
+defined in whitelist will be allowed first, then all other traffic to or from
+the target pod will be denied. this is the exact goal that we want to achieve.
+
+all `sequence number` for all firewall policies are listed in below table, from
+highest priority to the lowest:
+
+[options="header,autowidth"]
+|====
+| seq#      | firewall policy
+| `00002.0` |`k8s-Ingress`
+| `00038.0` |`k8s-dev-policy1`
+| `00040.0` |`k8s-dev-policy2`
+| `00042.0` |`k8s-denyall`
+| `00043.0` |`k8s-allowall`
+|====
+
+based on the sequence number, the application and evaluation order is the
+explicit policies first, followed by the "deny all" policy and then the "allow
+all" policy at the last. the same order as in kubernetes is honored.  next let's
+check the sequence number in policy rules.
+
+===== sequence number in firewall policy rules
+
+as mentioned, in the same firewall policy, policy rules will also have to be
+applied and evaluated in a certain order. in contrail firewall that is again
+ensured by the sequence number. the sequence number in rules of firewall policy
+`k8s-dev-policy1` is displayed in below figures:
+
+.contrail UI:sequence number for rules: "setting" -> "Config Editor"
+image::https://user-images.githubusercontent.com/2038044/65919094-5d8cd680-e3a9-11e9-872d-44619dda2d29.png[]
+
+.contrail UI:sequence number for rules: (continue)
+image::https://user-images.githubusercontent.com/2038044/65919172-857c3a00-e3a9-11e9-9c7a-8fe32cdba6a2.png[]
+
+below table shows `sequence number` of all rules of firewall policy
+`k8s-dev-policy1`, from highest priority to the lowest:
+
+[options="header,autowidth"]
+|====
+| seq#      | firewall rule
+|`00000.0`  |`dev-ingress-policy1-0-ipBlock-0-cidr-10.169.25.20/32-0`
+|`00001.0`  |`dev-ingress-policy1-0-namespaceSelector-1-0`
+|`00002.0`  |`dev-ingress-policy1-0-podSelector-2-0`
+|`00003.0`  |`dev-egress-policy1-podSelector-0-0`
+|====
+
+comparing with our network policy yaml file configuration:
+
+----
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 10.169.25.20/32           #<---seq# 00000.0
+    - namespaceSelector:                #<---seq# 00001.0
+        matchLabels:
+          project: jtac
+    - podSelector:                      #<---seq# 00002.0
+        matchLabels:
+          app: client1-dev
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - podSelector:                      #<---seq# 00003.0
+        matchLabels:
+          app: dbserver-dev
+    ports:
+    - protocol: TCP
+      port: 80
+----
+
+we can find that the rules `sequence number` is consistent with the sequence
+they appear in the yaml file. in another word, rules will be applied and
+evaluated in the same order as they are defined.
+
+==== tag
+
+//TODO: what? why? how?
+we've been talking about the contrail `tags` and we already know that
+`contrail-kube-manager` will translate each kubernetes label into a contrail
+tag, which is attached to the respective port of a pod.
+
+//image::https://user-images.githubusercontent.com/2038044/65438024-d19c0d00-ddf2-11e9-86a6-0f4c1acd7c8a.png[]
+image::https://user-images.githubusercontent.com/2038044/65657044-e5f92900-dfef-11e9-9a6a-727ef93fb4e7.png[]
+
+==== UI visualization
+
+//TODO: don't quite understand it
+
+Contrail UI provides nice visualization for security. It is self explanatory
 if you know how contrail security works.
-+
+
 .Sample traffic visualization for the above policy with workload 
-image::https://user-images.githubusercontent.com/2038044/65438025-d19c0d00-ddf2-11e9-9855-2ab52e229a65.png[]
-+
+//image::https://user-images.githubusercontent.com/2038044/65438025-d19c0d00-ddf2-11e9-9855-2ab52e229a65.png[]
+image::https://user-images.githubusercontent.com/2038044/65741634-d1359780-e0ba-11e9-87b0-f62a1952f76b.png[]
+
 .Sample traffic visualization with more network policies
 image::https://user-images.githubusercontent.com/2038044/65438027-d234a380-ddf2-11e9-87f8-6883bb66118c.png[]
+
