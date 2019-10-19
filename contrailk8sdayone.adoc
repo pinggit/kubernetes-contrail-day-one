@@ -17,6 +17,9 @@ ifdef::env-github[]
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/83318e78c1785b7fa39046c2d818b6f3387cc1cd/
 :imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
 endif::[]
+:Author:  Ping Song, Aymon Aborabh, Yuvaraja Mariappan
+:Date:   Oct 2019
+:data-uri:
 
 == Chapter 1: Foundation Principles
 
@@ -10035,7 +10038,7 @@ here are some of the available utils/tools that we can use for this test:
   - `curl` (with debug option), `telnet` as HTTP client tool
   - `tcpdump` and `wireshark` as packet capture tool
   - shell script can be used to automate command line tasks
-* on vrouter: `flow`/`rt`/`nh`/`vif` and etc.
+* on vrouter: `flow`/`rt`/`nh`/`mpls`/`vif` and etc.
 
 //we'll then conclude the ingress section by a figure showing the end to end flow.
 
@@ -10363,6 +10366,15 @@ client to active haproxy. let's first look at the first entry in the capture:
   vrouter detected the `SYN` (`S`), `SYN-ACK` (`Sr`), so bidirectional
   connection is established (`EEr`).
 
+* `Proto(V)` field indicate the VRF number and protocol type. two VRF is
+  involved here in current (isolated) NS `ns-user-1`.
+  - VRF 2: the VRF of default pod network 
+  - VRF 5: the VRF of the FIP-VN 
+  - protocol `6` means TCP (HTTP packets).
+
+TIP: we'll use VRF `2` later when we query nexthop for a prefix in the VRF
+routing table.
+
 ////
 TODO: why 2->2, should be 2-5?
 * `Proto(V)` indicates the protocol type of the traffic that reaches the
@@ -10458,12 +10470,40 @@ the haproxy.  what the haproxy supposes to do is:
 * between compute node the forwarding path is programmed with MPLSoUDP tunnel,
   so vrouter sends it through MPLS over UDP tunnel with right MPLS Label.
 
+this part of the process is illustrated in below figure:
+
 .Ingress pod IP to service IP
 //image::https://user-images.githubusercontent.com/2038044/64836298-50a17200-d5b7-11e9-9704-b48e7b737f4b.png[]
 image::ingress-detail-vh-external-activeproxy2service.drawio.png[]
 
+let's first take a look at the VRF routing table from UI. 
+in UI, we can check the VRF routing table based on the VRF name, from any
+compute node.
+
 .Ingress loadbalancer's VRF table
 image::https://user-images.githubusercontent.com/2038044/64873035-46fb2700-d616-11e9-866f-a252a0f5c2c3.png[]
+
+from the Ingress podIp's VRF, which is the same VRF for the default pod network
+of current NS, we can see that the next hop toward service IP prefix
+`10.99.225.17/32` is the other compute node `cent333` with IP `10.169.25.21`
+through `MPLSoUDP` tunnel. same result can also be found via vrouter `rt/nh`
+utilities:
+
+----
+$ docker exec -it vrouter_vrouter-agent_1 rt --get 10.99.225.17/32 --vrf 2
+Match 10.99.225.17/32 in vRouter inet4 table 0/2/unicast
+
+Flags: L=Label Valid, P=Proxy ARP, T=Trap ARP, F=Flood ARP
+vRouter inet4 routing table 0/2/unicast
+Destination           PPL        Flags        Label         Nexthop    Stitched MAC(Index)
+10.99.225.17/32         0           LP         38             50        -
+
+$ docker exec -it vrouter_vrouter-agent_1 nh --get 50
+Id:50         Type:Tunnel         Fmly: AF_INET  Rid:0  Ref_cnt:33         Vrf:0
+              Flags:Valid, MPLSoUDP, Etree Root,
+              Oif:0 Len:14 Data:00 50 56 9e e6 66 00 50 56 9e 62 25 08 00
+              Sip:10.169.25.20 Dip:10.169.25.21
+----
 
 please note that all traffic from Ingress to service happens in overlay. between
 contrail compute nodes that means all overlay packets should be encapsulated in
@@ -10605,9 +10645,51 @@ vrouter knows the service IP is a FIP that maps to the  backend podIP
 pod. it does `DNAT+DPAT` (`DPd`) in incoming direction and `SNAT+SPAT` (`SPs`)
 in outgoing direction.
 
-finally, pod sees the HTTP request and responds back with a web page. this
-returning traffic is reflected by the first flow entry in the capture, which
-shows: 
+the other easy way to trace this forwarding path is to start from the MPLS
+label. in previous step we've seen label `38` is used when the active haproxy
+compute `cent222` sent packets into MPLSoUDP tunnel to compute `cent333`, we
+can use vrouter `mpls` utility to check the nexthop of this `In-label`:
+
+----
+$ docker exec -it vrouter_vrouter-agent_1 mpls --get 38
+MPLS Input Label Map
+
+   Label    NextHop
+ ------------------
+      38        26
+
+$ docker exec -it vrouter_vrouter-agent_1 nh --get 26
+Id:26         Type:Encap          Fmly: AF_INET  Rid:0  Ref_cnt:9          Vrf:2
+              Flags:Valid, Policy, Etree Root,
+              EncapFmly:0806 Oif:4 Len:14
+              Encap Data: 02 bd e8 bc 46 9a 00 00 5e 00 01 00 08 00
+
+$ vif --get 4
+Vrouter Interface Table
+
+Flags: P=Policy, X=Cross Connect, S=Service Chain, Mr=Receive Mirror
+       Mt=Transmit Mirror, Tc=Transmit Checksum Offload, L3=Layer 3, L2=Layer 2
+       D=DHCP, Vp=Vhost Physical, Pr=Promiscuous, Vnt=Native Vlan Tagged
+       Mnp=No MAC Proxy, Dpdk=DPDK PMD Interface, Rfl=Receive Filtering Offload, Mon=Interface is Monitored
+       Uuf=Unknown Unicast Flood, Vof=VLAN insert/strip offload, Df=Drop New Flows, L=MAC Learning Enabled
+       Proxy=MAC Requests Proxied Always, Er=Etree Root, Mn=Mirror without Vlan Tag, Ig=Igmp Trap Enabled
+
+vif0/4      OS: tapeth0-baa392
+            Type:Virtual HWaddr:00:00:5e:00:01:00 IPaddr:10.47.255.236
+            Vrf:2 Mcast Vrf:2 Flags:PL3DEr QOS:-1 Ref:6
+            RX packets:29389  bytes:1234338 errors:0
+            TX packets:42264  bytes:1775136 errors:0
+            Drops:29389
+----
+
+once nexthop is determined, we can find the outgoing interface (`Oif`) number,
+then with `vif` utility we locate the pod interface. the corresponding podIP
+`10.47.255.236` is the backend pod for the HTTP request, which looks consistent
+with what the flow table shows above. 
+
+finally, destination backend pod sees the HTTP request and responds back with a
+web page.  this returning traffic is reflected by the first flow entry in the
+capture, which shows: 
 
 * original source IP as backend podIP `10.47.255.236`
 * original source port as webserver port `80`
@@ -10908,10 +10990,10 @@ Lets prepare the required k8s NS and pods resources.
 here is the all-in-one yaml file defining `dev`, `qa` and `jtac` namespaces:
 
 ----
-#policy-ns-pod.yaml
 ##################
 # all namespaces #
 ##################
+#policy-ns.yaml
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -10936,6 +11018,7 @@ metadata:
 ##################
 #   all pods     #
 ##################
+# policy-pod-do.yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10946,12 +11029,21 @@ metadata:
   namespace: dev
 spec:
   containers:
-    - name: webserver
+    - name: ubuntu
       image: contrailk8sdayone/contrail-webserver
-      securityContext:
-        privileged: true
-      ports:
-      - containerPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dbserver-dev
+  labels:
+    app: dbserver-dev
+    do: policy
+  namespace: dev
+spec:
+  containers:
+    - name: ubuntu
+      image: contrailk8sdayone/contrail-webserver
 ---
 apiVersion: v1
 kind: Pod
@@ -11092,7 +11184,7 @@ different roles in the diagram.
 now we can verify accessing this http server from other pods with these
 commands:
 
-.test ingress traffic
+.`webserver-dev`:test ingress traffic
 ----
 #from master
 dbserverIP=10.47.255.233
@@ -11386,7 +11478,7 @@ command terminated with exit code 28
 so far so good. let's look at the second test items: ingress access to
 `dbserver-dev` pod from other pods other than `webserver-dev` pod:
 
-.test egress traffic
+.`dbsever-dev`:test ingress traffic
 ----
 #test access to all pods
 kubectl exec -it webserver-dev -n dev -- curl http://$dbserverIP -m5
@@ -11397,9 +11489,9 @@ kubectl exec -it client-qa -n dev -- curl http://$dbserverIP -m5
 
 #test access to all ipBlock
 #from node cent222 (fabric interface IP: 10.169.25.20)
-curl http://10.47.255.234 -m5
+curl http://$dbserverIP -m5
 #from node cent333 (fabric interface IP: 10.169.25.21)
-curl http://10.47.255.234 -m5
+curl http://$dbserverIP -m5
 ----
 
 all pods can access `dbserver-dev` pod directly:
@@ -11462,7 +11554,7 @@ now the access to `dbserver-dev` pod is secured!
 
 ===== egress policy on `dbserver-dev`
 
-there is the one last requirement we haven't meet in our designed goal. server
+there is the one last requirement we haven't met in our designed goal. server
 `dbserver-dev` should not be able to initiate any connection toward other nodes.
 which is the final item we need to test in our plan.
 
@@ -11473,10 +11565,11 @@ only by design. so what ever you put in the whitelist means "allowed". only a
 all other pods just to get them denied. 
 
 another thinking is to make the use of the "deny all" implicit policy. so
-assuming this sequence of policies in current kubernetes network policy design:
+assuming this is the sequence of policies in current kubernetes network policy
+design:
 
-1. policy2 on `dbserver-dev`
-2. deny all for `dbserver-dev`
+1. policy2 on `dbserver-dev` to allow `webserver-dev`
+2. "deny all" for `dbserver-dev`
 3. "allow all" for other pods
 
 it looks like if we give an "empty" whitelist in egress policy of
@@ -11507,7 +11600,8 @@ spec:
   engress:      #<---
 ----
 
-turn out this doesn't work as expected.
+turn out this doesn't work as expected. the `dbserver-dev` can still initiate
+egress session.
 
 ----
 $ kubectl exec -it dbserver-dev -n dev -- curl http://10.47.255.232 -m5 | webpr
@@ -11541,10 +11635,13 @@ Spec:
   Policy Types: Ingress
 ----
 
+it does says "Selected pods are isolated for egress connectivity", which is what
+we want.
+
 the problem is on the `policyTypes` here. we haven't added the `Egress` in. that
 is why in the object detail information above the "Policy Types: Ingress" is
-shown. whatever configured in egress policy will be ignored. simply adding `-
-Egress` in `policyTypes` will fix it. furthermore, to express an "empty"
+shown.  whatever configured in egress policy will be ignored. simply adding
+egress in `policyTypes` will fix it. furthermore, to express an "empty"
 whitelist the `egress:` keyword is optional and not required. below is the new
 policy yaml file:
 
@@ -11580,17 +11677,18 @@ command terminated with exit code 28
 curl: (7) Failed to connect to 10.47.255.232 port 80: Connection timed out
 ----
 
-here is the final diagram illustrating our network policy test result:
+here is the final diagram illustrating our network policy test result, 
+all egress session from `dbserver-dev` will be blocked.
 
 .network policy: after applying an empty egress policy on `dbserver-dev` pod
 image::policy-afterpolicy-db-egress.drawio.png[]
 
 ===== the drop action in flow table
 
-before we conclude the test, lets take a look at the vrouter flow table when a
+before we conclude the test, lets take a look at the vrouter flow table when 
 traffic is dropped by the policy.
 
-on node `cent333` where pod `dbserver-dev` is located:
+check the flow table on node `cent333` where pod `dbserver-dev` is located:
 
 ----
 $ docker exec -it vrouter_vrouter-agent_1 flow --match 10.47.255.232:80
