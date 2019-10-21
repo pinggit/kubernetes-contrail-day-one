@@ -1748,11 +1748,16 @@ eventually you will see 3 pods launched:
  
 RC works with pod directly. the workflows are shown in this diagram:
 
+.ReplicationController
+image::rc.drawio.png[]
+
+////
                              |=> pod
                              |
     RC =============>========|=> pod
                              |
                              |=> pod
+////
 
 with `replicas` parameter specified in RC object yaml file, the kubernetes
 `replication controller`, running as part of `kube-controller-manager` process in
@@ -2069,7 +2074,7 @@ Events:          <none>
 ////
 
 ----
-$ kubectl describe deployments.
+$ kubectl describe deployments
 Name:                   webserver
 Namespace:              default
 CreationTimestamp:      Sat, 14 Sep 2019 23:17:17 -0400
@@ -2120,12 +2125,16 @@ by the Deployment's replicaset.
 
 the workflow is shown in the below diagram:
 
+////
                              |=> pod
                              |
     deployment =====> RS ====|=> pod
                              |
                              |=> pod
+////
 
+.Deployment and RS
+image::deployment.drawio.png[]
  
 You might still be wondering why you need `RS` as one more layer sitting between
 `deployment` and `pod`. you will find the answer in the next section.
@@ -2287,6 +2296,7 @@ process repeats until number of pods created by new RS reaches the original
 replica number defined in the deployment, and that is the time when all of the
 original RS's pods are terminated. this process is depicted in this diagram:
 
+////
                   
                  |           |=> pod-v1
     deployment ==|==> RS ====|=> pod-v1
@@ -2324,6 +2334,11 @@ original RS's pods are terminated. this process is depicted in this diagram:
     deployment ==|==> RS ====|=> pod-v2
                  |   (v2)    |=> pod-v2
                   
+////
+
+.Deployment rolling update
+image::deployment-rolling.drawio.png[]
+
 as you can see in this figure, this whole process of creating a new RS,
 scaling up the new RS and scaling down the old one simultaneously, is fully
 automated and taken care of by the deployment object. it is `deployment` who is
@@ -2727,7 +2742,7 @@ not surprisingly, we don't see any sensitive information in the form of
 cleartext, there is a `data` portion of the output where we see a very long
 string as the value of key `.dockerconfigjson`. it seems to has a transformed
 look from the original data, but at least it is not that "sensitive" anymore
-now - overall one purpose of using secret is to improve the system security.
+now - afterall one purpose of using secret is to improve the system security.
 
 however, the transformation is done by "encoding", not "encryption", so there is
 still a way to manually retrieve the original "sensitive" information back: just
@@ -3197,6 +3212,15 @@ $ kubectl get pod -o wide -l 'app=webserver'
 No resources found.
 ----
 
+here are some brief summaries about the output:
+
+* the service got a "ClusterIP" or "service IP" of `10.106.176.17` allocated
+  from the service IP pool. 
+* service port is `8888` as what is defined in yaml. 
+* by default the protocol type is `TCP` if not declared in yaml file. you can
+  use `protocol: UDP` to declare a UDP service.
+* the backend pod can be located with the label selector
+
 the service is created successfully, there is no doubt about it. but there is no
 pods for the service. the reason is there is no pod with the label matching to the
 `selector` in the service. now we just need to create the pod with a proper
@@ -3280,14 +3304,6 @@ webserver-7c7c458cc5-vl6zs  1/1    Running  0         24s  10.47.255.238  cent33
 ----
 
 immediately the pod is choosen to be the backend. 
-here are some brief summaries about the output:
-
-* the service got a "ClusterIP" or "service IP" of `10.106.176.17` allocated
-  from the service IP pool. 
-* service port is `8888` as what is defined in yaml. 
-* by default the protocol type is `TCP` if not declared in yaml file. you can
-  use `protocol: UDP` to declare a UDP service.
-* the backend pod can be located with the label selector
 
 TIP: the example shown use a "equality-based" selector (`-l`) to locate the
 backend pod, you can also use a "set-based" syntax to archive the same effect.
@@ -3776,9 +3792,9 @@ $ kubectl scale deploy webserver --replicas=3
 ----
 $ kubectl get pod -o wide -l 'app=webserver'
 NAME                           READY  STATUS   RESTARTS  AGE    IP             NODE     ... LABELS
-rc-webserver-7c7c458cc5-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  ... app=webserver
-rc-webserver-7c7c458cc5-45skv  1/1    Running  0         5s     10.47.255.251  cent222  ... app=webserver
-rc-webserver-7c7c458cc5-m2cp5  1/1    Running  0         5s     10.47.255.250  cent111  ... app=webserver
+webserver-7c7c458cc5-rjlgr  1/1    Running  4         5d17h  10.47.255.252  cent333  ... app=webserver
+webserver-7c7c458cc5-45skv  1/1    Running  0         5s     10.47.255.251  cent222  ... app=webserver
+webserver-7c7c458cc5-m2cp5  1/1    Running  0         5s     10.47.255.250  cent111  ... app=webserver
 ----
 
 ----
@@ -6905,11 +6921,11 @@ this is what happened in the forwarding plane:
 * a pod `client` located in node `cent222` needs to access a service
   `service-web-clusterip`, it sends a packet towards the service's clusterIP
   `10.105.139.153` and port `8888`
-* `client` sends the packet to `node222` vrouter based on the default route.
-* vrouter on `node222` got the packet, it checks its corresponding VRF table, get a
+* `client` sends the packet to `cent222` vrouter based on the default route.
+* vrouter on `cent222` got the packet, it checks its corresponding VRF table, get a
   "Composite" nexthop ID `87`, which resolves to two sub-nexthops `51` and `37`,
   representing a remote and local backend pod respectively. this indicates ECMP.
-* vrouter on `node222` starts to forward the packet to one of the pod based on
+* vrouter on `cent222` starts to forward the packet to one of the pod based on
   its ECMP algorithm. Suppose the remote backend pod is selected, the packet will
   be sent through MPLSoUDP tunnel to the remote pod on node `cent333`, after
   establishing the flow in the flow table. all subsequent packets belongs to the
@@ -7037,7 +7053,7 @@ again from the `client` pod. this time it succeed and get the returned webpage
 from python SimpleHTTPServer.
 
 ----
-$ kubectl exec -it client -- curl 10.103.87.232:9999 | w3m -T text/html | cat
+$ kubectl exec -it client -- curl 10.101.102.27:9999 | w3m -T text/html | cat
 
 Directory listing for /
  ━━━━━━━━━━━━━━━━━━━━━
@@ -7108,7 +7124,7 @@ now in the client pod curl URL, instead of just give root path `/` to list the
 files in folder, we try to pull the file: `file.txt`
 
 ----
-$ kubectl exec -it client -- curl 10.103.87.232:9999/file.txt
+$ kubectl exec -it client -- curl 10.101.102.27:9999/file.txt
 ----
 
 in server pod we see the log indicating the file downloading starts:
@@ -7139,11 +7155,11 @@ Listing flows matching ([10.47.255.237]:*)
     Index                Source:Port/Destination:Port                      Proto(V)
  ----------------------------------------------------------------------------------
     40100<=>340544       10.47.255.237:42332                                 6 (3)
-                         10.103.87.232:9999
+                         10.101.102.27:9999
 (Gen: 1, K(nh):59, Action:F, Flags:, TCP:SSrEEr, QOS:-1, S(nh):59,  Stats:7878/520046,
  SPort 65053, TTL 0, Sinfo 6.0.0.0)
 
-   340544<=>40100        10.103.87.232:9999                                  6 (3)
+   340544<=>40100        10.101.102.27:9999                                  6 (3)
                          10.47.255.237:42332
 (Gen: 1, K(nh):59, Action:F, Flags:, TCP:SSrEEr, QOS:-1, S(nh):68,  Stats:142894/205180194,
  SPort 63010, TTL 0, Sinfo 10.169.25.21)
@@ -7152,7 +7168,7 @@ Listing flows matching ([10.47.255.237]:*)
 highlights in this output:
 
 * client starts TCP connection from its pod IP `10.47.255.237` and a
-  rondom source port, towards the service IP `10.103.87.232` and server port
+  rondom source port, towards the service IP `10.101.102.27` and server port
   `9999`
 * the flow TCP flag `SSrEEr` indicates the session is established
   bidirectionally.
@@ -7191,7 +7207,7 @@ Listing flows matching ([10.47.255.237]:*)
  Stats:8448/202185290,  SPort 62581, TTL 0, Sinfo 3.0.0.0)
 
    424192<=>238980       10.47.255.237:42332                                 6 (2->2)
-                         10.103.87.232:9999
+                         10.101.102.27:9999
 (Gen: 1, K(nh):24, Action:N(DPd), Flags:, TCP:SSrEEr, QOS:-1, S(nh):26,
  Stats:8067/419582,  SPort 51018, TTL 0, Sinfo 10.169.25.20)
 ----
@@ -7385,7 +7401,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
                 Label TTL action: prop-ttl
                 Load balance label: Label 44: None;
                 ......
-                Protocol next hop: 10.169.25.20         #<---
+                Protocol next hop: 10.169.25.21         #<---
                 Label operation: Push 44
                 Label TTL action: prop-ttl
                 Load balance label: Label 44: None;
@@ -7418,7 +7434,7 @@ k8s-test.inet.0: 23 destinations, 41 routes (23 active, 0 holddown, 0 hidden)
 * `protocol next hop` tells who generates the route. `10.169.25.20` is node
   `cent222` where the backend webserver pod is running
 * `gr-2/2/0.32771` is an interface representing the (MPLS over) GRE tunnel
-  between the gateway router and node `cent222`.
+  between the gateway router and node `cent333`.
 
 ==== Loadbalancer Service Workflow
 
@@ -7440,7 +7456,7 @@ here is the full story:
 * you create a `FIP pool` from a public VN, with route-target the VN is
   advertised to the remote gateway router via MP-BGP 
 * you create a pod with a label `app: webserver`, kubernetes decides the pod
-  will be created in node `cent222`. via XMPP the node publish the pod IP
+  will be created in node `cent333`. via XMPP the node publish the pod IP
 * you create a loadbalancer type of service with `service port` and label
   selector `app=webserver`.  kubernetes allocates a service IP.
 * kubernetes finds the pod with the matching label and update the `endpoint`
@@ -7448,14 +7464,14 @@ here is the full story:
 * contrail create a loadbalancer instance and assign a FIP to it. contrail also
   associate that FIP with the pod interface, so there will be one to one NAT
   operation between the FIP and podIP.
-* via XMPP, node `cent222` advertises this FIP to contrail controller `cent111`,
+* via XMPP, node `cent333` advertises this FIP to contrail controller `cent111`,
   which then advertises it to the gateway router.
 * on receiving the FIP prefix, gateway router checks and see a the RT of the
   prefix matches to what it is expecting, it will import the prefix in local
-  VRF. at this moment the gateway learns the nexthop of the FIP is `cent222`, so
-  it generate a soft GRE tunnel toward `cent222`.
+  VRF. at this moment the gateway learns the nexthop of the FIP is `cent333`, so
+  it generate a soft GRE tunnel toward `cent333`.
 * when gateway router see a request coming from Internet toward the FIP, through
-  the MPLS over GRE tunnel it will send the request to the node `cent222`
+  the MPLS over GRE tunnel it will send the request to the node `cent333`
 * vrouter in the node sees the packets destined to the FIP, it will perform NAT
   so the packets will be sent to the right backend pod.
 
@@ -7505,8 +7521,8 @@ this again we scale the RC to generate one more backend pod behind the
 `service`. 
 
 ----
-$ kubectl scale rc rc-webserver --replicas=2
-replicationcontroller/rc-webserver scaled
+$ kubectl scale deployment webserver --replicas=2
+deployment.extensions/webserver scaled
 
 $ kubectl get pod -l app=webserver -o wide
 NAME                READY  STATUS   RESTARTS  AGE  IP             NODE     NOMINATED  NODE
@@ -7956,7 +7972,7 @@ the troubleshooting flow
 
 in our single service ingress test lab, we want to achieve this goal:
 
-* request toward any URLs will be directed to `webservice-1` with `servicePort`
+* request toward any URLs will be directed to `service-web-clusterip` with `servicePort`
   8888
 
 here is the corresponding yaml definition file:
@@ -7968,7 +7984,7 @@ metadata:
   name: ingress-ss
 spec:
   backend:
-    serviceName: webservice-1
+    serviceName: service-web-clusterip
     servicePort: 8888
 ----
 
@@ -8065,7 +8081,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rc-webserver
+  name: webserver
   selector:
     matchLabels:
       app: webserver
@@ -8140,7 +8156,7 @@ So the answer is no in both node. haproxy will be created only after we create
 $ kubectl apply -f ingress/ingress-single-service.yaml
 ingress.extensions/ingress-ss created
 service/service-web-clusterip created
-replicationcontroller/rc-webserver created
+replicationcontroller/webserver created
 ----
 
 the Ingress, one service and one Deployment object are now created.
@@ -8166,7 +8182,7 @@ items:
       kubectl.kubernetes.io/last-applied-configuration: |
         {"apiVersion":"extensions/v1beta1", "kind":"Ingress",
         "metadata":{"annotations":{},"name":"ingress-ss","namespace":"ns-user-1"},
-        "spec":{"backend":{"serviceName":"webservice-1", "servicePort":80}}}
+        "spec":{"backend":{"serviceName":"service-web-clusterip", "servicePort":80}}}
     creationTimestamp: 2019-07-18T04:06:29Z
     generation: 1
     name: ingress-ss
@@ -8176,7 +8192,7 @@ items:
     uid: 6b48bd8f-a911-11e9-8112-0050569e6cfc
   spec:
     backend:
-      serviceName: webservice-1
+      serviceName: service-web-clusterip
       servicePort: 80
   status:
     loadBalancer:
@@ -8201,7 +8217,7 @@ in the `items` -> `metadata` -> `annotations` ->
 
     {"apiVersion":"extensions/v1beta1", "kind":"Ingress",
     "metadata":{"annotations":{},"name":"ingress-ss","namespace":"ns-user-1"},
-    "spec":{"backend":{"serviceName":"webservice-1", "servicePort":80}}}
+    "spec":{"backend":{"serviceName":"service-web-clusterip", "servicePort":80}}}
 
 it actually contains the configuration information that you gave. can format it
 (with JSON formatting tool like python `json.tool` module) to get a better view:
@@ -8216,7 +8232,7 @@ it actually contains the configuration information that you gave. can format it
         },
         "spec": {
             "backend": {
-                "serviceName": "webservice-1",
+                "serviceName": "service-web-clusterip",
                 "servicePort": 80
             }
         }
@@ -8514,7 +8530,7 @@ backend b45fb570-bec5-4208-93c9-ba58c3a55936                    #<---
         mode http                                               #<---
         balance roundrobin
         option forwardfor
-        server 4c3031bb-e2bb-4727-a1c7-95afc580bc77 10.111.216.190:80 weight 1
+        server 4c3031bb-e2bb-4727-a1c7-95afc580bc77 10.97.226.91:80 weight 1
                                                     ^^^^^^^^^^^^^^^^^
 ----
 
@@ -8535,7 +8551,7 @@ image::ingress-terse-ss.drawio.png[]
 * the `default_backend` in `frontend` section defines which backend is the
   "default": it will be used when a haproxy receives a URL request that has no
   explicit match anywhere else in the `frontend` section. in this case the
-  `default_backend` refers to the only `backend` service `10.111.216.190:80`.
+  `default_backend` refers to the only `backend` service `10.97.226.91:80`.
   this is due to the fact that there is no `rules` defined in `single service
   Ingress`, so all HTTP requests will go to the same default_backend service,
   regardless of what URL the client sent.
@@ -8770,8 +8786,8 @@ delete` command using the same all-in-one yaml file:
 ----
 $ kubectl delete -f ingress/ingress-single-service.yaml
 ingress.extensions "ingress-ss" deleted
-service "webservice-1" deleted
-replicationcontroller "Vwebserver-1-846c9ccb8b" deleted
+service "service-web-clusterip" deleted
+deployment "webserver" deleted
 ----
 
 === Simple Fanout Ingress
@@ -9148,20 +9164,10 @@ now check backend services and pods:
 .service objects
 ----
 $ kubectl get svc -o wide
-NAME          TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)   AGE    SELECTOR
-webservice-1  ClusterIP  10.111.234.187  <none>       8888/TCP  4m46s  app=webserver-1
-webservice-2  ClusterIP  10.97.77.82     <none>       8888/TCP  4m46s  app=webserver-2
-----
-
-////
-.the real capture
-----
-$ kubectl get svc -o wide
 NAME           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE   SELECTOR
 webservice-1   ClusterIP   10.96.51.227    <none>        8888/TCP   85m   app=webserver-1
 webservice-2   ClusterIP   10.100.156.38   <none>        8888/TCP   85m   app=webserver-2
 ----
-////
 
 .backend and client pod
 ----
@@ -9192,7 +9198,8 @@ comparing with `single service Ingress`, in here the only difference is one more
 //image::https://user-images.githubusercontent.com/2038044/61021698-91d79480-a370-11e9-923d-674d8a7b348c.png[]
 //image::https://user-images.githubusercontent.com/2038044/61432850-aa5f2600-a8ff-11e9-9d9f-932a386bf81f.png[]
 //image::https://user-images.githubusercontent.com/2038044/61433696-ff03a080-a901-11e9-96c1-3dfd4886c322.png[]
-image::https://user-images.githubusercontent.com/2038044/61790253-befe5b00-ade4-11e9-8a97-40c7d924b7e6.png[]
+//image::https://user-images.githubusercontent.com/2038044/61790253-befe5b00-ade4-11e9-8a97-40c7d924b7e6.png[]
+image::https://user-images.githubusercontent.com/2038044/67165165-c683c080-f34f-11e9-8815-f9008fbcfabf.png[]
 
 totally 3 loadbalancers are generated in this test:
 
@@ -9284,7 +9291,7 @@ backend 020e371c-e222-400f-b71f-5909c93132de
     mode http
     balance roundrobin
     option forwardfor
-    server c13b0d0d-6e4a-4830-bb46-2377ba4caf23 10.97.77.82:8888 weight 1
+    server c13b0d0d-6e4a-4830-bb46-2377ba4caf23 10.96.51.227:8888 weight 1
 
 backend 46f7e7da-0769-4672-b916-21fdd15b9fad
     mode http
@@ -9318,7 +9325,7 @@ path `/qa`. if the URL request contains such a path, haproxy will "use_backend"
 `020e371c-e222-400f-b71f-5909c93132de`, which you can find in `backend` section.
 The backend is a UUID referring to `server c13b0d0d-6e4a-4830-bb46-2377ba4caf23
 10.97.77.82:8888 weight 1`, which essentially is a service. you can identify
-this by looking at the `serviceIP:port`: `10.97.77.82:8888`.
+this by looking at the `serviceIP:port`: `10.96.51.227:8888`.
 
 ////
 * `default_backend` defines which backend is the "default": it will be used when
@@ -9337,9 +9344,9 @@ image::ingress-terse-sf.drawio.png[]
 with this `proxy.conf` file, the haproxy implements our `simple fanout Ingress`:
 
 * if the full URL composes `host` "www.juniper.net" and `path` "/dev" , request
-  will be dispatched to `webservice-1` (`10.111.234.187:8888`)
+  will be dispatched to `webservice-1` (`10.96.51.227:8888`)
 * if the full URL composes `host` "www.juniper.net" and `path` "/qa" , request
-  will be dispatched to `webservice-2` (`10.97.77.82:8888`)
+  will be dispatched to `webservice-2` (`10.100.156.38:8888`)
 * for any other URLs the request will be dropped because there is no
   corresponding backend service defined for it.
 
@@ -10125,7 +10132,7 @@ Connection: keep-alive
   <body>
     <h1>Hello</h1><br><h2>This page is served by a <b>Contrail</b>
     pod</h2><br><h3>IP address = 10.47.255.236<br>Hostname =
-    rc-webserver-1-g65dg</h3>
+    webserver-1-846c9ccb8b-g65dg</h3>
   </body>
   </div>
 </html>
@@ -11803,6 +11810,8 @@ policy.
 
 Below table represents kubernetes network policy constructs and the
 corresponding constructs in contrail:
+
+.k8s network policy and contrail firewall construct mapping
 
 [options="header,autowidth"]
 |====
