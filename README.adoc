@@ -2,201 +2,266 @@
 
 == book progress
 
-* (2019-06-30 ~ ) updating/extending/reviewing  #<---
-* (2019-06-30) main part of the book is done
-* (2019-06-01) started to co-author with yuvaraja
-* (2019-05-31) adjusted the book content
+* (2019-10-21) submit final edit, patrick to merge all the changes  #<---
+* (2019-10-14) Nancy returns her edit (3nd edit)
+* (2019-10-03) patrick send his edit to our first update to Nancy (2nd edit)
+* (2019-10-01) submitted network policy chapter 8 after rewritten 
+* (2019-09-23) submitted rough version of network policy chapter 8
+* (2019-09-20) submitted update to patrick's first edit (first update)
+* (2019-09-07) patrick returns his edit to first draft (first edit)
+* (2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)
+* (2019-08-26) submitted first draft: chapter 1 ~ 3
+* (2019-06-30) main part of the book is done, start updating/extending/reviewing
+* (2019-06-01) yuvaraja start to co-author formally
+* (2019-05-31) adjusted the book content plan
 * (2019-05-28) tested csrx service chaining feature
-* (2019-05-25) ch3 working in progress
 * (2019-05-24) local setup built, tested multi intf pod and csrx
 * (2019-05-05) ch1, ch2 done, starting ch3
 * (2019-04-27) ping updated ch2: starting pod building example
-* (2019-04-22) ayman uploaded 'docker.docx'
+* (2019-04-22) ayman uploaded 'docker.docx' of chapter 1
 * (2019-04-20) ping kicked off ch2
-* (2019-04-17) ayman uploaded 'containers'
-* (2019-04-13) started, build repository/toc
+* (2019-04-17) ayman uploaded 'containers' of chapter 1
+* (2019-04-13) book project started, build this repository/toc
+* (2019-04-10) ayman start to co-author
+* (2019-03-15) ping started the idea of this book with patrick
 
-== latest TOC (as of 2019-08-13) 
+== latest TOC (as of 2019-10-21) 
 
-  |Chapter 1: Foundation Principles
-  . |Containers overview
-  . . |Understanding containers
-  . . |Juniper VSRX vs CSRX
-  . . |Understanding Docker
-  . |Contrail overview
-  . . |Contrail Architecture Fundamentals
-  . . |Contrail VRouter
-
-  |Chapter 2: Kubernetes basics
-  . |What is kubernetes
-  . |Kubernetes Architecture and components
-  . . |Kubernetes "master"
-  . . |Kubernetes "node"
-  . . |kubernetes work flow
-  . . |kubernetes objects
-  . |Building Kubernetes POD
-  . . |YAML file for Kubernetes
-  . . |`pause` container
-  . . |intra-pod communication
-= . . |Kubectl tool
-
-  |Chapter3: Kubernetes in practice
-  |Kubernetes in practice
-  . |Labels
-  . |NameSpace
-  . . |what is NameSpace
-  . . |create a NS
-  . . |default NS
-  . . |quota
-  . |Replication Controller
-  . . |create RC
-  . . |test RC
-  . |ReplicaSet
-  . |Deployment
-  . . |create a deployment
-  . . |deployment work flow
-  . . |rolling update
-  . . . |test rolling update
-  . . . |how it works
-  . . . |record
-  . . . |pause/resume/undo
-  . |Service
-  . . |ClusterIP service
-  . . . |create clusterIP service
-= . . . |verify cluserIP service
-  . . . |specify a clusterIP
-  . . |NodePort service
-  . . |loadbalancer service
-  . . . |externalIP
-  . . |service implementation: kube-proxy
-  . |Endpoints
-  . |Ingress
-  . . |kubernetes Ingress introduction
-  . . |Ingress vs service
-  . . |Ingress object
-  . . |ingress controller
-  . . |ingress examples
-  . . . |single service ingress
-  . . . |simple fanout ingress
-  . . . |virtual host ingress
-  . . |multiple ingress controller
-  . . |TLS support
-  . |kubernetes networking
-  . |Network policy
-  . . |Prerequisites
-  . . |Pod(s) selection
-  . . |Ingress and egress rules for group of pod(s)
-  . |livenessProbe and readinessProbe
-  . . |Liveness Probe
-  . . |Readiness Probe
-  . |Annotation
-  . . |Annotations in Ingress
-  . . |Annotations in Network Attachment Defination
-
-  |Chapter 4: Kubernetes and Contrail integration
-  . |Contrail-Kubernetes architecture
-  . . |Why contrail with Kubernetes ?
-  . . |contrail-kube-manager
-  . . |kubernetes to contrail object mapping
-  . |contrail namespaces and isolation
-  . . |namespace introduction
-  . . |Non-isolated NS
-  . . |Isolated NS
-  . . |communication between pod in different namespaces
-  . |contrail floating IP
-  . . |overlay Internet access
-  . . |floating IP introduction
-  . . |creating FIP pool
-  . . |FIP pool scope
-  . . |global level FIP pool
-  . . |NS level FIP pool
-  . . . |object level FIP pool
-  . . |creating FIP
-  . . |advertising FIP
-  . |contrail services
-  . . |kubernetes service introduction
-  . . |contrail service: ECMP loadbalancer
-  . . . |contrail neutron loadbalancer
-  . . . |contrail sevice loadbalancer
-  . . . |navigating the service loadbalancer objects
-  . . |service testbed
-  . . |contrail ClusterIP service
-  . . . |ClusterIP as FIP
-  . . . |scale backend pods
-  . . . |ECMP routing table: control node perspective
-  . . . |ECMP routing table: compute node perspective
-  . . . |multiple port service
-  . . . |the flow table
-  . . |contrail LoadBalancer service
-  . . . |create loadbalancer service
-  . . . |examine VRF table in gateway router
-  . . . |verify the loadbalancer service
-  . . . |loadbalancer service ECMP
-  . . . |verify the loadbalancer service ECMP
-  . |contrail ingress
-  . . |contrail ingress loadbalancer
-  . . |contrail ingress workflow
-  . . |contrail Ingress traffic flow
-  . . |Ingress testbed
-  . . |single service Ingress
-  . . . |`ingress` definition
-  . . . |backend `service` definition
-  . . . |backend `pod` definition
-  . . . |an "all in one" yaml file
-  . . . |deploy the single service Ingress
-  . . . |ingress objects
-  . . . |haproxy processes
-  . . . |Ingress loadbalancer objects
-  . . . |`haproxy.conf` file
-  . . . |gateway router VRF table
-  . . . |verify ingress: from internal
-  . . . |verify ingress: from external (Internet host)
-  . . |simple fan-out Ingress
-  . . . |`ingress` definition
-  . . . |backend `service` definition
-  . . . |backend `pod` definition
-  . . . |deploy simple fan-out Ingress
-  . . . |ingress objects and ingress loadbalancer
-  . . . |haproxy process and haproxy.cfg file
-  . . . |verify ingress: from internal
-  . . . . |problem of old method
-  . . . . |workaround
-  . . . . |create web pages
-  . . . . |start new web server
-  . . . . |the new all-in-one yaml file
-  . . . . |test the URL with different paths
-= . . . |verify ingress: from external (Internet host)
-  . . |name-based virtual hosting Ingress
-  . . . |`ingress` definition
-  . . . |an "all in one" yaml file
-  . . . |examine ingress objects
-  . . . |exploring Ingress loadbalancer objects
-  . . . |examine `haproxy.conf` file
-  . . . |verify ingress: from internal
-  . . . |verify ingress: from external (Internet host)
-  . . |troubleshooting contrail ingress packet flow
-  . . . |Internet Host -> gateway router
-  . . . |gateway router -> active haproxy node: MPLS over GRE
-  . . . |FIP -> loadbalancer IP: NAT
-  . . . |active haproxy -> service IP: MPLS over UDP
-  . . . |"forward" vs "proxy"
-  . . . |service IP -> backend pod IP: NAT
-  . . . |returning traffic
-  . |contrail multiple interface pod
-  . . |multiple interface pod introduction
-  . . |contrail as a CNI
-  . . |CRD and `contrail-kube-manager`
-  . . |`NetworkAttachmentDefinition` object
-  . . |multiple-interface pod
-  . . |test multi-interface pod
-  . |service chaining with CSRX
-  . . |contrail service chaining introduction
-  . . |create VNs
-  . . |create client pods
-  . . |create CSRX pod
-  . . |verify podIP
-  . . |ping test
-  . . |troubleshooting ping issue
-  . . |create service chaining
-  . . |verify service chaining
-  . . |security policy
+   |Chapter 1: Foundation Principles
+   . |Containers Overview
+   . . |Understanding Containers
+   . . |Juniper VSRX vs CSRX
+   . . |Understanding Docker
+   . |Contrail overview
+   . . |Contrail Architecture Fundamentals
+   . . |Contrail VRouter
+   |Chapter 2: Kubernetes Basics
+   . |What is kubernetes
+   . |Kubernetes Architecture and Components
+   . . |Kubernetes Master
+   . . |Kubernetes Node
+   . . |Kubernetes Work Flow
+   . . |Kubernetes Objects
+   . |Kubernetes Pod
+   . . |YAML file
+   . . |Pause Container
+   . . |Intra Pod Communication
+   . |Kubectl Tool
+   |Chapter 3: Kubernetes in Practice
+   . |Labels
+   . |Namespace
+   . . |what is Namespace
+   . . |Create NS
+   . . |Quota
+   . |Replication Controller
+   . . |Create RC
+   . . |Evaluate RC
+   . |ReplicaSet
+   . |Deployment
+   . . |Create Deployment
+   . . |Deployment Work Flow
+   . . |Rolling Update
+   . . . |evalaute rolling update
+   . . . |how it works
+   . . . |record
+   . . . |pause/resume/undo
+   . |Secret
+   . . |Opaque Secret
+   . . . |define opaque secret
+   . . . |refer opaque secret
+   . . |DockerConfigJson secret
+   . . . |docker credential data
+   . . . |docker credential file (`~/.docker/config.json`)
+   . . . |yaml file
+   . . . |refer `dockerconfigjson` secret in pod: `imagePullSecrets`
+   . . |Secret Benefits
+   . |Service
+   . . |ClusterIP Service
+   . . . |create clusterIP service
+   . . . |verify cluserIP service
+   . . . |specify a clusterIP
+   . . |NodePort Service
+   . . |Loadbalancer Service
+   . . . |`externalIPs`
+   . . |Kube-Proxy
+   . |Endpoints
+   . |Ingress
+   . . |Ingress vs Service
+   . . |Ingress Object
+   . . |Ingress Controller
+   . . |Ingress Examples
+   . . . |single service ingress
+   . . . |simple fanout ingress
+   . . . |virtual host ingress
+   . . |Multiple Ingress Controllers
+   . |contrail Network Policy (ch3)
+   . . |network policy introduction
+   . . |network policy definition
+   . . . |selecting target pods
+   . . . |policy types
+   . . . |policy rules
+   . . . . |network policy rules
+   . . . . |`AND` vs `OR`
+   . . . . |protocol and ports
+   . . . . |line by line explanation
+   . . |create network policy
+   . |Liveness Probe and Readiness Probe
+   . . |Liveness Probe
+   . . |Readiness Probe
+   . . |Probe Parameters
+   . |Annotation
+   |Chapter 4: Kubernetes and Contrail Integration
+   . |Contrail-Kubernetes Architecture
+   . . |Why Contrail with Kubernetes ?
+   . . |Contrail-Kube-Manager
+   . . |Kubernetes to Contrail Object Mapping
+   . |Contrail Lab environment
+   . . |Contrail Setup
+   . . |Contrail Command
+   . |Contrail Namespaces and Isolation
+   . . |Non-Isolated NS
+   . . |Isolated NS
+   . . |Pods Communication across NS
+   . |Contrail Floating IP
+   . . |Overlay Internet Access
+   . . |Floating IP and FIP Pool
+   . . . |Create FIP Pool
+   . . . |FIP Pool Scope
+   . . . . |Object FIP Pool
+   . . . . |NS FIP Pool
+   . . . . |Global FIP pool
+   . . |FIP for Pods
+   . . |Advertising FIP
+   . . |summarization
+   |chapter 5: Contrail Services
+   . |Kubernetes Service
+   . |Contrail Service
+   . . |Contrail Openstack Loadbalancer
+   . . |Contrail Sevice Loadbalancer
+   . . |Contrail Loadbalancer Objects
+   . . . |Loadbalancer
+   . . . |Listener
+   . . . |Pool and Member
+   . |Contrail ClusterIP Service
+   . . |ClusterIP as FIP
+   . . |ECMP Routing Table
+   . . . |Control Node Perspective
+   . . . |Compute Node Perspective
+   . . |ClusterIP Service Workflow
+   . . |Multiple Port Service
+   . . |Contrail Flow Table
+   . |Contrail Loadbalancer Service
+   . . |External IP as FIP
+   . . |Gateway Router VRF Table
+   . . |Loadbalancer Service Workflow
+   . . . |Verify `Loadbalancer` Service
+   . . . |Loadbalancer Service ECMP
+   . . . |Verify `Loadbalancer` Service ECMP
+   |chapter 6: Contrail Ingress
+   . |Contrail Ingress Loadbalancer
+   . |Contrail Ingress Workflow
+   . |Contrail Ingress Traffic Flow
+   . |Single Service Ingress
+   . . |`Ingress` Objects Definition
+   . . . |`Ingress` Definition
+   . . . |Backend `service` Definition
+   . . . |Backend `pod` Definition
+   . . . |An "all in one" Yaml File
+   . . . |Deploy the Single Service Ingress
+   . . |`Ingress` Post Examination
+   . . . |Ingress Object
+   . . . |Service Objects
+   . . . |Backend and Client Pod
+   . . . |Haproxy Processes
+   . . . |Ingress Loadbalancer Objects
+   . . . |`haproxy.conf` File
+   . . . |Gateway Router VRF Table
+   . . . |`Ingress` Verification: Internal
+   . . . |`Ingress` Verification: External (Internet host)
+   . |Simple Fanout Ingress
+   . . |`Ingress` Objects Definition
+   . . . |`ingress` Definition
+   . . . |backend `service` definition
+   . . . |backend `pod` definition
+   . . . |deploy `simple fanout Ingress`
+   . . |`Ingress` post examination
+   . . . |ingress objects and ingress loadbalancer
+   . . . |haproxy process and haproxy.cfg file
+   . . |`Ingress` verification: from internal
+   . . |`Ingress` verification: from external (Internet host)
+   . |Virtual Hosting Ingress
+   . . |`Ingress` objects definition
+   . . . |`ingress` definition
+   . . . |an "all in one" yaml file
+   . . |`Ingress` post examination
+   . . . |examine ingress objects
+   . . . |exploring Ingress loadbalancer objects
+   . . . |examine `haproxy.conf` file
+   . . |`Ingress` verification: from internal
+   . . |`Ingress` verification: from external (Internet host)
+   . |Service vs Ingress Traffic Flow
+   |chapter 7: Packet Flow in Contrail: End to End View
+   . |Setup and Utils/Tools
+   . |Packet Flow Analysis
+   . . |Internet Host: Analyze HTTP Request
+   . . |Internet Host to Gateway Router
+   . . |Gateway router to Ingress Public FIP: MPLS over GRE
+   . . |Ingress Public FIP to Ingress Pod IP: FIP(NAT)
+   . . |Ingress Pod IP to Service IP: MPLS over UDP
+   . . |Service IP to Backend Pod IP: FIP(NAT)
+   . . |Backend Pod: Analyze HTTP Request
+   . . |Return Traffic
+   |chapter 8: Contrail Network Policy
+   . |introducing Contrail Firewall
+   . |contrail kubernetes Network Policy usage case
+   . . |network design
+   . . |lab preparation
+   . . |traffic mode before kubernetes network policy creation
+   . . |create kubernetes network policy
+   . . |post kubernetes network policy creation
+   . . . |ingress policy on `webserver-dev`
+   . . . |egress policy on `webserver-dev` pod
+   . . . |network policy on `dbserver-dev` pod
+   . . . |egress policy on `dbserver-dev`
+   . . . |the drop action in flow table
+   . |contrail implementation details
+   . . |construct mappings
+   . . |Application Policy Set (APS)
+   . . |policies
+   . . . |contrail firewall policy naming convention
+   . . . |the `k8s-allowall` and `k8s-denyall` firewall policy
+   . . . |sequence number
+   . . |firewall policy rules
+   . . . |rules in `k8s-dev-policy1` firewall policy
+   . . . |rules in `k8s-denyall` firewall policy
+   . . . |rules in `k8s-allowall` firewall policy
+   . . |sequence number
+   . . . |sequence number in firewall policies
+   . . . |sequence number in firewall policy rules
+   . . |tag
+   . . |UI visualization
+   |chapter 9: Contrail Multiple Interface Pod
+   . |Contrail as a CNI
+   . |NetworkAttachmentDefinition CRD
+   . |Multiple Interface Pod
+   |chapter 10: Contrail Service Chaining with CSRX
+   . |Contrail Service Chaining Introduction
+   . |Bringing Up Client and CSRX Pods
+   . . |Create VNs
+   . . |Create Client Pods
+   . . |Create CSRX Pod
+   . . |Verify podIP
+   . . |Ping Test
+   . . |Troubleshooting Ping Issue
+   . |Service Chaining
+   . . |Create Service Chaining
+   . . |Verify Service Chaining
+   . . |Security Policy
+   |appendix
+   . |contrail kubernetes setup installation
+   . . |HW/SW prerequisites
+   . . |3 nodes cluster only setup
+   . . . |topology
+   . . . |yaml template
+   . . |deploy setup based on yaml file
+   . . |verification

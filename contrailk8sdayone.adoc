@@ -15,7 +15,8 @@
 ifdef::env-github[]
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
 //:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/83318e78c1785b7fa39046c2d818b6f3387cc1cd/
-:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
+//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
+:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/6c3b19318ed42bec8392cc73488822747a59ab53/
 endif::[]
 :Author:  Ping Song, Aymon Aborabh, Yuvaraja Mariappan
 :Date:   Oct 2019
@@ -269,11 +270,6 @@ image::https://user-images.githubusercontent.com/2038044/56898486-2794a080-6a5f-
 :coderay-linenums-mode: inline
 :listing-caption: Example
 :imagesdir: diagrams
-ifdef::env-github[]
-//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/46da7d2e292bbc66a1f1803c00e3915d0a970273/
-//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
-:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
-endif::[]
 
 This chapter introduces kubernetes, what it is, basic terminologies and the key
 concepts. You will learn most of the frequently referred components in
@@ -1291,10 +1287,6 @@ you will see and learn some of these options in the rest part of this book.
 :coderay-linenums-mode: inline
 :numbered:
 :imagesdir: diagrams
-ifdef::env-github[]
-//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
-:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
-endif::[]
 
 This chapter introduces some of the fundamental objects and features of
 kubernetes.
@@ -5114,11 +5106,6 @@ in this case)
 :coderay-linenums-mode: inline
 :numbered:
 :imagesdir: diagrams
-ifdef::env-github[]
-//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/e8351c10e3209c7a612eae3609e4e65d45dbdd59/
-//:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/83318e78c1785b7fa39046c2d818b6f3387cc1cd/
-:imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/c5262793f12f21ef8ccb8010c618004c6cf1dd77/
-endif::[]
 
 This chapter expalins contrail role in kubernetes world. we'll start with a
 section about contrail kubernetes integration architecture, where you will learn
