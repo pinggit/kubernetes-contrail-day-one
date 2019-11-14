@@ -6804,7 +6804,8 @@ our focus is `nh_index: 87`, which is the next hop ID (`NHID`) for the clusterIP
 prefix. from vrouter agent docker, we can further resolve the "Composite" NHID to 
 the `sub-NHs`, which is the "member" nexthops under the "Composite" next hop:
 
-TIP: don't forget to execute the vrouter commands from the vrouter docker.
+TIP: don't forget to execute the vrouter commands from the vrouter docker
+container.
 doing it from the host directly may not work.
 
 ////
@@ -7121,7 +7122,7 @@ in server pod we see the log indicating the file downloading starts:
 ----
 
 now with the file transfer ongoing, we have enough time to collect the flow table
-from both client and server node, in the vrouter docker.
+from both client and server node, in the vrouter docker container.
 
 .client node flow table
 
@@ -7170,7 +7171,7 @@ not aware of any backend pod IP at all.
 
 .server node flow table
 
-now look at flow table in server node vrouter docker:
+now look at flow table in server node vrouter docker container:
 
 ----
 (vrouter-agent)[root@cent333 /]$ flow --match 10.47.255.237
@@ -13890,18 +13891,12 @@ file, only these two objects are recreated - all other objects keep unchanged.
 ////
 
 == appendix
-:toc: right
-:toclevels: 3
-//:toc-placement: preamble
-:source-highlighter: pygments
-:source-highlighter: coderay
-:source-highlighter: prettify
-:highlightjs-theme: googlecode
-:coderay-linenums-mode: table
-:coderay-linenums-mode: inline
-:numbered:
 
 === contrail kubernetes setup installation
+
+NOTE: the HW/SW requirements that is listed here apply to the testbed we use to
+test the theories and examples in our book only. please refer to Juniper website
+for official requirements if you want to build a more scalable setup.
 
 ==== HW/SW prerequisites
 
