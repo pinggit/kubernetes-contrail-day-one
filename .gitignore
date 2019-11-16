@@ -1,5 +1,6 @@
 misc/
-#*.html
+day-one-containers-kubernetes-contrail-v1.adoc
+day-one-containers-kubernetes-contrail-v1.html
 #*.md
 #*.pdf
 #diagrams/drawio/*.drawio

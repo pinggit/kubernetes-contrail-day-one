@@ -436,13 +436,18 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 @media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
 </style>
 </head>
-<body id="day-one-building-containers" class="article">
+<body id="day-one-building-containers" class="book">
 <div id="header">
 <h1>Day One: Building Containers Using Kubernetes and Contrail</h1>
 </div>
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
+<div class="imageblock">
+<div class="content">
+<img src="diagrams/bookcover-real.png" alt="bookcover real">
+</div>
+</div>
 <div class="paragraph">
 <p>This Day One book details the long list of Juniper Contrail features that can
 enrich Kubernetes implementatons. Startng with the basic concepts of containers
@@ -455,9 +460,78 @@ containers, VMs, and bare metal servers of all types, so the authors focus on
 how to integrate a popular pair: Kubernetes and Contrail.</p>
 </div>
 </div>
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#_welcome_to_day_one">Welcome to Day One</a></li>
+<li><a href="#key-juniper-contrail-resources">Key Juniper Contrail Resources</a></li>
+<li><a href="#_book_topics">book topics</a></li>
+<li><a href="#_book_chapters">book chapters</a></li>
+<li><a href="#_book_toc">book TOC</a></li>
+<li><a href="#_contrail_command">Contrail Command</a></li>
+<li><a href="#_suggestionscontributingissues">suggestions/contributing/issues</a></li>
+<li><a href="#_copyright">copyright</a></li>
+<li><a href="#_authors">Authors</a></li>
+<li><a href="#_book_progress">book progress</a></li>
+</ul>
+</div>
 </div>
 <div class="sect1">
-<h2 id="_its_day_one_and_you_have_a_job_to_do_so_learn_about">IT’S DAY ONE AND YOU HAVE A JOB TO DO, SO LEARN ABOUT:</h2>
+<h2 id="_welcome_to_day_one">Welcome to Day One</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This book is part of the <em>Day One</em> library, produced and published by Juniper
+Networks Books. <em>Day One</em> books cover the Junos OS and Juniper Networks
+networkadministration with straightforward explanations, step-by-step
+instructions, and practical examples that are easy to follow.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Download the most up-to-date version of this book from this repository</p>
+</li>
+<li>
+<p>Download a free PDF edition at <a href="http://www.juniper.net/dayone/" class="bare">http://www.juniper.net/dayone/</a></p>
+</li>
+<li>
+<p>Juniper book: <a href="https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/" class="bare">https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/</a></p>
+</li>
+<li>
+<p>Applebook: <a href="https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822" class="bare">https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822</a></p>
+</li>
+<li>
+<p>PDF books are available on the Juniper app: <a href="https://www.juniper.net/us/en/training/junos-genius/">Junos Genius</a></p>
+</li>
+<li>
+<p>Purchase the paper edition at Vervante Corporation
+(<a href="http://www.vervante.com/">www.vervante.com</a>) for between $15-$40, depending
+on page length.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="key-juniper-contrail-resources">Key Juniper Contrail Resources</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Juniper TechLibrary has been supporting Contrail with its excellent
+documentation for years. The Con- trail selection is thorough, and it’s kept
+up-to-date with the latest technologies and GUI changes. This book is no
+substitution for that body of information. The authors assume that you have
+some familiarity with Juniper Contrail documentation:
+<a href="https://www.juniper.net/documentation/product/en_US/contrail-networking/5.0" class="bare">https://www.juniper.net/documentation/product/en_US/contrail-networking/5.0</a></p>
+</div>
+<div class="paragraph">
+<p>The authors keep a GitHub website at
+<a href="https://github.com/pinggit/kubernetes-contrail-day-one" class="bare">https://github.com/pinggit/kubernetes-contrail-day-one</a> , where you can find the
+book’s content, all the YAML file source code used for the examples, figures,
+etc. Add com- ments, suggestions or questions regarding the book, too.”</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_book_topics">book topics</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
@@ -493,52 +567,7 @@ how to integrate a popular pair: Kubernetes and Contrail.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_welcome_to_day_one">Welcome to Day One</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>This book is part of the <em>Day One</em> library, produced and published by Juniper
-Networks Books. <em>Day One</em> books cover the Junos OS and Juniper Networks
-networkadministration with straightforward explanations, step-by-step
-instructions, and practical examples that are easy to follow.</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Download a free PDF edition at <a href="http://www.juniper.net/dayone" class="bare">http://www.juniper.net/dayone</a></p>
-</li>
-<li>
-<p>PDF books are available on the Juniper app: <a href="https://www.juniper.net/us/en/training/junos-genius/">Junos Genius</a></p>
-</li>
-<li>
-<p>Purchase the paper edition at Vervante Corporation
-(<a href="http://www.vervante.com/">www.vervante.com</a>) for between $15-$40, de- pending
-on page length.</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="key-juniper-contrail-resources">Key Juniper Contrail Resources</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The Juniper TechLibrary has been supporting Contrail with its excellent
-documentation for years. The Con- trail selection is thorough, and it’s kept
-up-to-date with the latest technologies and GUI changes. This book is no
-substitution for that body of information. The authors assume that you have
-some familiarity with Juniper Contrail documentation:
-<a href="https://www.juniper.net/documentation/product/en_US/contrail-networking/5.0" class="bare">https://www.juniper.net/documentation/product/en_US/contrail-networking/5.0</a></p>
-</div>
-<div class="paragraph">
-<p>The authors keep a GitHub website at
-<a href="https://github.com/pinggit/kubernetes-contrail-day-one" class="bare">https://github.com/pinggit/kubernetes-contrail-day-one</a> , where you can find the
-book’s content, all the YAML file source code used for the examples, figures,
-etc. Add com- ments, suggestions or questions regarding the book, too.”</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="what-you-need-to-know-before-reading-this-book">What You Need to Know Before Reading This Book</h2>
+<h2 id="_book_chapters">book chapters</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>This book details the long list of Juniper Contrail features that can enrich
@@ -566,173 +595,11 @@ cover a number of detailed labs and use cases using Con- trail/Kubernetes.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="contrail-command-and-this-book">Contrail Command and This Book</h2>
+<h2 id="_book_toc">book TOC</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Contrail Command(CC) is the new user interface (UI) starting with Contrail
-5.0.1. Throughout this book we use both the new CC and the old UI to
-demonstrate the lab studies. The publication date for this book is November
-2019, so depending on when you are reading it, keep in mind that CC will soon
-be the only UI; the legacy one is slated to be discontinued at some time.
-Detailed information about CC is available from the Juniper documentation
-website, so we don’t elaborate on it here. To access CC use this URL in your
-web browser: <a href="https://Contrail-Command-Server-IP-Address:9091" class="bare">https://Contrail-Command-Server-IP-Address:9091</a>. The CC server can
-be the same as, or different from, the Kubernetes master server or the Contrail
-Controller node. In this book, we’ve installed them in same server.  The
-functions and settings in CC are grouped in a main menu. This makes a great
-entry point where you can navigate through different Contrail functions. To get
-the CC main menu, click on the group name right next to the Contrail Command
-logo on the upper left corner of the UI</p>
+<p>Here is the structure of book content:</p>
 </div>
-<div class="paragraph">
-<p>Remember, our focus is not on CC but on giving you some basic insights into CC,
-which will be helpful to you as you build containers using Kubernetes.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_suggestionscontributingissues">suggestions/contributing/issues</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>This book is free and "open source" project! you can find everything about it in this
-GitHub repository.</p>
-</div>
-<div class="paragraph">
-<p>If you discover errors or omissions in the source code(yaml file, command line
-output, etc), documentation, or anything else, please don’t hesitate to submit
-an issue or open a pull request with a fix.</p>
-</div>
-<div class="paragraph">
-<p>If you want to help by improving upon it, you can also fork the project, revise
-the content, then send a pull request. When the pull request is merged, the
-content will be updated automatically.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_copyright">copyright</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>2019 by Juniper Networks, Inc. All rights reserved.
-Juniper Networks and Junos are registered trademarks of
-Juniper Networks, Inc. in the United States and other
-countries. The Juniper Networks Logo and the Junos logo,
-are trademarks of Juniper Networks, Inc. All other
-trademarks, service marks, registered trademarks, or
-registered service marks are the property of their respective
-owners. Juniper Networks assumes no responsibility for
-any inaccuracies in this document. Juniper Networks
-reserves the right to change, modify, transfer, or otherwise
-revise this publication without notice.
-Published by Juniper Networks Books</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_authors">Authors</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p>Author: Ping Song, Ayman Aborabh,Yuvaraja Mariappan</p>
-</li>
-<li>
-<p>Editor in Chief: Patrick Ames</p>
-</li>
-<li>
-<p>Copyeditor: Nancy Koerbel</p>
-</li>
-<li>
-<p>Technical Reviewers: Yuvaraja Mariappan, Vincent Zhang</p>
-</li>
-<li>
-<p>ISBN: 978-1-941441-96-1</p>
-</li>
-<li>
-<p>Version History: v1, November. 2019</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_book_progress">book progress</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p>(2019-11-13) patrick returns the final edit, the book is DONE!</p>
-</li>
-<li>
-<p>(2019-10-29) Patrick send his edit to Nancy(5th edit)</p>
-</li>
-<li>
-<p>(2019-10-28) submit update (3rd update)</p>
-</li>
-<li>
-<p>(2019-10-28) patrick returns his edit(4th edit)</p>
-</li>
-<li>
-<p>(2019-10-21) submit update to 3rd edit (2nd update)</p>
-</li>
-<li>
-<p>(2019-10-14) Nancy returns her edit (3nd edit)</p>
-</li>
-<li>
-<p>(2019-10-03) patrick sent his edit to our first update to Nancy (2nd edit)</p>
-</li>
-<li>
-<p>(2019-10-01) submitted rewritten network policy chapter 8</p>
-</li>
-<li>
-<p>(2019-09-23) submitted rough version of network policy chapter 8</p>
-</li>
-<li>
-<p>(2019-09-20) submitted update to first edit (first update)</p>
-</li>
-<li>
-<p>(2019-09-07) patrick&#8217;s edit to first draft returns (first edit)</p>
-</li>
-<li>
-<p>(2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)</p>
-</li>
-<li>
-<p>(2019-08-26) submitted first draft: chapter 1 ~ 3</p>
-</li>
-<li>
-<p>(2019-06-30) main part of the book is done, start updating/extending/reviewing</p>
-</li>
-<li>
-<p>(2019-06-01) yuvaraja starts to co-author formally</p>
-</li>
-<li>
-<p>(2019-05-31) adjusted the book content plan</p>
-</li>
-<li>
-<p>(2019-05-28) tested csrx service chaining feature</p>
-</li>
-<li>
-<p>(2019-05-24) local setup built, tested multi intf pod and csrx</p>
-</li>
-<li>
-<p>(2019-05-05) ch1, ch2 done, starting ch3</p>
-</li>
-<li>
-<p>(2019-04-13) book project started, this repository is built</p>
-</li>
-<li>
-<p>(2019-04-10) ayman starts to co-author</p>
-</li>
-<li>
-<p>(2019-03-15) ping started the idea of this book with patrick</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_latest_toc_as_of_2019_10_21">latest TOC (as of 2019-10-21)</h2>
-<div class="sectionbody">
 <div class="literalblock">
 <div class="content">
 <pre>|Chapter 1: Foundation Principles
@@ -977,10 +844,181 @@ Published by Juniper Networks Books</p>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_contrail_command">Contrail Command</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Contrail Command(CC) is the new user interface (UI) starting with Contrail
+5.0.1. Throughout this book we use both the new CC and the old UI to
+demonstrate the lab studies. The publication date for this book is November
+2019, so depending on when you are reading it, keep in mind that CC will soon
+be the only UI; the legacy one is slated to be discontinued at some time.
+Detailed information about CC is available from the Juniper documentation
+website, so we don’t elaborate on it here. To access CC use this URL in your
+web browser: <a href="https://Contrail-Command-Server-IP-Address:9091" class="bare">https://Contrail-Command-Server-IP-Address:9091</a>. The CC server can
+be the same as, or different from, the Kubernetes master server or the Contrail
+Controller node. In this book, we’ve installed them in same server.  The
+functions and settings in CC are grouped in a main menu. This makes a great
+entry point where you can navigate through different Contrail functions. To get
+the CC main menu, click on the group name right next to the Contrail Command
+logo on the upper left corner of the UI.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png" alt="60282872 ed684380 98d5 11e9 92f7 e1df07c5fecf">
+</div>
+<div class="title">Figure 1. Contrail Command Main Menu</div>
+</div>
+<div class="paragraph">
+<p>Remember, our focus is not on CC but on giving you some basic insights into CC,
+which will be helpful to you as you build containers using Kubernetes.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_suggestionscontributingissues">suggestions/contributing/issues</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This book is free and "open source" project! you can find everything about it in this
+GitHub repository.</p>
+</div>
+<div class="paragraph">
+<p>If you discover errors or omissions in the source code(yaml file, command line
+output, etc), documentation, or anything else, please don’t hesitate to submit
+an issue.</p>
+</div>
+<div class="paragraph">
+<p>If you want to help by improving upon it, you can also fork the project, revise
+the content, then send a pull request. When the pull request is merged, the
+content will be updated automatically.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_copyright">copyright</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>2019 by Juniper Networks, Inc. All rights reserved.
+Juniper Networks and Junos are registered trademarks of
+Juniper Networks, Inc. in the United States and other
+countries. The Juniper Networks Logo and the Junos logo,
+are trademarks of Juniper Networks, Inc. All other
+trademarks, service marks, registered trademarks, or
+registered service marks are the property of their respective
+owners. Juniper Networks assumes no responsibility for
+any inaccuracies in this document. Juniper Networks
+reserves the right to change, modify, transfer, or otherwise
+revise this publication without notice.
+Published by Juniper Networks Books</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_authors">Authors</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Author: Ping Song, Ayman Aborabh,Yuvaraja Mariappan</p>
+</li>
+<li>
+<p>Editor in Chief: Patrick Ames</p>
+</li>
+<li>
+<p>Copyeditor: Nancy Koerbel</p>
+</li>
+<li>
+<p>Technical Reviewers: Yuvaraja Mariappan, Vincent Zhang</p>
+</li>
+<li>
+<p>ISBN: 978-1-941441-96-1</p>
+</li>
+<li>
+<p>Version History: v1, November. 2019</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_book_progress">book progress</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>(2019-11-13) patrick returns the final edit, the book is DONE!</p>
+</li>
+<li>
+<p>(2019-10-29) Patrick send his edit to Nancy(5th edit)</p>
+</li>
+<li>
+<p>(2019-10-28) submit update (3rd update)</p>
+</li>
+<li>
+<p>(2019-10-28) patrick returns his edit(4th edit)</p>
+</li>
+<li>
+<p>(2019-10-21) submit update to 3rd edit (2nd update)</p>
+</li>
+<li>
+<p>(2019-10-14) Nancy returns her edit (3nd edit)</p>
+</li>
+<li>
+<p>(2019-10-03) patrick sent his edit to our first update to Nancy (2nd edit)</p>
+</li>
+<li>
+<p>(2019-10-01) submitted rewritten network policy chapter 8</p>
+</li>
+<li>
+<p>(2019-09-23) submitted rough version of network policy chapter 8</p>
+</li>
+<li>
+<p>(2019-09-20) submitted update to first edit (first update)</p>
+</li>
+<li>
+<p>(2019-09-07) patrick&#8217;s edit to first draft returns (first edit)</p>
+</li>
+<li>
+<p>(2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)</p>
+</li>
+<li>
+<p>(2019-08-26) submitted first draft: chapter 1 ~ 3</p>
+</li>
+<li>
+<p>(2019-06-30) main part of the book is done, start updating/extending/reviewing</p>
+</li>
+<li>
+<p>(2019-06-01) yuvaraja starts to co-author formally</p>
+</li>
+<li>
+<p>(2019-05-31) adjusted the book content plan</p>
+</li>
+<li>
+<p>(2019-05-28) tested csrx service chaining feature</p>
+</li>
+<li>
+<p>(2019-05-24) local setup built, tested multi intf pod and csrx</p>
+</li>
+<li>
+<p>(2019-05-05) ch1, ch2 done, starting ch3</p>
+</li>
+<li>
+<p>(2019-04-13) book project started, this repository is built</p>
+</li>
+<li>
+<p>(2019-04-10) ayman starts to co-author</p>
+</li>
+<li>
+<p>(2019-03-15) ping started the idea of this book with patrick</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2019-11-14 10:54:29 -0500
+Last updated 2019-11-15 20:38:13 -0500
 </div>
 </div>
 </body>

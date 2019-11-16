@@ -1,5 +1,12 @@
 [[day-one-building-containers]]
 = Day One: Building Containers Using Kubernetes and Contrail
+:doctype: book
+:toc: manual
+:toc-placement: preamble
+:imagesdir: diagrams
+
+//image::bookcover.png[]
+image::bookcover-real.png[]
 
 This Day One book details the long list of Juniper Contrail features that can
 enrich Kubernetes implementatons. Startng with the basic concepts of containers
@@ -18,10 +25,16 @@ Networks Books. _Day One_ books cover the Junos OS and Juniper Networks
 networkadministration with straightforward explanations, step-by-step
 instructions, and practical examples that are easy to follow.
 
-* Download a free PDF edition at http://www.juniper.net/dayone
+* Download the most up-to-date version of this book from this repository
+  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.pdf (version v1)
+  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.adoc (v0.9, "source code" of the book content)
+  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.html (v0.9, with a TOC panel on the right)
+* Download a free PDF edition at http://www.juniper.net/dayone/
+* Juniper book: https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/
+* Applebook: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
 * PDF books are available on the Juniper app: https://www.juniper.net/us/en/training/junos-genius/[Junos Genius]
 * Purchase the paper edition at Vervante Corporation
-  (http://www.vervante.com/[www.vervante.com]) for between $15-$40, de- pending
+  (http://www.vervante.com/[www.vervante.com]) for between $15-$40, depending
   on page length.
 
 [[key-juniper-contrail-resources]]
@@ -39,7 +52,7 @@ https://github.com/pinggit/kubernetes-contrail-day-one , where you can find the
 book’s content, all the YAML file source code used for the examples, figures,
 etc. Add com- ments, suggestions or questions regarding the book, too.”
 
-== IT’S DAY ONE AND YOU HAVE A JOB TO DO, SO LEARN ABOUT:
+== book topics
 
 * Container technology and different Kubernetes features using YAML.
 * Kubernetes integration with Contrail.
@@ -51,8 +64,7 @@ etc. Add com- ments, suggestions or questions regarding the book, too.”
 * Configuring and building multi-interfaces/multi-network containers using Contrail.
 * Deploying Contrail service chaining using the Juniper cSRX in Kubernetes.
 
-[[what-you-need-to-know-before-reading-this-book]]
-== What You Need to Know Before Reading This Book
+== book chapters
 
 This book details the long list of Juniper Contrail features that can enrich
 Kubernetes implementations. It starts with the basics and builds from there to
@@ -65,124 +77,9 @@ cover more complex setups. It’s structured as follows:
   by explaining Contrail inte- gration with Kubernetes, then continue on to
   cover a number of detailed labs and use cases using Con- trail/Kubernetes.
 
-[[contrail-command-and-this-book]]
-== Contrail Command and This Book
+=== book TOC
 
-Contrail Command(CC) is the new user interface (UI) starting with Contrail
-5.0.1. Throughout this book we use both the new CC and the old UI to
-demonstrate the lab studies. The publication date for this book is November
-2019, so depending on when you are reading it, keep in mind that CC will soon
-be the only UI; the legacy one is slated to be discontinued at some time.
-Detailed information about CC is available from the Juniper documentation
-website, so we don’t elaborate on it here. To access CC use this URL in your
-web browser: https://Contrail-Command-Server-IP-Address:9091. The CC server can
-be the same as, or different from, the Kubernetes master server or the Contrail
-Controller node. In this book, we’ve installed them in same server.  The
-functions and settings in CC are grouped in a main menu. This makes a great
-entry point where you can navigate through different Contrail functions. To get
-the CC main menu, click on the group name right next to the Contrail Command
-logo on the upper left corner of the UI
-
-Remember, our focus is not on CC but on giving you some basic insights into CC,
-which will be helpful to you as you build containers using Kubernetes.
-
-== suggestions/contributing/issues
-
-This book is free and "open source" project! you can find everything about it in this
-GitHub repository.
-
-If you discover errors or omissions in the source code(yaml file, command line
-output, etc), documentation, or anything else, please don’t hesitate to submit
-an issue.
-
-If you want to help by improving upon it, you can also fork the project, revise
-the content, then send a pull request. When the pull request is merged, the
-content will be updated automatically.
-
-== copyright
-
-2019 by Juniper Networks, Inc. All rights reserved.
-Juniper Networks and Junos are registered trademarks of
-Juniper Networks, Inc. in the United States and other
-countries. The Juniper Networks Logo and the Junos logo,
-are trademarks of Juniper Networks, Inc. All other
-trademarks, service marks, registered trademarks, or
-registered service marks are the property of their respective
-owners. Juniper Networks assumes no responsibility for
-any inaccuracies in this document. Juniper Networks
-reserves the right to change, modify, transfer, or otherwise
-revise this publication without notice.
-Published by Juniper Networks Books
-
-== Authors
-
-* Author: Ping Song, Ayman Aborabh,Yuvaraja Mariappan
-* Editor in Chief: Patrick Ames
-* Copyeditor: Nancy Koerbel
-* Technical Reviewers: Yuvaraja Mariappan, Vincent Zhang
-* ISBN: 978-1-941441-96-1
-* Version History: v1, November. 2019
-
-== book progress
-
-* (2019-11-13) patrick returns the final edit, the book is DONE!
-* (2019-10-29) Patrick send his edit to Nancy(5th edit)
-* (2019-10-28) submit update (3rd update)
-* (2019-10-28) patrick returns his edit(4th edit)
-* (2019-10-21) submit update to 3rd edit (2nd update)
-* (2019-10-14) Nancy returns her edit (3nd edit)
-* (2019-10-03) patrick sent his edit to our first update to Nancy (2nd edit)
-* (2019-10-01) submitted rewritten network policy chapter 8
-* (2019-09-23) submitted rough version of network policy chapter 8
-* (2019-09-20) submitted update to first edit (first update)
-* (2019-09-07) patrick's edit to first draft returns (first edit)
-* (2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)
-* (2019-08-26) submitted first draft: chapter 1 ~ 3
-* (2019-06-30) main part of the book is done, start updating/extending/reviewing
-* (2019-06-01) yuvaraja starts to co-author formally
-* (2019-05-31) adjusted the book content plan
-* (2019-05-28) tested csrx service chaining feature
-* (2019-05-24) local setup built, tested multi intf pod and csrx
-* (2019-05-05) ch1, ch2 done, starting ch3
-* (2019-04-13) book project started, this repository is built
-* (2019-04-10) ayman starts to co-author
-* (2019-03-15) ping started the idea of this book with patrick
-
-
-////
-* (2019-11-13) patrick releases the final pdf
-* (2019-10-29) Patrick send his edit to Nancy(5th edit)
-* (2019-10-28) submit update (3rd update)
-* (2019-10-28) patrick returns his edit(4th edit)
-* (2019-10-21) submit final edit, patrick to merge all the changes
-* (2019-10-14) Nancy returns her edit (3nd edit)
-* (2019-10-03) patrick send his edit to our first update to Nancy (2nd edit)
-* (2019-10-01) submitted network policy chapter 8 after rewritten 
-* (2019-09-23) submitted rough version of network policy chapter 8
-* (2019-09-20) submitted update to patrick's first edit (first update)
-* (2019-09-07) patrick returns his edit to first draft (first edit)
-* (2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)
-* (2019-08-26) submitted first draft: chapter 1 ~ 3
-* (2019-06-30) main part of the book is done, start updating/extending/reviewing
-* (2019-06-01) yuvaraja start to co-author formally
-* (2019-05-31) adjusted the book content plan
-* (2019-05-28) tested csrx service chaining feature
-* (2019-05-24) local setup built, tested multi intf pod and csrx
-* (2019-05-05) ch1, ch2 done, starting ch3
-* (2019-04-13) book project started, this repository is built
-* (2019-04-10) ayman start to co-author
-* (2019-03-15) ping started the idea of this book with patrick
-////
-
-
-////
-* (2019-04-27) ping updated ch2: starting pod building example
-* (2019-04-22) ayman uploaded 'docker.docx' of chapter 1
-* (2019-04-20) ping kicked off ch2
-* (2019-04-17) ayman uploaded 'containers' of chapter 1
-////
-
-== latest TOC (as of 2019-10-21) 
+Here is the structure of book content:
 
    |Chapter 1: Foundation Principles
    . |Containers Overview
@@ -422,3 +319,201 @@ Published by Juniper Networks Books
    . . . |yaml template
    . . |deploy setup based on yaml file
    . . |verification
+
+== Contrail Command
+
+Contrail Command(CC) is the new user interface (UI) starting with Contrail
+5.0.1. Throughout this book we use both the new CC and the old UI to
+demonstrate the lab studies. The publication date for this book is November
+2019, so depending on when you are reading it, keep in mind that CC will soon
+be the only UI; the legacy one is slated to be discontinued at some time.
+Detailed information about CC is available from the Juniper documentation
+website, so we don’t elaborate on it here. To access CC use this URL in your
+web browser: https://Contrail-Command-Server-IP-Address:9091. The CC server can
+be the same as, or different from, the Kubernetes master server or the Contrail
+Controller node. In this book, we’ve installed them in same server.  The
+functions and settings in CC are grouped in a main menu. This makes a great
+entry point where you can navigate through different Contrail functions. To get
+the CC main menu, click on the group name right next to the Contrail Command
+logo on the upper left corner of the UI.
+
+.Contrail Command Main Menu
+image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-11e9-92f7-e1df07c5fecf.png[]
+
+Remember, our focus is not on CC but on giving you some basic insights into CC,
+which will be helpful to you as you build containers using Kubernetes.
+
+== suggestions/contributing/issues
+
+This book is free and is maintained as a "open source" project! you can find
+all text, diagrams, source code it refers in this GitHub repository.
+
+If you discover errors or omissions in the source code(yaml file, command line
+output, etc), documentation, or anything else, please don’t hesitate to submit
+an issue.
+
+If you want to help by improving upon it, you can also fork the project, revise
+the content, then send a pull request. When the pull request is merged, the
+content will be updated automatically.
+
+== copyright
+
+2019 by Juniper Networks, Inc. All rights reserved.  Juniper Networks and Junos
+are registered trademarks of Juniper Networks, Inc. in the United States and
+other countries. The Juniper Networks Logo and the Junos logo, are trademarks
+of Juniper Networks, Inc. All other trademarks, service marks, registered
+trademarks, or registered service marks are the property of their respective
+owners. Juniper Networks assumes no responsibility for any inaccuracies in this
+document. Juniper Networks reserves the right to change, modify, transfer, or
+otherwise revise this publication without notice.  Published by Juniper
+Networks Books
+
+== Authors
+
+* Author: Ping Song, Ayman Aborabh,Yuvaraja Mariappan
+* Editor in Chief: Patrick Ames
+* Copyeditor: Nancy Koerbel
+* Technical Reviewers: Yuvaraja Mariappan, Vincent Zhang
+* ISBN: 978-1-941441-96-1
+* Version History: v1, November. 2019
+
+////
+== book progress
+
+* (2019-11-13) patrick returns the final edit, the book is DONE!
+* (2019-10-29) Patrick send his edit to Nancy(5th edit)
+* (2019-10-28) submit update (3rd update)
+* (2019-10-28) patrick returns his edit(4th edit)
+* (2019-10-21) submit update to 3rd edit (2nd update)
+* (2019-10-14) Nancy returns her edit (3nd edit)
+* (2019-10-03) patrick sent his edit to our first update to Nancy (2nd edit)
+* (2019-10-01) submitted rewritten network policy chapter 8
+* (2019-09-23) submitted rough version of network policy chapter 8
+* (2019-09-20) submitted update to first edit (first update)
+* (2019-09-07) patrick's edit to first draft returns (first edit)
+* (2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)
+* (2019-08-26) submitted first draft: chapter 1 ~ 3
+* (2019-06-30) main part of the book is done, start updating/extending/reviewing
+* (2019-06-01) yuvaraja starts to co-author formally
+* (2019-05-31) adjusted the book content plan
+* (2019-05-28) tested csrx service chaining feature
+* (2019-05-24) local setup built, tested multi intf pod and csrx
+* (2019-05-05) ch1, ch2 done, starting ch3
+* (2019-04-13) book project started, this repository is built
+* (2019-04-10) ayman starts to co-author
+* (2019-03-15) ping started the idea of this book with patrick
+////
+
+
+////
+* (2019-11-13) patrick releases the final pdf
+* (2019-10-29) Patrick send his edit to Nancy(5th edit)
+* (2019-10-28) submit update (3rd update)
+* (2019-10-28) patrick returns his edit(4th edit)
+* (2019-10-21) submit final edit, patrick to merge all the changes
+* (2019-10-14) Nancy returns her edit (3nd edit)
+* (2019-10-03) patrick send his edit to our first update to Nancy (2nd edit)
+* (2019-10-01) submitted network policy chapter 8 after rewritten 
+* (2019-09-23) submitted rough version of network policy chapter 8
+* (2019-09-20) submitted update to patrick's first edit (first update)
+* (2019-09-07) patrick returns his edit to first draft (first edit)
+* (2019-09-04) submitted first draft: chapter 4 (splitted into 6 chapters latter)
+* (2019-08-26) submitted first draft: chapter 1 ~ 3
+* (2019-06-30) main part of the book is done, start updating/extending/reviewing
+* (2019-06-01) yuvaraja start to co-author formally
+* (2019-05-31) adjusted the book content plan
+* (2019-05-28) tested csrx service chaining feature
+* (2019-05-24) local setup built, tested multi intf pod and csrx
+* (2019-05-05) ch1, ch2 done, starting ch3
+* (2019-04-13) book project started, this repository is built
+* (2019-04-10) ayman start to co-author
+* (2019-03-15) ping started the idea of this book with patrick
+////
+
+
+////
+* (2019-04-27) ping updated ch2: starting pod building example
+* (2019-04-22) ayman uploaded 'docker.docx' of chapter 1
+* (2019-04-20) ping kicked off ch2
+* (2019-04-17) ayman uploaded 'containers' of chapter 1
+////
+
+== known issues
+
+=== sync of pdf version into adoc and html
+
+this book currently with 3 formats. 
+* pdf `day-one-containers-kubernetes-contrail.pdf`
+* adoc `day-one-containers-kubernetes-contrail.adoc`
+* html `day-one-containers-kubernetes-contrail.html`
+
+
+This book was originally written in adoc format, which is github version
+contrail friendly. it went through many changes via git commit/PR process.
+however, some final modifications (mostly minor though) between authors and
+editors is via an "offline" process only through word and PDF, and hence not
+cought by github yet. in another word, those last changes are in PDF format
+only and has not been merged into adoc/html format yet.
+
+=== PDF book TOC
+
+the TOC of book PDF (Containers_Kubernetes_Contrail.pdf) has some problem. for
+example chapter 6 cuently shows:
+
+  |chapter 6: Contrail Ingress
+  . |Contrail Ingress Workflow
+  . |Contrail Ingress Traffic Flow
+
+but it should look like:
+
+  |chapter 6: Contrail Ingress
+  . |Contrail Ingress Loadbalancer
+  . |Contrail Ingress Workflow
+  . |Contrail Ingress Traffic Flow
+  . |Single Service Ingress
+  . . |`Ingress` Objects Definition
+  . . . |`Ingress` Definition
+  . . . |Backend `service` Definition
+  . . . |Backend `pod` Definition
+  . . . |An "all in one" Yaml File
+  . . . |Deploy the Single Service Ingress
+  . . |`Ingress` Post Examination
+  . . . |Ingress Object
+  . . . |Service Objects
+  . . . |Backend and Client Pod
+  . . . |Haproxy Processes
+  . . . |Ingress Loadbalancer Objects
+  . . . |`haproxy.conf` File
+  . . . |Gateway Router VRF Table
+  . . . |`Ingress` Verification: Internal
+  . . . |`Ingress` Verification: External (Internet host)
+  . |Simple Fanout Ingress
+  . . |`Ingress` Objects Definition
+  . . . |`ingress` Definition
+  . . . |backend `service` definition
+  . . . |backend `pod` definition
+  . . . |deploy `simple fanout Ingress`
+  . . |`Ingress` post examination
+  . . . |ingress objects and ingress loadbalancer
+  . . . |haproxy process and haproxy.cfg file
+  . . |`Ingress` verification: from internal
+  . . |`Ingress` verification: from external (Internet host)
+  . |Virtual Hosting Ingress
+  . . |`Ingress` objects definition
+  . . . |`ingress` definition
+  . . . |an "all in one" yaml file
+  . . |`Ingress` post examination
+  . . . |examine ingress objects
+  . . . |exploring Ingress loadbalancer objects
+  . . . |examine `haproxy.conf` file
+  . . |`Ingress` verification: from internal
+  . . |`Ingress` verification: from external (Internet host)
+  . |Service vs Ingress Traffic Flow
+
+I may find some time to fix it and post a new one.
+before that, if this is a problem for you, read these files:
+
+* adoc `day-one-containers-kubernetes-contrail.adoc`
+* html `day-one-containers-kubernetes-contrail.html`
+
+

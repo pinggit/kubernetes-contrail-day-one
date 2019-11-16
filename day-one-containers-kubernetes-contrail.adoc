@@ -28,6 +28,7 @@ endif::[]
 
 ==== Understanding Containers
 
+Several years ago, virtualization was the most fashionable keyword in IT because it revolutionized the way servers were built. Virtualization was about the adoption of virtual machines (VMs) instead of dedicated, physical servers for hosting and building new applications. When it came to scaling, portability, capacity management, cost, and more, VMs were a clear winner (as they are today). You can find tons of compari- sons between the two approaches.
 Two decades ago Virtualization was the most fashionable keyword in IT as there
 was a revolution in the way we build servers. It was mainly about the adoption
 of Virtual machine instead of dedicated physical server in building
