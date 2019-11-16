@@ -26,7 +26,7 @@ networkadministration with straightforward explanations, step-by-step
 instructions, and practical examples that are easy to follow.
 
 * Download the most up-to-date version of this book from this repository
-  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.pdf (version v1)
+  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail-v1.pdf (version v1)
   - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.adoc (v0.9, "source code" of the book content)
   - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.html (v0.9, with a TOC panel on the right)
 * Download a free PDF edition at http://www.juniper.net/dayone/
