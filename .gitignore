@@ -1,6 +1,8 @@
 misc/
 day-one-containers-kubernetes-contrail-v1.adoc
 day-one-containers-kubernetes-contrail-v1.html
+README.html
+*.log
 #*.md
 #*.pdf
 #diagrams/drawio/*.drawio

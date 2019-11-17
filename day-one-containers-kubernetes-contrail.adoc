@@ -1,5 +1,6 @@
 // vim:set ft=asciidoc syntax=ON tw=80: GistID: 1dd268ba5900111d035111ab77201a5a
-= kubernetes in practice: contrail's perspective
+= DAY ONE: BUILDING CONTAINERS WITH KUBERNETES AND CONTRAIL
+//= kubernetes in practice: contrail's perspective
 :doctype: book
 :toc: right
 :toclevels: 3
@@ -21,6 +22,52 @@ endif::[]
 :Author:  Ping Song, Aymon Aborabh, Yuvaraja Mariappan
 :Date:   Oct 2019
 :data-uri:
+//this document: original book draft
+//added day one foreword
+
+.Welcome to Day One
+
+This book is part of the _Day One_ library, produced and published by Juniper
+Networks Books. _Day One_ books cover the Junos OS and Juniper Networks
+networkadministration with straightforward explanations, step-by-step
+instructions, and practical examples that are easy to follow.
+
+- Download a free PDF edition at http://www.juniper.net/dayone
+- PDF books are available on the Juniper app:
+  https://www.juniper.net/us/en/training/junos-genius/[Junos Genius]
+- Purchase the paper edition at Vervante Corporation
+  (http://www.vervante.com/[www.vervante.com]) for between $15-$40, de- pending
+  on page length.
+
+.Key Juniper Contrail Resources
+
+The Juniper TechLibrary has been supporting Contrail with its excellent
+documentation for years. The Con- trail selection is thorough, and it’s kept
+up-to-date with the latest technologies and GUI changes. This book is no
+substitution for that body of information. The authors assume that you have some
+familiarity with Juniper Contrail documentation:
+https://www.juniper.net/documentation/product/en_US/contrail-networking/5.0
+
+The authors keep a GitHub website at
+https://github.com/pinggit/kubernetes-contrail-day-one , where you can find the
+book’s content, all the YAML file source code used for the examples, figures,
+etc. Add comments, suggestions or questions regarding the book, too.”
+
+.Content of This Book
+
+This book details the long list of Juniper Contrail features that can enrich
+Kubernetes implementations. It starts with the basics and builds from there to
+cover more complex setups. It’s structured as follows:
+
+- _Chapter 1:_ Provides a basic understanding of containers, virtual networks,
+  and Contrail architecture.
+- _Chapter 2:_ Lays down the basic foundation and key components of Kubernetes.
+- _Chapter 3:_ Explains different Kubernetes features using labs and without any
+  Contrail integration.
+- _Chapters 4 through 10:_ These chapters are the core of the book. They begin
+  by explaining Contrail inte- gration with Kubernetes, then continue on to
+  cover a number of detailed labs and use cases using Contrail/Kubernetes.
+
 
 == Chapter 1: Foundation Principles
 
@@ -6098,7 +6145,7 @@ the FIP advertisement process is illustrated in this figure below:
 //image::https://user-images.githubusercontent.com/2038044/63263090-a4899700-c255-11e9-8e76-cbee47c2faae.png[]
 image::fip-advertisement.drawio.png[]
 
-==== summarization
+=== summarization
 
 in this section we created the following objects:
 

@@ -18,7 +18,7 @@ together. Contrail can build and manage virtual networks that integrate
 containers, VMs, and bare metal servers of all types, so the authors focus on
 how to integrate a popular pair: Kubernetes and Contrail.
 
-== Welcome to Day One
+== Welcome to this book
 
 This book is part of the _Day One_ library, produced and published by Juniper
 Networks Books. _Day One_ books cover the Junos OS and Juniper Networks
@@ -26,9 +26,8 @@ networkadministration with straightforward explanations, step-by-step
 instructions, and practical examples that are easy to follow.
 
 * Download the most up-to-date version of this book from this repository
-  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail-v1.pdf (version v1)
-  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.adoc (v0.9, "source code" of the book content)
-  - https://github.com/pinggit/kubernetes-contrail-day-one/blob/master/day-one-containers-kubernetes-contrail.html (v0.9, with a TOC panel on the right)
+  - day-one-containers-kubernetes-contrail-v1.pdf (version v1, this is the one available in the official channels)
+  - day-one-containers-kubernetes-contrail-v1.1pdf (version v1.1, with some corrections on TOC only)
 * Download a free PDF edition at http://www.juniper.net/dayone/
 * Juniper book: https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/
 * Applebook: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
@@ -36,8 +35,13 @@ instructions, and practical examples that are easy to follow.
 * Purchase the paper edition at Vervante Corporation
   (http://www.vervante.com/[www.vervante.com]) for between $15-$40, depending
   on page length.
+* besides the above, in this github repository you'll also find:
+  - day-one-containers-kubernetes-contrail.adoc: this is "source code" of the
+    original draft of the whole book, the way we've writen/modified it.
+  - day-one-containers-kubernetes-contrail.html: same, but in html format, with a TOC
+    panel on the right, that makes it the same looking and feeling as the PDF
+    format, but much smaller) 
 
-[[key-juniper-contrail-resources]]
 == Key Juniper Contrail Resources
 
 The Juniper TechLibrary has been supporting Contrail with its excellent
@@ -52,7 +56,9 @@ https://github.com/pinggit/kubernetes-contrail-day-one , where you can find the
 book’s content, all the YAML file source code used for the examples, figures,
 etc. Add com- ments, suggestions or questions regarding the book, too.”
 
-== book topics
+== book content
+
+=== topics
 
 * Container technology and different Kubernetes features using YAML.
 * Kubernetes integration with Contrail.
@@ -64,7 +70,7 @@ etc. Add com- ments, suggestions or questions regarding the book, too.”
 * Configuring and building multi-interfaces/multi-network containers using Contrail.
 * Deploying Contrail service chaining using the Juniper cSRX in Kubernetes.
 
-== book chapters
+=== chapters
 
 This book details the long list of Juniper Contrail features that can enrich
 Kubernetes implementations. It starts with the basics and builds from there to
@@ -77,7 +83,7 @@ cover more complex setups. It’s structured as follows:
   by explaining Contrail inte- gration with Kubernetes, then continue on to
   cover a number of detailed labs and use cases using Con- trail/Kubernetes.
 
-=== book TOC
+=== detail TOC
 
 Here is the structure of book content:
 
@@ -343,7 +349,7 @@ image::https://user-images.githubusercontent.com/2038044/60282872-ed684380-98d5-
 Remember, our focus is not on CC but on giving you some basic insights into CC,
 which will be helpful to you as you build containers using Kubernetes.
 
-== suggestions/contributing/issues
+== issues/suggestions/contributions
 
 This book is free and is maintained as a "open source" project! you can find
 all text, diagrams, source code it refers in this GitHub repository.
@@ -442,23 +448,26 @@ Networks Books
 
 === sync of pdf version into adoc and html
 
-this book currently with 3 formats. 
-* pdf `day-one-containers-kubernetes-contrail.pdf`
-* adoc `day-one-containers-kubernetes-contrail.adoc`
-* html `day-one-containers-kubernetes-contrail.html`
+This book is currently available in 3 formats. 
 
+* pdf
+* adoc
+* html
 
 This book was originally written in adoc format, which is github version
-contrail friendly. it went through many changes via git commit/PR process.
-however, some final modifications (mostly minor though) between authors and
-editors is via an "offline" process only through word and PDF, and hence not
-cought by github yet. in another word, those last changes are in PDF format
-only and has not been merged into adoc/html format yet.
+control friendly. with this format it went through many changes during the
+writing of it via git commit/PR process.  however, some final modifications
+(mostly minor though) between authors and editors are through an "offline"
+process (in MS-word and adobe-PDF format), and hence not cought by github yet.
+in another word, those last changes are in PDF format only at of now and has
+not been merged into adoc/html format yet.
 
 === PDF book TOC
 
-the TOC of book PDF (Containers_Kubernetes_Contrail.pdf) has some problem. for
-example chapter 6 cuently shows:
+the TOC of original book PDF (Containers_Kubernetes_Contrail.pdf) has some
+problem. 
+
+for example chapter 6 cuently shows:
 
   |chapter 6: Contrail Ingress
   . |Contrail Ingress Workflow
@@ -513,6 +522,7 @@ but it should look like:
 I may find some time to fix it and post a new one.
 before that, if this is a problem for you, read these files:
 
+* pdf  `day-one-containers-kubernetes-contrail-v1.1.pdf` (some corrections to PDF bookmarks only)
 * adoc `day-one-containers-kubernetes-contrail.adoc`
 * html `day-one-containers-kubernetes-contrail.html`
 
