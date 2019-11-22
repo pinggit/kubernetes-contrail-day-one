@@ -33,14 +33,15 @@ instructions, and practical examples that are easy to follow.
 * Applebook: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
 * PDF books are available on the Juniper app: https://www.juniper.net/us/en/training/junos-genius/[Junos Genius]
 * Purchase the paper edition at Vervante Corporation
-  (http://www.vervante.com/[www.vervante.com]) for between $15-$40, depending
-  on page length.
+  (http://www.vervante.com) for between $15-$40, depending
+  on page length. Or, put order from
+  https://store.vervante.com/c/v/category_order.html?base_cat=Juniper%20Networks%3aShop%20Day%20One%20Books&pard=juniper[here]
 * besides the above, in this github repository you'll also find:
   - kubernetes-contrail.adoc: this is "source code" of the
     original draft of the whole book, the way we've writen/modified it.
   - kubernetes-contrail.html: same, but in html format, with a TOC
     panel on the right, that makes it the same looking and feeling as the PDF
-    format, but much smaller) 
+    format, but with much much smaller file size.
 
 == Key Juniper Contrail Resources
 
