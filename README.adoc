@@ -20,19 +20,10 @@ how to integrate a popular pair: Kubernetes and Contrail.
 
 == Welcome to this book
 
-This book is part of the _Day One_ library, produced and published by Juniper
-Networks Books. _Day One_ books cover the Junos OS and Juniper Networks
-networkadministration with straightforward explanations, step-by-step
-instructions, and practical examples that are easy to follow.
+This book is available here:
 
 * Download the most up-to-date version of this book from this repository
-  - kubernetes-contrail-v1.pdf (version v1, this is the one available in the official channels)
-  - kubernetes-contrail-v1.1pdf (version v1.1, with some corrections on TOC only)
-  - kubernetes-contrail.adoc: this is "source code" of the
-    original draft of the whole book, the way we've writen/modified it.
-  - kubernetes-contrail.html: same, but in html format, with a TOC
-    panel on the right, that makes it the same looking and feeling as the PDF
-    format, but with much much smaller file size.
+
 * Download a free PDF edition at: 
   - https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/[Juniper book]
   - http://www.juniper.net/dayone/[Juniper day one]
@@ -353,7 +344,24 @@ which will be helpful to you as you build containers using Kubernetes.
 == issues/suggestions/contributions
 
 This book is free and is maintained as a "open source" project! you can find
-all text, diagrams, source code it refers in this GitHub repository.
+all text, diagrams, source code it refers in this GitHub repository:
+
+- README.adoc                 : this file
+- kubernetes-contrail-v1.pdf  : version v1, this is the PFD available in all
+  official channels. the TOC (Table of Content) has problems
+- kubernetes-contrail-v1.1pdf : version v1.1, with corrections on TOC
+- kubernetes-contrail-v1.mobi : for kindle 
+
+- kubernetes-contrail.pdf     : original draft (before editor's editing), with original TOC
+- kubernetes-contrail.html    : original draft in html format, with a
+  TOC panel on the right side, making it the same looking and feeling as the
+  PDF, but much smaller.
+- kubernetes-contrail.mobi    : original draft in kindle format
+
+- kubernetes-contrail.adoc    : "source code" of the original "draft" of the
+  whole book, the format in which we've writen/maintained.
+
+- diagrams                    : all diagrams (except screenshots)
 
 If you discover errors or omissions in the source code(yaml file, command line
 output, etc), documentation, or anything else, please don’t hesitate to submit
@@ -526,5 +534,31 @@ before that, if this is a problem for you, read these files:
 * pdf  `kubernetes-contrail-v1.1.pdf` (some corrections to PDF bookmarks only)
 * adoc `kubernetes-contrail.adoc`
 * html `kubernetes-contrail.html`
+
+////
+
+= short intro
+
+book: "Building Containers Using Kubernetes and Contrail"
+
+- github: https://github.com/pinggit/kubernetes-contrail-day-one
+- Amazon: https://www.amazon.com/dp/1950960870
+- applebook: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
+- Juniper site: https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/
+- Juniper app: https://www.juniper.net/us/en/training/junos-genius/
+
+topics:
+
+* Container technology and different Kubernetes features using YAML.
+* Kubernetes integration with Contrail.
+* Kubernetes network policy and Contrail firewall security.
+* Configuring isolated Kubernetes Namespaces using Contrail.
+* Configuring Floating IP in Contrail to provide container’s outside connectivity.
+* Configuring load balancer and cluster IP services in Kubernetes using Contrail.
+* Configuring different types of Kubernetes ingress using Contrail.
+* Configuring and building multi-interfaces/multi-network containers using Contrail.
+* Deploying Contrail service chaining using the Juniper cSRX in Kubernetes.
+
+////
 
 

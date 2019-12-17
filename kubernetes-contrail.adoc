@@ -24,6 +24,8 @@ endif::[]
 :data-uri:
 //this document: original book draft
 //added day one foreword
+:front-cover-image: cover.png
+:keywords: kubernetes, contrail, docker, cloud, SDN
 
 .Welcome to Day One
 
