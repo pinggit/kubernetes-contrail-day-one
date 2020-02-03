@@ -20,6 +20,7 @@ ifdef::env-github[]
 :imagesdir: https://gist.githubusercontent.com/pinggit/ba7b7e6314cff5176d668509b516d50c/raw/6c3b19318ed42bec8392cc73488822747a59ab53/
 endif::[]
 :Author:  Ping Song, Aymon Aborabh, Yuvaraja Mariappan
+:creator: Ping Song
 :Date:   Oct 2019
 :data-uri:
 //this document: original book draft
