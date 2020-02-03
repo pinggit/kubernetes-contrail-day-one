@@ -22,9 +22,14 @@ how to integrate a popular pair: Kubernetes and Contrail.
 
 This book is available here:
 
-* Download the most up-to-date version of this book from this repository
+* Download the most up-to-date version of this book from this repository:
 
-* Download a free PDF edition at: 
+  - pdf
+  - html
+  - kindle (mobi) and epub (new, since 03 Feb 2020) 
+  - adoc (online)
+
+* PDF edition at:
   - https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/[Juniper book]
   - http://www.juniper.net/dayone/[Juniper day one]
   - https://www.juniper.net/us/en/training/junos-genius/[Junos Genius App]
