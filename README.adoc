@@ -33,11 +33,22 @@ This book is available here:
   - https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/[Juniper book]
   - http://www.juniper.net/dayone/[Juniper day one]
   - https://www.juniper.net/us/en/training/junos-genius/[Junos Genius App]
+
 * Purchase the paper edition at:
   - Amazon: https://www.amazon.com/dp/1950960870
   - Vervante Corporation (http://www.vervante.com) in 
   https://store.vervante.com/c/v/category_order.html?base_cat=Juniper%20Networks%3aShop%20Day%20One%20Books&pard=juniper[here]
+
 * Applebook preview: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
+
+B.t.w, the book is now listed in the
+https://www.juniper.net/us/en/training/certification/certification-tracks/cloud-track?tab=jncie-cloud[JNCIE-cloud
+webisite], it is under "Additional Resources":
+
+* Junos OS Documentation
+* https://www.juniper.net/documentation/en_US/day-one-books/day-one-containers-kubernetes-contrail.pdf[Day One: Building Containers Using Kubernetes and Contrail]
+* Documentation for QFX Series switches
+* ...
 
 == Key Juniper Contrail Resources
 
