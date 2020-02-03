@@ -42,8 +42,8 @@ This book is available here:
 * Applebook preview: https://books.apple.com/us/book/day-one-building-containers-with-kubernetes-and-contrail/id1487859822
 
 B.t.w, the book is now listed in the
-https://www.juniper.net/us/en/training/certification/certification-tracks/cloud-track?tab=jncie-cloud[JNCIE-cloud
-webisite], it is under "Additional Resources":
+https://www.juniper.net/us/en/training/certification/certification-tracks/cloud-track?tab=jncie-cloud[JNCIE-cloud]
+certification link, under "Additional Resources":
 
 * Junos OS Documentation
 * https://www.juniper.net/documentation/en_US/day-one-books/day-one-containers-kubernetes-contrail.pdf[Day One: Building Containers Using Kubernetes and Contrail]
