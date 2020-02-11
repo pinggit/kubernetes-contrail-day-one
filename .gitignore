@@ -3,7 +3,6 @@ kubernetes-contrail-v1.adoc
 kubernetes-contrail-v1.html
 README.html
 *.log
-*.png
 #*.md
 #*.pdf
 #diagrams/drawio/*.drawio
