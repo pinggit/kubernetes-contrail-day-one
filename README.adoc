@@ -5,8 +5,8 @@
 :toc-placement: preamble
 :imagesdir: diagrams
 
-//image::bookcover.png[]
-image::bookcover-real.png[]
+image::cover.front.png[]
+image::cover.frontnback.png[]
 
 This Day One book details the long list of Juniper Contrail features that can
 enrich Kubernetes implementatons. Startng with the basic concepts of containers
@@ -45,13 +45,14 @@ This book is available here:
 
 * Juniper's https://www.juniper.net/us/en/[company main page]
 
-image::on-juniper-main-page.png[]
+image::page.junipermain.png[]
 //image::https://user-images.githubusercontent.com/2038044/74180429-7d60c080-4c0d-11ea-81ae-36fa593362ba.png[]
 
 * the https://www.juniper.net/us/en/training/certification/certification-tracks/cloud-track?tab=jncie-cloud[JNCIE-cloud]
 certification page, as one of the "Additional Resources":
 
-image::https://user-images.githubusercontent.com/2038044/74180751-0a0b7e80-4c0e-11ea-9721-e426b30e75fd.png[]
+image::page.jnciecloud.png[]
+//image::https://user-images.githubusercontent.com/2038044/74180751-0a0b7e80-4c0e-11ea-9721-e426b30e75fd.png[]
 
 == Key Juniper Contrail Resources
 
