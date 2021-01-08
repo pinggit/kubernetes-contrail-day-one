@@ -2,6 +2,7 @@ misc/
 kubernetes-contrail-v1.adoc
 kubernetes-contrail-v1.html
 README.html
+k8s-basics.html
 *.log
 #*.md
 #*.pdf

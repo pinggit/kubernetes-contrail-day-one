@@ -1,14 +1,28 @@
 [[day-one-building-containers]]
-= Day One: Building Containers Using Kubernetes and Contrail
+= Contrail books
 :doctype: book
 :toc: manual
 :toc-placement: preamble
 :imagesdir: diagrams
 
-image::cover.front.png[]
-image::cover.frontnback.png[]
 
-This Day One book details the long list of Juniper Contrail features that can
+* Day one: Contrail DPDK vrouter 
++
+--
+image::dpdk-book.png[]
+more details about dpdk vrouter book here: https://github.com/pinggit/dpdk-contrail-book[here]
+--
+
+* Day one: Building Containers Using Kubernetes and Contrail
++
+--
+image::cover.front.png[]
+--
+//image::cover.frontnback.png[]
+
+== Day One: Building Containers Using Kubernetes and Contrail
+
+This book details the long list of Juniper Contrail features that can
 enrich Kubernetes implementatons. Startng with the basic concepts of containers
 and moving through virtual networks and Contrail architecture, the authors
 review the basic foundaton and key components of Kubernetes, including several
@@ -17,8 +31,6 @@ book is devoted to detailed labs and use cases of Contrail and Kubernetes
 together. Contrail can build and manage virtual networks that integrate
 containers, VMs, and bare metal servers of all types, so the authors focus on
 how to integrate a popular pair: Kubernetes and Contrail.
-
-== Welcome to this book
 
 This book is available here:
 
@@ -31,7 +43,7 @@ This book is available here:
 
 * PDF edition at:
   - https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/[Juniper book]
-  - http://www.juniper.net/dayone/[Juniper day one]
+  - http://www.juniper.net/dayone/[Juniper]
   - https://www.juniper.net/us/en/training/junos-genius/[Junos Genius App]
 
 * Purchase the paper edition at:
@@ -475,23 +487,18 @@ Networks Books
 
 == known issues
 
-=== sync of pdf version into adoc and html
-
-This book is currently available in 3 formats. 
-
-* pdf
-* adoc
-* html
+=== diff between pdf version and adoc/html version
 
 This book was originally written in adoc format, which is github version
-control friendly. with this format it went through many changes during the
-writing of it via git commit/PR process.  however, some final modifications
-(mostly minor though) between authors and editors are through an "offline"
-process (in MS-word and adobe-PDF format), and hence not cought by github yet.
-in another word, those last changes are in PDF format only at of now and has
-not been merged into adoc/html format yet.
+control friendly. with this format it went through many changes via git
+commit/PR flow during the writing process. However, some final modifications
+(mostly minor though) between authors and reviewer/editors are through an
+"offline" process (in MS-word and adobe-PDF format), and hence have not get
+cought by the adoc source and github yet. In another word, those last changes
+are in PDF format only (at of now) and has not been merged into adoc/html
+format yet.
 
-=== PDF book TOC
+=== PDF book TOC problem
 
 the TOC of original book PDF (Containers_Kubernetes_Contrail.pdf) has some
 problem. 
