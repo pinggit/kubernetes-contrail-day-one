@@ -42,8 +42,8 @@ This book is available here:
   - adoc (online)
 
 * PDF edition at:
-  - https://www.juniper.net/uk/en/training/jnbooks/day-one/building-containers-kubernetes-contrail/[Juniper book]
-  - http://www.juniper.net/dayone/[Juniper]
+  - http://www.juniper.net/dayone/[Juniper dayone]
+  - https://www.juniper.net/documentation/en_US/day-one-books/day-one-containers-kubernetes-contrail.pdf[containers-kubernetes-contrail]
   - https://www.juniper.net/us/en/training/junos-genius/[Junos Genius App]
 
 * Purchase the paper edition at:
